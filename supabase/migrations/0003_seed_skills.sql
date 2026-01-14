@@ -1,0 +1,20 @@
+insert into public.skill_catalog (skill, category) values
+  ('Design', 'builder'),
+  ('Data Science/Analytics', 'builder'),
+  ('Backend Dev', 'builder'),
+  ('DevOps', 'builder'),
+  ('UX/User Testing', 'builder'),
+  ('Frontend Dev', 'builder'),
+  ('Smart Contracts', 'builder'),
+  ('Account Manager', 'builder'),
+  ('BizDev', 'builder'),
+  ('Project Manager', 'builder'),
+  ('DAO Consultant', 'builder'),
+  ('New Applicants', 'support'),
+  ('Treasury', 'support'),
+  ('Marketing', 'support'),
+  ('Legal', 'support'),
+  ('Content Creator', 'support'),
+  ('Community', 'support'),
+  ('Internal Ops', 'support')
+on conflict (skill) do nothing;

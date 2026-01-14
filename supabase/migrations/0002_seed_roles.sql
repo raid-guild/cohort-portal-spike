@@ -1,0 +1,20 @@
+insert into public.role_catalog (role, type, description, category) values
+  ('Archer', 'Design', 'For specialists in graphic design, illustration, and visual arts.', 'builder'),
+  ('Druid', 'Data Science/Analytics', 'For those skilled in research, SEO, and data analysis.', 'builder'),
+  ('Paladin', 'Backend Dev', 'For developers focused on backend languages like Java, Python, or Node.js.', 'builder'),
+  ('Necromancer', 'DevOps', 'For experts in technical configuration and optimization.', 'builder'),
+  ('Ranger', 'UX/User Testing', 'For those who specialize in user experience and usability testing.', 'builder'),
+  ('Warrior', 'Frontend Dev', 'For frontend specialists skilled in React, CSS, HTML, or similar tech.', 'builder'),
+  ('Wizard', 'Smart Contracts', 'For those skilled in Solidity, Vyper, and other smart contract languages.', 'builder'),
+  ('Cleric', 'Account Manager', 'For hybrid communicators or project managers.', 'builder'),
+  ('Hunter', 'BizDev', 'For business development and sales strategists.', 'builder'),
+  ('Monk', 'Project Manager', 'For managers skilled in budgeting, planning, and documentation.', 'builder'),
+  ('Mystic Alchemist', 'DAO Consultant', 'For DAO experts and consultants.', 'builder'),
+  ('Apprentice', 'New Applicants', 'For those applying to join the DAO, marking them as apprentices.', 'support'),
+  ('Angry Dwarf', 'Treasury', 'For those with skills in accounting, finance, and treasury management.', 'support'),
+  ('Bard', 'Marketing', 'For members who excel in marketing, social media, and community growth.', 'support'),
+  ('Rogue', 'Legal', 'For legal advisors and analysts.', 'support'),
+  ('Scribe', 'Content Creator', 'For media creators skilled in writing, podcasting, and video production.', 'support'),
+  ('Tavern Keeper', 'Community', 'For those managing community relations and activities.', 'support'),
+  ('Healer', 'Internal Ops', 'For internal operations managers focused on Guild logistics.', 'support')
+on conflict (role) do nothing;

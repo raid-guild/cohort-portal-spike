@@ -1,0 +1,155 @@
+{
+  "cohort": {
+    "id": "cohort-x",
+    "theme": "Build the Cohort Dashboard",
+    "startDate": "2026-01-12",
+    "endDate": "2026-02-09"
+  },
+  "modules": [
+    {
+      "id": "profile-completion",
+      "title": "Profile Completion",
+      "description": "Track and complete your profile checklist.",
+      "lane": "profiles",
+      "type": "link",
+      "status": "live",
+      "owner": { "name": "Profiles Lane", "contact": "discord:@profiles" },
+      "requiresAuth": true,
+      "tags": ["profile-tools-public", "me-tools"],
+      "presentation": {
+        "action": "none"
+      },
+      "summaryBySurface": {
+        "profile": {
+          "source": "api",
+          "title": "Completion",
+          "endpoint": "/api/modules/profile-completion/summary?handle={handle}",
+          "progressKey": "Progress"
+        },
+        "me": {
+          "source": "api",
+          "title": "Completion",
+          "endpoint": "/api/modules/profile-completion/summary",
+          "progressKey": "Progress"
+        }
+      }
+    },
+    {
+      "id": "profile-generators",
+      "title": "Profile Generators",
+      "description": "Generate a display name or avatar for your profile.",
+      "lane": "profiles",
+      "type": "link",
+      "status": "live",
+      "owner": { "name": "Profiles Lane", "contact": "discord:@profiles" },
+      "requiresAuth": true,
+      "tags": ["me-tools"],
+      "url": "/modules/profile-generators",
+      "presentation": {
+        "mode": "dialog",
+        "trigger": "button",
+        "dialog": { "size": "md" },
+        "iframe": { "height": 640 }
+      },
+      "summary": {
+        "source": "api",
+        "title": "Profile generators",
+        "endpoint": "/api/modules/profile-generators/summary",
+        "layout": "compact",
+        "imageKey": "Avatar"
+      },
+      "capabilities": {
+        "profileWrite": { "fields": ["display_name", "avatar_url"], "requiresUserAuth": true },
+        "aiGenerate": { "requiresUserAuth": true, "provider": "venice" }
+      }
+    },
+    {
+      "id": "skills-explorer",
+      "title": "Skills Explorer",
+      "description": "Visualize cohort skills and explore talent clusters.",
+      "lane": "profiles",
+      "type": "link",
+      "url": "/modules/skills-explorer",
+      "status": "live",
+      "owner": { "name": "Profiles Lane", "contact": "discord:@profiles" },
+      "requiresAuth": false,
+      "tags": ["people-tools", "skills", "directory", "profile-tools-public", "start-here"],
+      "presentation": {
+        "mode": "page",
+        "trigger": "button"
+      },
+      "summaryBySurface": {
+        "home": {
+          "source": "api",
+          "title": "Cohort Skills",
+          "endpoint": "/api/modules/skills-explorer/summary"
+        },
+        "people": {
+          "source": "api",
+          "title": "Cohort Skills",
+          "endpoint": "/api/modules/skills-explorer/summary"
+        },
+        "profile": {
+          "source": "api",
+          "title": "Profile Skills",
+          "endpoint": "/api/modules/skills-explorer/summary/profile?handle={handle}"
+        }
+      }
+    },
+    {
+      "id": "badges",
+      "title": "Badges + Leaderboard",
+      "description": "Earn badges, track progress, see who is shipping.",
+      "lane": "gamification",
+      "type": "embed",
+      "url": "https://example.com/badges",
+      "embed": { "height": 720 },
+      "status": "in-progress",
+      "requiresAuth": false,
+      "tags": ["badges", "leaderboard", "profile"]
+    },
+    {
+      "id": "payments",
+      "title": "Payments Portal",
+      "description": "Manage dues, bounties, and payouts.",
+      "lane": "payments",
+      "type": "link",
+      "url": "https://example.com/payments",
+      "status": "planned",
+      "owner": { "name": "Payments Lane", "contact": "discord:@payments" },
+      "requiresAuth": true,
+      "tags": ["payments", "finance"]
+    },
+    {
+      "id": "announcements",
+      "title": "Announcements",
+      "description": "Create and schedule cohort announcements.",
+      "lane": "hosts",
+      "type": "link",
+      "url": "/modules/announcements",
+      "status": "live",
+      "owner": { "name": "Host Lane", "contact": "discord:@hosts" },
+      "requiresAuth": false,
+      "tags": ["admin", "start-here"],
+      "presentation": {
+        "layout": "wide",
+        "height": "double"
+      },
+      "summary": {
+        "source": "api",
+        "title": "Announcements",
+        "endpoint": "/api/modules/announcements/summary",
+        "layout": "excerpt",
+        "truncate": 140,
+        "maxItems": 3,
+        "showTitle": true
+      },
+      "capabilities": {
+        "announcementsWrite": {
+          "requiresUserAuth": true,
+          "allowedRoles": ["host", "role-scoped"]
+        }
+      }
+    }
+  ]
+}

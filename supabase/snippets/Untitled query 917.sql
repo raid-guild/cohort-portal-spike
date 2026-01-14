@@ -1,0 +1,1 @@
+ select user_id, role, created_at from user_roles order by created_at desc 

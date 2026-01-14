@@ -1,0 +1,9 @@
+[auth.web3.ethereum]
+enabled = true
+
+[auth.web3.solana]
+enabled = true
+
+[auth]
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/**", "http://localhost:3000/me"]
