@@ -200,8 +200,8 @@ Module summary (optional):
 ## Page Specs
 `/` Home
 - Portal theme + dates
-- Announcements (static list for MVP)
 - "Start here" module cards (tagged `start-here`)
+- Announcements are surfaced as a module card (portal-owned)
 
 `/people` Directory
 - Search by handle / name

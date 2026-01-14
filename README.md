@@ -15,14 +15,18 @@ A directory-first community portal for RaidGuild that centralizes profiles and c
 - Supabase auth + profiles + avatar storage + module data API.
 
 ## Routes
-- `/` home and announcements
+- `/` home and start-here modules
 - `/people` public directory
 - `/people/[handle]` public profile
 - `/me` profile editor (auth required)
 - `/modules` module directory
 - `/modules/[id]` module detail (optional)
+- `/modules/announcements` announcements module
+- `/modules/profile-generators` profile generators module
 - `/api/modules` registry JSON
 - `/api/module-data` module data API
+- `/api/announcements` announcements API
+- `/api/profile` profile write API (portal-owned modules)
 
 ## Getting started
 ```bash
@@ -46,6 +50,10 @@ Env vars:
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `VENICE_API_KEY` (profile generators)
+- `VENICE_MODEL` (profile generators, text)
+- `VENICE_IMAGE_MODEL` (profile generators, image)
+- `VENICE_API_BASE_URL` (optional; defaults to `https://api.venice.ai/api/v1`)
 
 Behavior notes:
 - `/people` and `/people/[handle]` require Supabase data; configure envs and run migrations.
