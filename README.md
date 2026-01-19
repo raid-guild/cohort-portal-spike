@@ -22,10 +22,18 @@ A directory-first community portal for RaidGuild that centralizes profiles and c
 - `/modules` module directory
 - `/modules/[id]` module detail (optional)
 - `/modules/announcements` announcements module
+- `/modules/billing` billing module
+- `/modules/cohort-application` cohort application module
+- `/modules/cohort-hub` cohort hub module
 - `/modules/profile-generators` profile generators module
+- `/modules/skills-explorer` skills explorer module
 - `/api/modules` registry JSON
 - `/api/module-data` module data API
 - `/api/announcements` announcements API
+- `/api/cohorts` cohorts API
+- `/api/cohort-applications` cohort applications API
+- `/api/me/entitlements` entitlement status API
+- `/api/me/roles` roles API
 - `/api/profile` profile write API (portal-owned modules)
 - `/api/stripe/checkout` Stripe Checkout session
 - `/api/stripe/portal` Stripe Customer Portal session
@@ -77,5 +85,7 @@ Behavior notes:
 - Entitlements are stored in `public.entitlements` and used for module access gating.
 
 ## Docs
-- Product kickoff and architecture: `docs/kickoff-spec.md`
+- Product kickoff: `docs/kickoff-spec.md`
+- Architecture overview: `docs/architecture.md`
 - Brand and UI tokens: `RG_BRAND_AGENTS.md`
+- Cohort hub (v1): `docs/cohort-hub.md`

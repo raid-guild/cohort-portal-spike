@@ -26,6 +26,10 @@ Examples:
 - `cohort-approved` lets a user see the Billing module.
 - `cohort-access` unlocks paid modules and cohort tools.
 
+Note:
+- `cohort-approved` is the pre-payment gate (application approved).
+- `cohort-access` is the paid-access gate (Stripe/crypto entitlements).
+
 Entitlements are typically:
 - granted by workflows (approval, payment, crypto, etc.)
 - time-bound (via `expires_at`)

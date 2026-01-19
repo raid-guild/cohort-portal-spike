@@ -180,7 +180,8 @@ export default function BillingPage() {
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold">Your Cohort Commitment</h1>
         <p className="text-sm text-muted-foreground">
-          Stake into becoming a Raider while you build with us.
+          Stake into becoming a Raider while you build with us. Approval unlocks
+          billing, payment unlocks access.
         </p>
       </header>
 
@@ -247,8 +248,9 @@ export default function BillingPage() {
             Approval required
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
-            Billing unlocks after your cohort application is approved. If you
-            haven’t applied yet, submit your application to get started.
+            Billing unlocks after your cohort application is approved. Payment
+            comes after approval and unlocks cohort access. If you haven’t
+            applied yet, submit your application to get started.
           </p>
           <div className="mt-4">
             <a

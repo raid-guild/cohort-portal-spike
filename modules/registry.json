@@ -62,10 +62,6 @@
       "capabilities": {
         "profileWrite": { "fields": ["display_name", "avatar_url"], "requiresUserAuth": true },
         "aiGenerate": { "requiresUserAuth": true, "provider": "venice" }
-      },
-      "access": {
-        "requiresAuth": true,
-        "entitlement": "cohort-access"
       }
     },
     {
@@ -145,6 +141,36 @@
         "source": "api",
         "title": "Applications",
         "endpoint": "/api/modules/cohort-application/summary",
+        "layout": "list",
+        "maxItems": 3,
+        "showTitle": true
+      }
+    },
+    {
+      "id": "cohort-hub",
+      "title": "Cohort Hub",
+      "description": "Schedule, projects, resources, and cohort notes.",
+      "lane": "cohort",
+      "type": "link",
+      "status": "beta",
+      "owner": { "name": "Ops Lane", "contact": "discord:@ops" },
+      "requiresAuth": true,
+      "access": { "requiresAuth": true, "entitlement": "cohort-access" },
+      "tags": ["start-here"],
+      "url": "/modules/cohort-hub",
+      "presentation": {
+        "mode": "page",
+        "trigger": "button",
+        "actionLabel": "Open Cohort Hub"
+      },
+      "summary": {
+        "source": "static",
+        "title": "Cohort Hub",
+        "items": [
+          { "label": "Schedule", "value": "Daily agenda and notes." },
+          { "label": "Projects", "value": "Teams, goals, and updates." },
+          { "label": "Resources", "value": "Docs, links, and assets." }
+        ],
         "layout": "list",
         "maxItems": 3,
         "showTitle": true
