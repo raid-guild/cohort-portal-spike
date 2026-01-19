@@ -27,6 +27,9 @@ A directory-first community portal for RaidGuild that centralizes profiles and c
 - `/api/module-data` module data API
 - `/api/announcements` announcements API
 - `/api/profile` profile write API (portal-owned modules)
+- `/api/stripe/checkout` Stripe Checkout session
+- `/api/stripe/portal` Stripe Customer Portal session
+- `/api/stripe/webhook` Stripe webhook for entitlements
 
 ## Getting started
 ```bash
@@ -54,6 +57,10 @@ Env vars:
 - `VENICE_MODEL` (profile generators, text)
 - `VENICE_IMAGE_MODEL` (profile generators, image)
 - `VENICE_API_BASE_URL` (optional; defaults to `https://api.venice.ai/api/v1`)
+- `STRIPE_SECRET_KEY` (billing)
+- `STRIPE_WEBHOOK_SECRET` (billing)
+- `STRIPE_PRICE_ID` (billing)
+- `STRIPE_PORTAL_CONFIG_ID` (billing, optional)
 
 Behavior notes:
 - `/people` and `/people/[handle]` require Supabase data; configure envs and run migrations.
@@ -67,6 +74,7 @@ Behavior notes:
 ## Supabase
 - Migrations and seeds live in `supabase/`
 - Type generation and local auth notes: `supabase/README.md`
+- Entitlements are stored in `public.entitlements` and used for module access gating.
 
 ## Docs
 - Product kickoff and architecture: `docs/kickoff-spec.md`

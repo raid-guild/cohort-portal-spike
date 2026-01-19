@@ -51,6 +51,36 @@ export type Database = {
         }
         Relationships: []
       }
+      entitlements: {
+        Row: {
+          created_at: string | null
+          entitlement: string
+          expires_at: string | null
+          metadata: Json | null
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          entitlement: string
+          expires_at?: string | null
+          metadata?: Json | null
+          status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          entitlement?: string
+          expires_at?: string | null
+          metadata?: Json | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       module_data: {
         Row: {
           created_at: string | null

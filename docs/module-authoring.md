@@ -61,6 +61,26 @@ Example:
 }
 ```
 
+## Access rules (entitlements)
+Use `access.entitlement` to gate a module behind a subscription or entitlement.
+This is enforced in portal surfaces (module cards) and should be backed by the
+`public.entitlements` table. Entitlements are synced by the billing webhook,
+so modules that require paid access should also enforce authorization on their
+own API surfaces.
+
+For guidance on when to use roles vs entitlements, see
+`docs/roles-vs-entitlements.md`.
+
+Example:
+```json
+{
+  "access": {
+    "requiresAuth": true,
+    "entitlement": "cohort-access"
+  }
+}
+```
+
 ## 1b) (Optional) Add a module summary
 If you want the module card to show a summary, add a `summary` block.
 

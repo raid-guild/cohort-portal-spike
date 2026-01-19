@@ -28,6 +28,7 @@ export function ModuleCard({
   const isInternalUrl = module.url?.startsWith("/");
   const showAction =
     module.presentation?.action !== "none" && Boolean(module.url);
+  const actionLabel = module.presentation?.actionLabel ?? "Open Module";
   const [showDetails, setShowDetails] = useState(false);
   const heightClass =
     module.presentation?.height === "double" ? "md:min-h-[360px]" : "";
@@ -86,7 +87,7 @@ export function ModuleCard({
               href={module.url}
               className="rounded-lg border border-border px-3 py-2 hover:bg-muted"
             >
-              Open Module
+              {actionLabel}
             </Link>
           ) : module.url ? (
             <a
@@ -95,7 +96,7 @@ export function ModuleCard({
               target="_blank"
               rel="noreferrer"
             >
-              Open Module
+              {actionLabel}
             </a>
           ) : null}
         </div>

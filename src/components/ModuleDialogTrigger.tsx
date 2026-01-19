@@ -36,7 +36,7 @@ export function ModuleDialogTrigger({
         onClick={() => setOpen(true)}
         className="rounded-lg border border-border px-3 py-2 hover:bg-muted"
       >
-        Open Module
+        {module.presentation?.actionLabel ?? "Open Module"}
       </button>
       {open ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

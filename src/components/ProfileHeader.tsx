@@ -3,13 +3,18 @@
 import { useEffect, useState } from "react";
 import type { Profile } from "@/lib/types";
 import { BadgePill } from "./BadgePill";
+import { PaidStar } from "./PaidStar";
 
 export function ProfileHeader({
   profile,
   portalRoles,
+  isPaid,
+  paidSource,
 }: {
   profile: Profile;
   portalRoles?: string[];
+  isPaid?: boolean;
+  paidSource?: string | null;
 }) {
   const initials = getInitials(profile.displayName || profile.handle);
   const [status, setStatus] = useState<"idle" | "loaded" | "error">("idle");
@@ -37,9 +42,17 @@ export function ProfileHeader({
       </div>
       <div className="flex-1 space-y-2">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold">{profile.displayName}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold">{profile.displayName}</h1>
+            {isPaid ? <PaidStar /> : null}
+          </div>
           <span className="text-sm text-muted-foreground">@{profile.handle}</span>
         </div>
+        {isPaid ? (
+          <p className="text-xs text-muted-foreground">
+            Paid subscriber{paidSource ? ` via ${paidSource}` : ""}.
+          </p>
+        ) : null}
         {profile.bio ? <p className="text-sm">{profile.bio}</p> : null}
         {portalRoles?.length ? (
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">

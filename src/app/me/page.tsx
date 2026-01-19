@@ -5,6 +5,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { ModuleSurfaceList } from "@/components/ModuleSurfaceList";
 import type { ModuleEntry } from "@/lib/types";
+import { PaidStar } from "@/components/PaidStar";
 
 type ProfileForm = {
   handle: string;
@@ -46,6 +47,8 @@ export default function MePage() {
   const [linking, setLinking] = useState(false);
   const [meTools, setMeTools] = useState<ModuleEntry[]>([]);
   const [portalRoles, setPortalRoles] = useState<string[]>([]);
+  const [isPaid, setIsPaid] = useState(false);
+  const [paidSource, setPaidSource] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -143,6 +146,8 @@ export default function MePage() {
   useEffect(() => {
     if (!session) {
       setPortalRoles([]);
+      setIsPaid(false);
+      setPaidSource(null);
       return;
     }
     fetch("/api/me/roles", {
@@ -153,6 +158,30 @@ export default function MePage() {
       .then((res) => res.json())
       .then((json) => setPortalRoles(json.roles ?? []))
       .catch(() => setPortalRoles([]));
+
+    fetch("/api/me/entitlements", {
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        const entitlements = json.entitlements ?? [];
+        setIsPaid(entitlements.includes("cohort-access"));
+        const record =
+          (json.records ?? []).find(
+            (row: { entitlement?: string }) => row.entitlement === "cohort-access",
+          ) ?? null;
+        const metadata =
+          record?.metadata && typeof record.metadata === "object"
+            ? (record.metadata as Record<string, unknown>)
+            : null;
+        setPaidSource(typeof metadata?.source === "string" ? metadata.source : null);
+      })
+      .catch(() => {
+        setIsPaid(false);
+        setPaidSource(null);
+      });
   }, [session]);
 
   useEffect(() => {
@@ -325,7 +354,15 @@ export default function MePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold">Your Profile</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-3xl font-semibold">Your Profile</h1>
+          {isPaid ? (
+            <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-100 px-2.5 py-1 text-xs text-amber-900">
+              <PaidStar className="h-3 w-3" />
+              Paid subscriber{paidSource ? ` via ${paidSource}` : ""}
+            </span>
+          ) : null}
+        </div>
         <p className="text-sm text-muted-foreground">
           Sign in with email or a Web3 wallet, then create your profile.
         </p>

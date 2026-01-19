@@ -43,6 +43,7 @@
       "status": "live",
       "owner": { "name": "Profiles Lane", "contact": "discord:@profiles" },
       "requiresAuth": true,
+      "access": { "requiresAuth": true, "entitlement": "cohort-approved" },
       "tags": ["me-tools"],
       "url": "/modules/profile-generators",
       "presentation": {
@@ -61,6 +62,42 @@
       "capabilities": {
         "profileWrite": { "fields": ["display_name", "avatar_url"], "requiresUserAuth": true },
         "aiGenerate": { "requiresUserAuth": true, "provider": "venice" }
+      },
+      "access": {
+        "requiresAuth": true,
+        "entitlement": "cohort-access"
+      }
+    },
+    {
+      "id": "billing",
+      "title": "Join the RaidGuild Cohort",
+      "description": "Stake into becoming a Raider while you build with us.",
+      "lane": "billing",
+      "type": "link",
+      "status": "beta",
+      "owner": { "name": "Ops Lane", "contact": "discord:@ops" },
+      "requiresAuth": true,
+      "tags": ["me-tools"],
+      "url": "/modules/billing",
+      "presentation": {
+        "mode": "page",
+        "trigger": "button",
+        "actionLabel": "Start My Cohort Commitment"
+      },
+      "summary": {
+        "source": "static",
+        "title": "Cohort Billing & Escrow",
+        "items": [
+          { "label": "$100 / month", "value": "6-month commitment window." },
+          {
+            "label": "Membership escrow",
+            "value": "75% of every payment goes toward your RaidGuild membership stake."
+          },
+          { "label": "Leave anytime.", "value": "Crypto payments include partial refunds." }
+        ],
+        "layout": "excerpt",
+        "maxItems": 3,
+        "showTitle": true
       }
     },
     {
@@ -77,6 +114,10 @@
       "presentation": {
         "mode": "page",
         "trigger": "button"
+      },
+      "access": {
+        "requiresAuth": true,
+        "entitlement": "cohort-access"
       },
       "summaryBySurface": {
         "home": {

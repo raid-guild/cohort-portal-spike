@@ -4,6 +4,7 @@ import { ModuleSurfaceList } from "@/components/ModuleSurfaceList";
 import { loadPerson } from "@/lib/people";
 import { loadRegistry } from "@/lib/registry";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
+import { loadUserEntitlement } from "@/lib/entitlements";
 
 type PageProps = {
   params: Promise<{ handle: string }>;
@@ -23,6 +24,15 @@ export default async function ProfilePage({ params }: PageProps) {
           .eq("user_id", profile.userId)
       ).data?.map((row) => row.role) ?? []
     : [];
+  const entitlement = profile.userId
+    ? await loadUserEntitlement(profile.userId, "cohort-access")
+    : null;
+  const paidSource =
+    entitlement?.metadata && typeof entitlement.metadata === "object"
+      ? ((entitlement.metadata as Record<string, unknown>).source as
+          | string
+          | null)
+      : null;
 
   const registry = loadRegistry();
   const surfaceModules = registry.modules.filter((mod) =>
@@ -31,7 +41,12 @@ export default async function ProfilePage({ params }: PageProps) {
 
   return (
     <div className="space-y-8">
-      <ProfileHeader profile={profile} portalRoles={portalRoles} />
+      <ProfileHeader
+        profile={profile}
+        portalRoles={portalRoles}
+        isPaid={Boolean(entitlement)}
+        paidSource={paidSource}
+      />
 
       <section className="space-y-6">
         <ModuleSurfaceList
