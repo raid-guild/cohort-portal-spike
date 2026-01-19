@@ -96,6 +96,13 @@ Env vars in `.env.local` / `.env.example`:
    - Billing page should show `Ends on ...` (or `Cancels at period end`) after webhook.
    - Use `Refresh status` if needed to reload entitlements.
 
+## Host testing helper
+- Grant host role:
+  - `SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/make-host.js <user-id>`
+  - Script also grants `cohort-approved` + `cohort-access` entitlements for parity.
+- Example:
+  - `SUPABASE_URL=https://project.supabase.co SUPABASE_SERVICE_ROLE_KEY=service-role-key node scripts/make-host.js d17ad505-3c38-4655-b937-bbc04d6e8511`
+
 ## Crypto mock (local)
 - Endpoint: `POST /api/billing/crypto/mock`
 - Requires `Authorization: Bearer <access_token>`.

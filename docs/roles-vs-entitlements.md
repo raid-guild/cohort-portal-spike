@@ -43,6 +43,12 @@ Code references:
 4) Billing module is visible when `cohort-approved` is active.
 5) Payment creates `cohort-access` entitlement (Stripe or crypto).
 
+Hosts who need participant visibility can also be granted `cohort-approved` and
+`cohort-access` entitlements to keep gating consistent across modules.
+
+In this repo, `scripts/make-host.js` grants both the `host` role and those
+entitlements to keep host access aligned with participant gating.
+
 ## Example: Gate Billing Module by Approval Entitlement
 `modules/registry.json`:
 ```json

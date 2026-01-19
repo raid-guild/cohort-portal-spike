@@ -65,6 +65,7 @@ export default function BillingPage() {
   }, [supabase]);
 
   const hasCohortAccess = entitlements.includes("cohort-access");
+  const isApproved = entitlements.includes("cohort-approved");
   const canStartCheckout = !hasCohortAccess && Boolean(authToken);
   const cohortRecord = entitlementDetails.find(
     (record) => record.entitlement === "cohort-access",
@@ -240,7 +241,26 @@ export default function BillingPage() {
         )}
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[2fr,1fr]">
+      {!isApproved ? (
+        <section className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
+          <div className="text-sm font-semibold text-foreground">
+            Approval required
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Billing unlocks after your cohort application is approved. If you
+            haven’t applied yet, submit your application to get started.
+          </p>
+          <div className="mt-4">
+            <a
+              href="/modules/cohort-application"
+              className="rounded-lg border border-border px-4 py-2 text-xs hover:bg-muted"
+            >
+              Apply to the cohort
+            </a>
+          </div>
+        </section>
+      ) : (
+        <section className="grid gap-6 lg:grid-cols-[2fr,1fr]">
         <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
           <div className="text-sm font-semibold text-foreground">Summary</div>
           <div className="mt-3 space-y-2">
@@ -273,8 +293,10 @@ export default function BillingPage() {
           </ul>
         </div>
       </section>
+      )}
 
-      <section className="space-y-3">
+      {isApproved ? (
+        <section className="space-y-3">
         <div className="text-sm font-semibold text-foreground">Payment options</div>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
@@ -328,6 +350,7 @@ export default function BillingPage() {
           </div>
         </div>
       </section>
+      ) : null}
 
       <details className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
         <summary className="cursor-pointer text-sm font-semibold text-foreground">

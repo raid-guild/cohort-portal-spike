@@ -51,6 +51,57 @@ export type Database = {
         }
         Relationships: []
       }
+      cohort_applications: {
+        Row: {
+          applied_at: string
+          commitment_path: string | null
+          created_at: string
+          goals: string
+          id: string
+          intent: string
+          past_work: string | null
+          payment_status: string
+          signal_check_status: string
+          status: string
+          time_commitment: string
+          updated_at: string
+          user_id: string
+          work_interest: string
+        }
+        Insert: {
+          applied_at?: string
+          commitment_path?: string | null
+          created_at?: string
+          goals: string
+          id?: string
+          intent: string
+          past_work?: string | null
+          payment_status?: string
+          signal_check_status?: string
+          status?: string
+          time_commitment: string
+          updated_at?: string
+          user_id: string
+          work_interest: string
+        }
+        Update: {
+          applied_at?: string
+          commitment_path?: string | null
+          created_at?: string
+          goals?: string
+          id?: string
+          intent?: string
+          past_work?: string | null
+          payment_status?: string
+          signal_check_status?: string
+          status?: string
+          time_commitment?: string
+          updated_at?: string
+          user_id?: string
+          work_interest?: string
+        }
+        Relationships: []
+      }
       entitlements: {
         Row: {
           created_at: string | null

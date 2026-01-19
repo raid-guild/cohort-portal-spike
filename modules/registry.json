@@ -77,6 +77,7 @@
       "status": "beta",
       "owner": { "name": "Ops Lane", "contact": "discord:@ops" },
       "requiresAuth": true,
+      "access": { "requiresAuth": true, "entitlement": "cohort-approved" },
       "tags": ["me-tools"],
       "url": "/modules/billing",
       "presentation": {
@@ -96,6 +97,55 @@
           { "label": "Leave anytime.", "value": "Crypto payments include partial refunds." }
         ],
         "layout": "excerpt",
+        "maxItems": 3,
+        "showTitle": true
+      }
+    },
+    {
+      "id": "cohort-application",
+      "title": "Cohort Application",
+      "description": "Apply to join the RaidGuild cohort.",
+      "lane": "cohort",
+      "type": "link",
+      "status": "beta",
+      "owner": { "name": "Ops Lane", "contact": "discord:@ops" },
+      "requiresAuth": true,
+      "tags": ["me-tools"],
+      "url": "/modules/cohort-application",
+      "presentation": {
+        "mode": "page",
+        "trigger": "button"
+      },
+      "summary": {
+        "source": "api",
+        "title": "Application",
+        "endpoint": "/api/modules/cohort-application/summary",
+        "layout": "list",
+        "maxItems": 3,
+        "showTitle": true
+      }
+    },
+    {
+      "id": "cohort-review",
+      "title": "Cohort Applications",
+      "description": "Review and approve cohort applicants.",
+      "lane": "cohort",
+      "type": "link",
+      "status": "beta",
+      "owner": { "name": "Ops Lane", "contact": "discord:@ops" },
+      "requiresAuth": true,
+      "tags": ["start-here", "hosts"],
+      "url": "/modules/cohort-application",
+      "presentation": {
+        "mode": "page",
+        "trigger": "button",
+        "actionLabel": "Review applications"
+      },
+      "summary": {
+        "source": "api",
+        "title": "Applications",
+        "endpoint": "/api/modules/cohort-application/summary",
+        "layout": "list",
         "maxItems": 3,
         "showTitle": true
       }
