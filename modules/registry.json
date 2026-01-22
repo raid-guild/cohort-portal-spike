@@ -7,6 +7,33 @@
   },
   "modules": [
     {
+      "id": "daily-brief",
+      "title": "Daily Brief",
+      "description": "Your personal update with current community news.",
+      "lane": "portal",
+      "type": "link",
+      "url": "/modules/daily-brief",
+      "status": "live",
+      "owner": { "name": "Portal Core", "contact": "discord:@portal" },
+      "requiresAuth": false,
+      "tags": ["start-here"],
+      "presentation": {
+        "mode": "dialog",
+        "trigger": "button",
+        "dialog": { "size": "md" },
+        "iframe": { "height": 520 },
+        "layout": "wide"
+      },
+      "summary": {
+        "source": "api",
+        "title": "Daily Brief",
+        "endpoint": "/api/modules/daily-brief/summary",
+        "layout": "excerpt",
+        "maxItems": 1,
+        "showTitle": true
+      }
+    },
+    {
       "id": "profile-completion",
       "title": "Profile Completion",
       "description": "Track and complete your profile checklist.",
