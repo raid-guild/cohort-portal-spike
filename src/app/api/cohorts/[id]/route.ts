@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import type { Json } from "@/lib/types/db";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
 import { supabaseServerClient } from "@/lib/supabase/server";
 
@@ -123,13 +124,14 @@ export async function PUT(
   }
 
   if (payload.content) {
-    await admin.from("cohort_content").upsert({
+    const contentRow = {
       cohort_id: id,
-      schedule: payload.content.schedule ?? null,
-      projects: payload.content.projects ?? null,
-      resources: payload.content.resources ?? null,
-      notes: payload.content.notes ?? null,
-    });
+      schedule: (payload.content.schedule ?? null) as Json | null,
+      projects: (payload.content.projects ?? null) as Json | null,
+      resources: (payload.content.resources ?? null) as Json | null,
+      notes: (payload.content.notes ?? null) as Json | null,
+    };
+    await admin.from("cohort_content").upsert(contentRow);
   }
 
   return Response.json({ cohort });
