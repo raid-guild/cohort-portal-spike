@@ -4,10 +4,18 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Profile } from "@/lib/types";
 import { BadgePill } from "./BadgePill";
+import { PaidStar } from "./PaidStar";
 
-export function PeopleDirectory({ people }: { people: Profile[] }) {
+export function PeopleDirectory({
+  people,
+  paidUserIds = [],
+}: {
+  people: Profile[];
+  paidUserIds?: string[];
+}) {
   const [query, setQuery] = useState("");
   const [skill, setSkill] = useState("all");
+  const paidSet = useMemo(() => new Set(paidUserIds), [paidUserIds]);
 
   const skills = useMemo(() => {
     const set = new Set<string>();
@@ -63,7 +71,12 @@ export function PeopleDirectory({ people }: { people: Profile[] }) {
                   url={person.avatarUrl}
                 />
                 <div>
-                  <div className="text-lg font-semibold">{person.displayName}</div>
+                  <div className="flex items-center gap-2 text-lg font-semibold">
+                    <span>{person.displayName}</span>
+                    {person.userId && paidSet.has(person.userId) ? (
+                      <PaidStar className="h-4 w-4" />
+                    ) : null}
+                  </div>
                   <div className="text-sm text-muted-foreground">@{person.handle}</div>
                 </div>
               </div>

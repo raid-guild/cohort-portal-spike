@@ -51,6 +51,155 @@ export type Database = {
         }
         Relationships: []
       }
+      cohort_applications: {
+        Row: {
+          applied_at: string
+          commitment_path: string | null
+          created_at: string
+          goals: string
+          id: string
+          intent: string
+          past_work: string | null
+          payment_status: string
+          signal_check_status: string
+          status: string
+          time_commitment: string
+          updated_at: string
+          user_id: string
+          work_interest: string
+        }
+        Insert: {
+          applied_at?: string
+          commitment_path?: string | null
+          created_at?: string
+          goals: string
+          id?: string
+          intent: string
+          past_work?: string | null
+          payment_status?: string
+          signal_check_status?: string
+          status?: string
+          time_commitment: string
+          updated_at?: string
+          user_id: string
+          work_interest: string
+        }
+        Update: {
+          applied_at?: string
+          commitment_path?: string | null
+          created_at?: string
+          goals?: string
+          id?: string
+          intent?: string
+          past_work?: string | null
+          payment_status?: string
+          signal_check_status?: string
+          status?: string
+          time_commitment?: string
+          updated_at?: string
+          user_id?: string
+          work_interest?: string
+        }
+        Relationships: []
+      }
+      cohort_content: {
+        Row: {
+          cohort_id: string
+          created_at: string
+          notes: Json | null
+          projects: Json | null
+          resources: Json | null
+          schedule: Json | null
+          updated_at: string
+        }
+        Insert: {
+          cohort_id: string
+          created_at?: string
+          notes?: Json | null
+          projects?: Json | null
+          resources?: Json | null
+          schedule?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          cohort_id?: string
+          created_at?: string
+          notes?: Json | null
+          projects?: Json | null
+          resources?: Json | null
+          schedule?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cohort_content_cohort_id_fkey"
+            columns: ["cohort_id"]
+            isOneToOne: true
+            referencedRelation: "cohorts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cohorts: {
+        Row: {
+          created_at: string
+          end_at: string | null
+          id: string
+          name: string
+          start_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_at?: string | null
+          id?: string
+          name: string
+          start_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_at?: string | null
+          id?: string
+          name?: string
+          start_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      entitlements: {
+        Row: {
+          created_at: string | null
+          entitlement: string
+          expires_at: string | null
+          metadata: Json | null
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          entitlement: string
+          expires_at?: string | null
+          metadata?: Json | null
+          status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          entitlement?: string
+          expires_at?: string | null
+          metadata?: Json | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       module_data: {
         Row: {
           created_at: string | null

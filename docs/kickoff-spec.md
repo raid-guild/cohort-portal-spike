@@ -60,7 +60,7 @@ Rationale:
 
 Type generation (use npx for Supabase CLI):
 - `npx supabase gen types typescript --project-id <project-id> --schema public > src/lib/types/db.ts`
-- Document this in `supabase/README.md` once created.
+- See `supabase/README.md` for the current workflow.
 
 Environment variables:
 - `NEXT_PUBLIC_SUPABASE_URL`
@@ -72,7 +72,7 @@ Environment variables:
 Use `RG_BRAND_AGENTS.md` as the source of truth for brand tokens, typography, and component usage.
 
 Key requirements:
-- Use components from `@/components/ui/*` and utilities from `src/app/globals.css`.
+- Use components from `src/components/*` and utilities from `src/app/globals.css`.
 - Fonts: `maziusDisplay` (display), `ebGaramond` (body), `ubuntuMono` (mono).
 - Use semantic tokens (primary, background, foreground) over hardcoded hex unless calling out palette values explicitly.
 - Respect typography utilities (`type-*`) and avoid small-caps or forced uppercase in body/nav copy.

@@ -13,10 +13,12 @@
   "dependencies": {
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
+    "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/supabase-js": "^2.90.1",
     "next": "16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "stripe": "^20.1.2",
     "three": "^0.182.0"
   },
   "devDependencies": {

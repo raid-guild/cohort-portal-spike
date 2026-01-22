@@ -40,6 +40,7 @@ export type ModuleEntry = {
     dialog?: { size?: "sm" | "md" | "lg" };
     iframe?: { height?: number };
     action?: "open" | "none";
+    actionLabel?: string;
     layout?: "wide";
     height?: "double";
   };
@@ -75,6 +76,10 @@ export type ModuleEntry = {
     profileWrite?: { fields?: string[]; requiresKey?: boolean; requiresUserAuth?: boolean };
     announcementsWrite?: { requiresUserAuth?: boolean; allowedRoles?: string[] };
     aiGenerate?: { requiresUserAuth?: boolean; provider?: string };
+  };
+  access?: {
+    requiresAuth?: boolean;
+    entitlement?: string;
   };
 };
 

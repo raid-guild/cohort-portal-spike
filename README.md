@@ -22,11 +22,22 @@ A directory-first community portal for RaidGuild that centralizes profiles and c
 - `/modules` module directory
 - `/modules/[id]` module detail (optional)
 - `/modules/announcements` announcements module
+- `/modules/billing` billing module
+- `/modules/cohort-application` cohort application module
+- `/modules/cohort-hub` cohort hub module
 - `/modules/profile-generators` profile generators module
+- `/modules/skills-explorer` skills explorer module
 - `/api/modules` registry JSON
 - `/api/module-data` module data API
 - `/api/announcements` announcements API
+- `/api/cohorts` cohorts API
+- `/api/cohort-applications` cohort applications API
+- `/api/me/entitlements` entitlement status API
+- `/api/me/roles` roles API
 - `/api/profile` profile write API (portal-owned modules)
+- `/api/stripe/checkout` Stripe Checkout session
+- `/api/stripe/portal` Stripe Customer Portal session
+- `/api/stripe/webhook` Stripe webhook for entitlements
 
 ## Getting started
 ```bash
@@ -54,6 +65,10 @@ Env vars:
 - `VENICE_MODEL` (profile generators, text)
 - `VENICE_IMAGE_MODEL` (profile generators, image)
 - `VENICE_API_BASE_URL` (optional; defaults to `https://api.venice.ai/api/v1`)
+- `STRIPE_SECRET_KEY` (billing)
+- `STRIPE_WEBHOOK_SECRET` (billing)
+- `STRIPE_PRICE_ID` (billing)
+- `STRIPE_PORTAL_CONFIG_ID` (billing, optional)
 
 Behavior notes:
 - `/people` and `/people/[handle]` require Supabase data; configure envs and run migrations.
@@ -67,7 +82,10 @@ Behavior notes:
 ## Supabase
 - Migrations and seeds live in `supabase/`
 - Type generation and local auth notes: `supabase/README.md`
+- Entitlements are stored in `public.entitlements` and used for module access gating.
 
 ## Docs
-- Product kickoff and architecture: `docs/kickoff-spec.md`
+- Product kickoff: `docs/kickoff-spec.md`
+- Architecture overview: `docs/architecture.md`
 - Brand and UI tokens: `RG_BRAND_AGENTS.md`
+- Cohort hub (v1): `docs/cohort-hub.md`

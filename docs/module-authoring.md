@@ -29,7 +29,8 @@ Edit `modules/registry.json` and add a new module entry:
 Notes:
 - `id` must be unique and URL safe.
 - `type` is `link` or `embed`.
-- Use tags like `start-here`, `people-tools`, `profile-tools-public`, `profile-tools-private` to surface modules.
+- Use tags like `start-here`, `people-tools`, `profile-tools-public`, `me-tools` to surface modules.
+- Surfaces: home uses `start-here`, people uses `people-tools`, profiles use `profile-tools-public`, and `/me` uses `me-tools`.
 - Set `presentation.action` to `none` if you want a summary-only card.
 - Tag a module with `hosts` to make it host-only (hidden for non-hosts).
 - Host-only tags only control portal visibility. External modules must enforce their own access.
@@ -57,6 +58,26 @@ Example:
     "profileWrite": { "fields": ["bio", "links"], "requiresKey": true },
     "announcementsWrite": { "requiresUserAuth": true, "allowedRoles": ["host"] },
     "aiGenerate": { "requiresUserAuth": true, "provider": "venice" }
+  }
+}
+```
+
+## Access rules (entitlements)
+Use `access.entitlement` to gate a module behind a subscription or entitlement.
+This is enforced in portal surfaces (module cards) and should be backed by the
+`public.entitlements` table. Entitlements are synced by the billing webhook,
+so modules that require paid access should also enforce authorization on their
+own API surfaces.
+
+For guidance on when to use roles vs entitlements, see
+`docs/roles-vs-entitlements.md`.
+
+Example:
+```json
+{
+  "access": {
+    "requiresAuth": true,
+    "entitlement": "cohort-access"
   }
 }
 ```

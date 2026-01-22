@@ -43,6 +43,7 @@
       "status": "live",
       "owner": { "name": "Profiles Lane", "contact": "discord:@profiles" },
       "requiresAuth": true,
+      "access": { "requiresAuth": true, "entitlement": "cohort-approved" },
       "tags": ["me-tools"],
       "url": "/modules/profile-generators",
       "presentation": {
@@ -64,6 +65,118 @@
       }
     },
     {
+      "id": "billing",
+      "title": "Join the RaidGuild Cohort",
+      "description": "Stake into becoming a Raider while you build with us.",
+      "lane": "billing",
+      "type": "link",
+      "status": "beta",
+      "owner": { "name": "Ops Lane", "contact": "discord:@ops" },
+      "requiresAuth": true,
+      "access": { "requiresAuth": true, "entitlement": "cohort-approved" },
+      "tags": ["me-tools"],
+      "url": "/modules/billing",
+      "presentation": {
+        "mode": "page",
+        "trigger": "button",
+        "actionLabel": "Start My Cohort Commitment"
+      },
+      "summary": {
+        "source": "static",
+        "title": "Cohort Billing & Escrow",
+        "items": [
+          { "label": "$100 / month", "value": "6-month commitment window." },
+          {
+            "label": "Membership escrow",
+            "value": "75% of every payment goes toward your RaidGuild membership stake."
+          },
+          { "label": "Leave anytime.", "value": "Crypto payments include partial refunds." }
+        ],
+        "layout": "excerpt",
+        "maxItems": 3,
+        "showTitle": true
+      }
+    },
+    {
+      "id": "cohort-application",
+      "title": "Cohort Application",
+      "description": "Apply to join the RaidGuild cohort.",
+      "lane": "cohort",
+      "type": "link",
+      "status": "beta",
+      "owner": { "name": "Ops Lane", "contact": "discord:@ops" },
+      "requiresAuth": true,
+      "tags": ["me-tools"],
+      "url": "/modules/cohort-application",
+      "presentation": {
+        "mode": "page",
+        "trigger": "button"
+      },
+      "summary": {
+        "source": "api",
+        "title": "Application",
+        "endpoint": "/api/modules/cohort-application/summary",
+        "layout": "list",
+        "maxItems": 3,
+        "showTitle": true
+      }
+    },
+    {
+      "id": "cohort-review",
+      "title": "Cohort Applications",
+      "description": "Review and approve cohort applicants.",
+      "lane": "cohort",
+      "type": "link",
+      "status": "beta",
+      "owner": { "name": "Ops Lane", "contact": "discord:@ops" },
+      "requiresAuth": true,
+      "tags": ["start-here", "hosts"],
+      "url": "/modules/cohort-application",
+      "presentation": {
+        "mode": "page",
+        "trigger": "button",
+        "actionLabel": "Review applications"
+      },
+      "summary": {
+        "source": "api",
+        "title": "Applications",
+        "endpoint": "/api/modules/cohort-application/summary",
+        "layout": "list",
+        "maxItems": 3,
+        "showTitle": true
+      }
+    },
+    {
+      "id": "cohort-hub",
+      "title": "Cohort Hub",
+      "description": "Schedule, projects, resources, and cohort notes.",
+      "lane": "cohort",
+      "type": "link",
+      "status": "beta",
+      "owner": { "name": "Ops Lane", "contact": "discord:@ops" },
+      "requiresAuth": true,
+      "access": { "requiresAuth": true, "entitlement": "cohort-access" },
+      "tags": ["start-here"],
+      "url": "/modules/cohort-hub",
+      "presentation": {
+        "mode": "page",
+        "trigger": "button",
+        "actionLabel": "Open Cohort Hub"
+      },
+      "summary": {
+        "source": "static",
+        "title": "Cohort Hub",
+        "items": [
+          { "label": "Schedule", "value": "Daily agenda and notes." },
+          { "label": "Projects", "value": "Teams, goals, and updates." },
+          { "label": "Resources", "value": "Docs, links, and assets." }
+        ],
+        "layout": "list",
+        "maxItems": 3,
+        "showTitle": true
+      }
+    },
+    {
       "id": "skills-explorer",
       "title": "Skills Explorer",
       "description": "Visualize cohort skills and explore talent clusters.",
@@ -77,6 +190,10 @@
       "presentation": {
         "mode": "page",
         "trigger": "button"
+      },
+      "access": {
+        "requiresAuth": true,
+        "entitlement": "cohort-access"
       },
       "summaryBySurface": {
         "home": {
