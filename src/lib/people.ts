@@ -32,6 +32,9 @@ export async function loadPeople(): Promise<Profile[]> {
     .order("display_name");
 
   if (error || !data) {
+    if (error) {
+      console.error("loadPeople error:", error);
+    }
     return [];
   }
 
