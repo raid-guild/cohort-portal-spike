@@ -4,6 +4,8 @@ import { loadPeople } from "@/lib/people";
 import { loadRegistry } from "@/lib/registry";
 import { loadActiveEntitledUserIds } from "@/lib/entitlements";
 
+export const revalidate = 30;
+
 export default async function PeoplePage() {
   const people = await loadPeople();
   const userIds = people.map((person) => person.userId).filter(Boolean) as string[];

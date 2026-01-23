@@ -250,12 +250,22 @@ export default function MePage() {
       return;
     }
 
+    const trimmedHandle = profile.handle.trim();
+    if (!trimmedHandle) {
+      setMessage("Handle is required.");
+      return;
+    }
+    if (!/^[a-z0-9_-]+$/i.test(trimmedHandle)) {
+      setMessage("Handle can only use letters, numbers, hyphens, and underscores.");
+      return;
+    }
+
     setLoading(true);
     setMessage("");
     const walletFromIdentity = getWalletFromUser(user);
     const payload = {
       user_id: user.id,
-      handle: profile.handle.trim(),
+      handle: trimmedHandle,
       display_name: profile.displayName.trim(),
       bio: profile.bio.trim() || null,
       location: profile.location.trim() || null,
@@ -493,7 +503,6 @@ export default function MePage() {
                 }
                 placeholder="your-handle"
                 className="w-full rounded-lg border border-border bg-background px-3 py-2"
-                disabled={profileExists}
               />
             </label>
             <label className="space-y-2 text-sm">
