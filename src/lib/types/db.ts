@@ -170,6 +170,27 @@ export type Database = {
         }
         Relationships: []
       }
+      email_referrals: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          referral: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          referral?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          referral?: string | null
+        }
+        Relationships: []
+      }
       entitlements: {
         Row: {
           created_at: string | null
@@ -536,4 +557,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

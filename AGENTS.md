@@ -48,6 +48,9 @@ Venice AI:
 - `VENICE_IMAGE_MODEL`
 - `VENICE_API_BASE_URL` (optional)
 
+External intake:
+- `FORM_INGEST_API_KEY`
+
 ## Common Commands
 ```bash
 npm install
