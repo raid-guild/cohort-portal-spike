@@ -17,7 +17,7 @@ const rateBuckets = new Map<string, number[]>();
 const emailCooldowns = new Map<string, number>();
 
 const isValidEmail = (value: string) =>
-  /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value);
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
 const getClientIp = (request: NextRequest) => {
   const forwardedFor = request.headers.get("x-forwarded-for");
