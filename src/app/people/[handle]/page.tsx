@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
 import { ProfileHeader } from "@/components/ProfileHeader";
 import { ModuleSurfaceList } from "@/components/ModuleSurfaceList";
+import { BadgesSection } from "@/components/BadgesSection";
 import { loadPerson } from "@/lib/people";
 import { loadRegistry } from "@/lib/registry";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
 import { loadUserEntitlement } from "@/lib/entitlements";
+import { loadBadgesForUser } from "@/lib/badges";
 
 type PageProps = {
   params: Promise<{ handle: string }>;
@@ -27,6 +29,8 @@ export default async function ProfilePage({ params }: PageProps) {
   const entitlement = profile.userId
     ? await loadUserEntitlement(profile.userId, "cohort-access")
     : null;
+
+  const badges = profile.userId ? await loadBadgesForUser(profile.userId) : [];
   const paidSource =
     entitlement?.metadata && typeof entitlement.metadata === "object"
       ? ((entitlement.metadata as Record<string, unknown>).source as
@@ -47,6 +51,8 @@ export default async function ProfilePage({ params }: PageProps) {
         isPaid={Boolean(entitlement)}
         paidSource={paidSource}
       />
+
+      <BadgesSection badges={badges} />
 
       <section className="space-y-6">
         <ModuleSurfaceList
