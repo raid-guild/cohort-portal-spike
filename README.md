@@ -89,3 +89,5 @@ Behavior notes:
 - Architecture overview: `docs/architecture.md`
 - Brand and UI tokens: `RG_BRAND_AGENTS.md`
 - Cohort hub (v1): `docs/cohort-hub.md`
+
+- tbd
