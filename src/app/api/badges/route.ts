@@ -25,25 +25,6 @@ export async function POST(request: NextRequest) {
   }
 
   const token = authHeader.replace("Bearer ", "");
-  const body = await request.json();
-
-  const id = String(body?.id ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-");
-  const title = String(body?.title ?? "").trim();
-  const description = body?.description ? String(body.description).trim() : null;
-  const imageUrl = body?.imageUrl ? String(body.imageUrl).trim() : null;
-  const sortOrder = Number.isFinite(Number(body?.sortOrder))
-    ? Number(body.sortOrder)
-    : 0;
-
-  if (!id || !title) {
-    return Response.json(
-      { error: "id and title are required." },
-      { status: 400 },
-    );
-  }
 
   const admin = supabaseAdminClient();
 
@@ -65,6 +46,31 @@ export async function POST(request: NextRequest) {
   const roles = roleRows?.map((row) => row.role) ?? [];
   if (!roles.includes("host")) {
     return Response.json({ error: "Host role required." }, { status: 403 });
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+
+  const id = String(body?.id ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-");
+  const title = String(body?.title ?? "").trim();
+  const description = body?.description ? String(body.description).trim() : null;
+  const imageUrl = body?.imageUrl ? String(body.imageUrl).trim() : null;
+  const sortOrder = Number.isFinite(Number(body?.sortOrder))
+    ? Number(body.sortOrder)
+    : 0;
+
+  if (!id || !title) {
+    return Response.json(
+      { error: "id and title are required." },
+      { status: 400 },
+    );
   }
 
   const { error: upsertError } = await admin.from("badge_definitions").upsert(

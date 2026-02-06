@@ -112,32 +112,58 @@ export function BadgesAdmin() {
     setLoading(true);
     try {
       const token = await ensureSession();
-      const badgeId = createForm.id.trim() || createForm.title.trim();
-      const imageUrl = await uploadImage(
-        badgeId
-          .toLowerCase()
-          .replace(/\s+/g, "-")
-          .replace(/[^a-z0-9\-]/g, ""),
-        token,
-      );
 
-      const res = await fetch("/api/badges", {
+      const rawId = createForm.id.trim() || createForm.title.trim();
+      const finalId = rawId
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9\-]/g, "");
+
+      const title = createForm.title.trim();
+      if (!finalId || !title) {
+        throw new Error("Badge ID (or title) and title are required.");
+      }
+
+      // Create/update the badge first to avoid orphaned uploads.
+      const createRes = await fetch("/api/badges", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          id: createForm.id,
-          title: createForm.title,
+          id: finalId,
+          title,
           description: createForm.description,
           sortOrder: Number(createForm.sortOrder || "0"),
-          imageUrl,
+          imageUrl: null,
         }),
       });
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.error || "Failed to create badge.");
+      const createJson = await createRes.json();
+      if (!createRes.ok) {
+        throw new Error(createJson.error || "Failed to save badge.");
+      }
+
+      const imageUrl = await uploadImage(finalId, token);
+      if (imageUrl) {
+        const updateRes = await fetch("/api/badges", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            id: finalId,
+            title,
+            description: createForm.description,
+            sortOrder: Number(createForm.sortOrder || "0"),
+            imageUrl,
+          }),
+        });
+        const updateJson = await updateRes.json();
+        if (!updateRes.ok) {
+          throw new Error(updateJson.error || "Failed to save badge image.");
+        }
       }
 
       setMessage("Badge saved.");
@@ -197,8 +223,14 @@ export function BadgesAdmin() {
         <div className="space-y-3">
           <div className="text-sm font-medium">Create / update badge</div>
 
-          <label className="block text-xs text-muted-foreground">Badge ID</label>
+          <label
+            htmlFor="badge-create-id"
+            className="block text-xs text-muted-foreground"
+          >
+            Badge ID
+          </label>
           <input
+            id="badge-create-id"
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             value={createForm.id}
             onChange={(e) =>
@@ -207,8 +239,14 @@ export function BadgesAdmin() {
             placeholder="shipper"
           />
 
-          <label className="block text-xs text-muted-foreground">Title</label>
+          <label
+            htmlFor="badge-create-title"
+            className="block text-xs text-muted-foreground"
+          >
+            Title
+          </label>
           <input
+            id="badge-create-title"
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             value={createForm.title}
             onChange={(e) =>
@@ -217,10 +255,14 @@ export function BadgesAdmin() {
             placeholder="Shipper"
           />
 
-          <label className="block text-xs text-muted-foreground">
+          <label
+            htmlFor="badge-create-description"
+            className="block text-xs text-muted-foreground"
+          >
             Description
           </label>
           <input
+            id="badge-create-description"
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             value={createForm.description}
             onChange={(e) =>
@@ -229,10 +271,14 @@ export function BadgesAdmin() {
             placeholder="Consistently delivers work"
           />
 
-          <label className="block text-xs text-muted-foreground">
+          <label
+            htmlFor="badge-create-sort"
+            className="block text-xs text-muted-foreground"
+          >
             Sort order
           </label>
           <input
+            id="badge-create-sort"
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             value={createForm.sortOrder}
             onChange={(e) =>
@@ -241,8 +287,14 @@ export function BadgesAdmin() {
             inputMode="numeric"
           />
 
-          <label className="block text-xs text-muted-foreground">Image</label>
+          <label
+            htmlFor="badge-create-image"
+            className="block text-xs text-muted-foreground"
+          >
+            Image
+          </label>
           <input
+            id="badge-create-image"
             type="file"
             accept="image/*"
             onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
@@ -261,10 +313,14 @@ export function BadgesAdmin() {
         <div className="space-y-3">
           <div className="text-sm font-medium">Award badge</div>
 
-          <label className="block text-xs text-muted-foreground">
+          <label
+            htmlFor="badge-award-handle"
+            className="block text-xs text-muted-foreground"
+          >
             Profile handle
           </label>
           <input
+            id="badge-award-handle"
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             value={awardForm.handle}
             onChange={(e) =>
@@ -273,8 +329,14 @@ export function BadgesAdmin() {
             placeholder="deke"
           />
 
-          <label className="block text-xs text-muted-foreground">Badge ID</label>
+          <label
+            htmlFor="badge-award-id"
+            className="block text-xs text-muted-foreground"
+          >
+            Badge ID
+          </label>
           <input
+            id="badge-award-id"
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             value={awardForm.badgeId}
             onChange={(e) =>
@@ -283,8 +345,14 @@ export function BadgesAdmin() {
             placeholder="shipper"
           />
 
-          <label className="block text-xs text-muted-foreground">Note</label>
+          <label
+            htmlFor="badge-award-note"
+            className="block text-xs text-muted-foreground"
+          >
+            Note
+          </label>
           <input
+            id="badge-award-note"
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             value={awardForm.note}
             onChange={(e) => setAwardForm((s) => ({ ...s, note: e.target.value }))}

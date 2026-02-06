@@ -42,7 +42,21 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Missing file." }, { status: 400 });
   }
 
-  const extension = file.name.split(".").pop() || "png";
+  const mimeToExtension: Record<string, string> = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/gif": "gif",
+    "image/webp": "webp",
+  };
+
+  const extension = mimeToExtension[file.type];
+  if (!extension) {
+    return Response.json(
+      { error: "Only PNG, JPEG, GIF, and WebP images are allowed." },
+      { status: 400 },
+    );
+  }
+
   const path = `badges/${badgeId}.${extension}`;
   const buffer = Buffer.from(await file.arrayBuffer());
 

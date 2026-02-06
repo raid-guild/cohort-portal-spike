@@ -12,20 +12,24 @@ type Badge = {
 };
 
 export function BadgesGallery() {
-  const [badges, setBadges] = useState<Badge[]>([]);
+  const [badges, setBadges] = useState<Badge[] | null>(null);
   const [error, setError] = useState<string>("");
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       setError("");
-      const res = await fetch("/api/badges");
-      const json = await res.json();
-      if (!res.ok) {
-        if (!cancelled) setError(json.error || "Failed to load badges.");
-        return;
+      try {
+        const res = await fetch("/api/badges");
+        const json = await res.json();
+        if (!res.ok) {
+          if (!cancelled) setError(json.error || "Failed to load badges.");
+          return;
+        }
+        if (!cancelled) setBadges(json.badges ?? []);
+      } catch {
+        if (!cancelled) setError("Failed to load badges.");
       }
-      if (!cancelled) setBadges(json.badges ?? []);
     };
     load();
     return () => {
@@ -37,6 +41,14 @@ export function BadgesGallery() {
     return (
       <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
         {error}
+      </div>
+    );
+  }
+
+  if (!badges) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
+        Loading badges...
       </div>
     );
   }

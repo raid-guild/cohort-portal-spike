@@ -13,8 +13,8 @@ create table if not exists public.badge_definitions (
   image_url text,
   sort_order int not null default 0,
   is_active boolean not null default true,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 drop trigger if exists set_badge_definitions_updated_at on public.badge_definitions;

@@ -30,7 +30,12 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Host role required." }, { status: 403 });
   }
 
-  const body = await request.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
   const handle = body?.handle ? String(body.handle).trim() : null;
   const userId = body?.userId ? String(body.userId).trim() : null;
   const badgeId = String(body?.badgeId ?? "")
