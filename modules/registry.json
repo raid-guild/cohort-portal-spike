@@ -242,15 +242,14 @@
     },
     {
       "id": "badges",
-      "title": "Badges + Leaderboard",
-      "description": "Earn badges, track progress, see who is shipping.",
+      "title": "Badges",
+      "description": "Earn and display community badges.",
       "lane": "gamification",
-      "type": "embed",
-      "url": "https://example.com/badges",
-      "embed": { "height": 720 },
+      "type": "link",
+      "url": "/modules/badges",
       "status": "in-progress",
-      "requiresAuth": false,
-      "tags": ["badges", "leaderboard", "profile"]
+      "requiresAuth": true,
+      "tags": ["badges", "profile-tools-public"]
     },
     {
       "id": "payments",
