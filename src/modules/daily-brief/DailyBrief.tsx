@@ -8,8 +8,6 @@ type ViewerPayload = {
   displayName?: string | null;
 };
 
-const LOADING_DELAY_MS = 20_000;
-
 export function DailyBrief() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -19,6 +17,11 @@ export function DailyBrief() {
   const [message, setMessage] = useState("");
   const [currentDate, setCurrentDate] = useState("");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [markdownUrl, setMarkdownUrl] = useState<string | null>(null);
+  const [showNewsletter, setShowNewsletter] = useState(false);
+  const [markdownContent, setMarkdownContent] = useState<string | null>(null);
+  const [markdownLoading, setMarkdownLoading] = useState(false);
+  const [markdownError, setMarkdownError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -62,6 +65,7 @@ export function DailyBrief() {
         setMessage("Sign in to unlock your daily brief.");
         setBriefReady(false);
         setAudioUrl(null);
+        setMarkdownUrl(null);
         return;
       }
       setMessage("");
@@ -74,6 +78,7 @@ export function DailyBrief() {
           setMessage("We couldn't load your daily brief yet.");
           setBriefReady(false);
           setAudioUrl(null);
+          setMarkdownUrl(null);
         }
         return;
       }
@@ -82,6 +87,10 @@ export function DailyBrief() {
         setViewer(payload);
         setBriefReady(false);
         setAudioUrl(null);
+        setMarkdownUrl(null);
+        setShowNewsletter(false);
+        setMarkdownContent(null);
+        setMarkdownError(null);
       }
     };
     loadViewer();
@@ -93,6 +102,7 @@ export function DailyBrief() {
   const handle = viewer?.handle ?? "adventurer";
   const canLoad = Boolean(viewer?.handle) && !message;
   const isPlayable = Boolean(audioUrl);
+  const hasMarkdown = Boolean(markdownUrl);
 
   const handlePlay = async () => {
     if (!authToken) {
@@ -103,6 +113,10 @@ export function DailyBrief() {
     setBriefReady(false);
     setMessage("");
     setAudioUrl(null);
+    setMarkdownUrl(null);
+    setShowNewsletter(false);
+    setMarkdownContent(null);
+    setMarkdownError(null);
     try {
       const res = await fetch("/api/modules/daily-brief/brief", {
         method: "POST",
@@ -113,14 +127,17 @@ export function DailyBrief() {
         setLoading(false);
         return;
       }
-      const payload = (await res.json()) as { audioUrl?: string | null };
+      const payload = (await res.json()) as {
+        audioUrl?: string | null;
+        markdownUrl?: string | null;
+      };
       setAudioUrl(payload.audioUrl ?? null);
+      setMarkdownUrl(payload.markdownUrl ?? null);
     } catch {
       setMessage("We couldn't load your daily brief yet.");
       setLoading(false);
       return;
     }
-    await new Promise((resolve) => window.setTimeout(resolve, LOADING_DELAY_MS));
     setLoading(false);
     setBriefReady(true);
   };
@@ -133,6 +150,31 @@ export function DailyBrief() {
       // Autoplay can be blocked; user can press play manually.
     });
   }, [briefReady, audioUrl]);
+
+  const handleToggleNewsletter = async () => {
+    if (!markdownUrl) return;
+    const next = !showNewsletter;
+    setShowNewsletter(next);
+    if (!next || markdownContent || markdownLoading) {
+      return;
+    }
+    setMarkdownLoading(true);
+    setMarkdownError(null);
+    try {
+      const res = await fetch(markdownUrl);
+      if (!res.ok) {
+        throw new Error(`Failed to load (${res.status})`);
+      }
+      const text = await res.text();
+      setMarkdownContent(text);
+    } catch (error) {
+      setMarkdownError(
+        error instanceof Error ? error.message : "Failed to load newsletter.",
+      );
+    } finally {
+      setMarkdownLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -154,9 +196,7 @@ export function DailyBrief() {
               />
               <p>Preparing your daily brief...</p>
             </div>
-            <p className="text-xs">
-              This may take up to {LOADING_DELAY_MS / 1000} seconds. Thanks for your patience!
-            </p>
+            <p className="text-xs">Thanks for your patience!</p>
           </div>
         ) : null}
         {!message && !loading ? (
@@ -178,6 +218,15 @@ export function DailyBrief() {
                 Play daily brief
               </button>
             ) : null}
+            {hasMarkdown ? (
+              <button
+                type="button"
+                onClick={handleToggleNewsletter}
+                className="w-full rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted"
+              >
+                {showNewsletter ? "Collapse Daily Newsletter" : "Expand Daily Newsletter"}
+              </button>
+            ) : null}
             {briefReady ? (
               <div>
                 <p className="text-xs text-muted-foreground">Listen to today's brief.</p>
@@ -197,6 +246,31 @@ export function DailyBrief() {
                   <p className="mt-2 text-xs text-muted-foreground">
                     Using demo audio while the brief renders.
                   </p>
+                ) : null}
+              </div>
+            ) : null}
+            {showNewsletter ? (
+              <div className="rounded-lg border border-border bg-muted/50 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-sm font-semibold">Daily Newsletter</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewsletter(false)}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Close
+                  </button>
+                </div>
+                {markdownLoading ? (
+                  <p className="text-xs text-muted-foreground">Loading newsletter...</p>
+                ) : null}
+                {markdownError ? (
+                  <p className="text-xs text-red-500">{markdownError}</p>
+                ) : null}
+                {markdownContent ? (
+                  <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-md bg-background p-3 text-xs text-foreground">
+                    {markdownContent}
+                  </pre>
                 ) : null}
               </div>
             ) : null}
