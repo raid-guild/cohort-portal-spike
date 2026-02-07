@@ -56,13 +56,22 @@ jobs:
             };
           }
 
+          const issue = pickIssue(event);
+          const review = pickReview(event);
+
           let summary;
           if (eventName === 'issues') {
-            const issue = pickIssue(event);
-            summary = `GitHub issue event: #${issue.number} ${issue.title}\n${issue.url}\nLabels: ${issue.labels.join(', ') || '(none)'}`;
+            if (!issue) {
+              summary = 'GitHub issue event: missing/invalid payload';
+            } else {
+              summary = `GitHub issue event: #${issue.number} ${issue.title}\n${issue.url}\nLabels: ${issue.labels.join(', ') || '(none)'}`;
+            }
           } else if (eventName === 'pull_request_review') {
-            const review = pickReview(event);
-            summary = `GitHub PR review: #${review.prNumber} ${review.prTitle}\n${review.prUrl}\nState: ${review.reviewState} by ${review.reviewer}`;
+            if (!review) {
+              summary = 'GitHub PR review: missing/invalid payload';
+            } else {
+              summary = `GitHub PR review: #${review.prNumber} ${review.prTitle}\n${review.prUrl}\nState: ${review.reviewState} by ${review.reviewer}`;
+            }
           } else {
             summary = `GitHub event: ${eventName}`;
           }
@@ -77,8 +86,8 @@ jobs:
               JSON.stringify({
                 event: eventName,
                 action: event.action,
-                issue: pickIssue(event),
-                review: pickReview(event),
+                issue,
+                review,
                 repository: {
                   full_name: event.repository?.full_name,
                   url: event.repository?.html_url,
@@ -93,7 +102,7 @@ jobs:
           process.stdout.write(JSON.stringify(payload));
           NODE
 
-          curl -sSf -X POST "${OPENCLAW_WEBHOOK_URL%/}/agent" \
+          curl -sSf --max-time 30 -X POST "${OPENCLAW_WEBHOOK_URL%/}/agent" \
             -H "Authorization: Bearer ${OPENCLAW_HOOK_TOKEN}" \
             -H 'Content-Type: application/json' \
             --data-binary @payload.json

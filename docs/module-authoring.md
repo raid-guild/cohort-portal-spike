@@ -184,8 +184,8 @@ Use `module_data` when:
 
 Prefer **new tables + migrations** when:
 - You have a **many-to-many** relationship (e.g. users ↔ badges, users ↔ teams).
-- You need **data integrity** enforced by the DB (FKs, unique constraints, cascades).
-- You need **queryability at scale** (indexes, filtering, ordering, joins).
+- When DB-enforced **data integrity** is required (FKs, unique constraints, cascades).
+- For **queryability at scale** (indexes, filtering, ordering, joins).
 - You want the data to be a reusable **platform primitive** used by multiple modules.
 
 Concrete examples:
