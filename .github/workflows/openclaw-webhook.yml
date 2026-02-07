@@ -1,0 +1,99 @@
+name: OpenClaw Webhook
+
+on:
+  issues:
+    types: [opened, edited, reopened, labeled]
+  pull_request_review:
+    types: [submitted, edited]
+
+jobs:
+  notify-openclaw:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post event to OpenClaw (/hooks/agent)
+        env:
+          OPENCLAW_WEBHOOK_URL: ${{ secrets.OPENCLAW_WEBHOOK_URL }}
+          OPENCLAW_HOOK_TOKEN: ${{ secrets.OPENCLAW_HOOK_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_JSON: ${{ toJson(github.event) }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${OPENCLAW_WEBHOOK_URL:-}" ] || [ -z "${OPENCLAW_HOOK_TOKEN:-}" ]; then
+            echo "Missing OPENCLAW_WEBHOOK_URL or OPENCLAW_HOOK_TOKEN secrets; skipping."
+            exit 0
+          fi
+
+          node <<'NODE' > payload.json
+          const eventName = process.env.EVENT_NAME;
+          const event = JSON.parse(process.env.EVENT_JSON);
+
+          function pickIssue(e) {
+            const i = e.issue;
+            if (!i) return null;
+            return {
+              number: i.number,
+              title: i.title,
+              body: (i.body || '').slice(0, 1200),
+              url: i.html_url,
+              state: i.state,
+              labels: (i.labels || []).map(l => l.name).slice(0, 20),
+              user: i.user?.login,
+            };
+          }
+
+          function pickReview(e) {
+            const pr = e.pull_request;
+            const r = e.review;
+            if (!pr || !r) return null;
+            return {
+              prNumber: pr.number,
+              prTitle: pr.title,
+              prUrl: pr.html_url,
+              reviewState: r.state,
+              reviewer: r.user?.login,
+              body: (r.body || '').slice(0, 1200),
+            };
+          }
+
+          let summary;
+          if (eventName === 'issues') {
+            const issue = pickIssue(event);
+            summary = `GitHub issue event: #${issue.number} ${issue.title}\n${issue.url}\nLabels: ${issue.labels.join(', ') || '(none)'}`;
+          } else if (eventName === 'pull_request_review') {
+            const review = pickReview(event);
+            summary = `GitHub PR review: #${review.prNumber} ${review.prTitle}\n${review.prUrl}\nState: ${review.reviewState} by ${review.reviewer}`;
+          } else {
+            summary = `GitHub event: ${eventName}`;
+          }
+
+          const payload = {
+            message: [
+              summary,
+              '',
+              'Please summarize what happened and suggest next actions. If this is a module spec issue, extract requirements and propose an implementation plan.',
+              '',
+              'Structured payload (truncated):',
+              JSON.stringify({
+                event: eventName,
+                action: event.action,
+                issue: pickIssue(event),
+                review: pickReview(event),
+                repository: {
+                  full_name: event.repository?.full_name,
+                  url: event.repository?.html_url,
+                },
+              }, null, 2),
+            ].join('\n'),
+            name: 'GitHub',
+            wakeMode: 'now',
+            deliver: true
+          };
+
+          process.stdout.write(JSON.stringify(payload));
+          NODE
+
+          curl -sSf -X POST "${OPENCLAW_WEBHOOK_URL%/}/agent" \
+            -H "Authorization: Bearer ${OPENCLAW_HOOK_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            --data-binary @payload.json
