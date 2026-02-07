@@ -1,0 +1,101 @@
+name: Module Spec
+description: Define a new portal module with enough detail for implementation.
+title: "module-spec: <short name>"
+labels:
+  - module-spec
+body:
+  - type: input
+    id: module_id
+    attributes:
+      label: Module ID
+      description: "URL-safe id (kebab-case). Example: daily-checkin"
+      placeholder: daily-checkin
+    validations:
+      required: true
+
+  - type: input
+    id: owner
+    attributes:
+      label: Owner / contact
+      description: "Who can answer questions if spec is ambiguous?"
+      placeholder: "@username"
+    validations:
+      required: false
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / user value
+      description: "What user problem does this module solve? Who is it for?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope (what’s in / out)
+      description: "Be explicit about what is included now vs later."
+    validations:
+      required: true
+
+  - type: textarea
+    id: ux
+    attributes:
+      label: UX / surfaces
+      description: "Which surfaces should this module appear on (home/people/profile/me)? Any key UI states?"
+      placeholder: "Example: appears on me-tools; simple form + save; summary card shows latest entry."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: storage
+    attributes:
+      label: Storage preference
+      description: "If unsure, select 'unknown' and describe expected queries below."
+      options:
+        - module_data (per-user JSON)
+        - new tables + migrations
+        - unknown
+    validations:
+      required: true
+
+  - type: textarea
+    id: data_model
+    attributes:
+      label: Data model (fields)
+      description: "List fields, types, and example values. If new tables, describe tables/relations."
+      placeholder: "Example: { text: string, updatedAt: timestamp }"
+    validations:
+      required: true
+
+  - type: textarea
+    id: api
+    attributes:
+      label: API requirements
+      description: "Endpoints needed (read/write/summary), auth expectations, inputs/outputs."
+      placeholder: "Example: GET/POST /api/modules/<id>; GET /api/modules/<id>/summary"
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: "Bullet list of done-when conditions."
+      value: |
+        - [ ] Module is registered in modules/registry.json
+        - [ ] Module page renders for signed-in users
+        - [ ] Data can be saved and reloaded
+        - [ ] Summary endpoint renders on the module card
+        - [ ] Lint passes
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: automation
+    attributes:
+      label: Automation consent
+      description: "Controls whether automation should open a PR."
+      options:
+        - label: "OK to auto-generate a PR for this spec"
+          required: false

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Module authoring docs
+    url: https://github.com/raid-guild/cohort-portal-spike/blob/main/docs/module-authoring.md
+    about: Guidance on storage choices, registry, and summaries

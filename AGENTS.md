@@ -60,6 +60,22 @@ npm run sync:modules
 npm run module:key
 ```
 
+## PR Workflow (for humans + codegen agents)
+- Create a feature branch from `main`.
+- Keep PRs focused; if you’re changing docs *and* adding automation, consider separate PRs.
+- Prefer small commits with clear messages.
+- If you touch Supabase schema:
+  - add a new migration in `supabase/migrations/`
+  - update any dependent code and (if applicable) regenerate types (`supabase/README.md`).
+
+### Codegen agent checklist
+When implementing a new module:
+1) Add/update `modules/registry.json`.
+2) Add the route `src/app/modules/<module-id>/page.tsx` (server) and a client component under `src/modules/<module-id>/`.
+3) If the module needs storage, decide between `public.module_data` vs new tables (see `docs/module-authoring.md`).
+4) Add summary endpoint(s) under `src/app/api/modules/<module-id>/summary/route.ts` so the module card can render.
+5) Verify locally: `npm run lint` (and run the app if the change is UI-heavy).
+
 ## Access Model (Short)
 - `cohort-approved`: application approved, unlocks billing.
 - `cohort-access`: paid access, unlocks cohort tools and gated modules.
