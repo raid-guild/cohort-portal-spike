@@ -172,6 +172,52 @@ Summary requests can include `Authorization: Bearer <access_token>` if the user 
 ## 2) (Optional) Store module data in the core DB
 If your module needs server-side storage but you want to avoid migrations, use `public.module_data`.
 
+### Choosing `module_data` vs new tables
+`public.module_data` is intentionally a simple JSONB store keyed by `(module_id, user_id)`.
+It optimizes for speed of iteration and “one document per user per module”.
+
+Use `module_data` when:
+- Your module stores **per-user settings or content** (one blob per user).
+- You don’t need strong relational constraints (FKs, unique constraints across many rows).
+- You don’t expect heavy cross-user queries (analytics, leaderboards, “who has X?”).
+- The data model is still changing rapidly.
+
+Prefer **new tables + migrations** when:
+- You have a **many-to-many** relationship (e.g. users ↔ badges, users ↔ teams).
+- You need **data integrity** enforced by the DB (FKs, unique constraints, cascades).
+- You need **queryability at scale** (indexes, filtering, ordering, joins).
+- You want the data to be a reusable **platform primitive** used by multiple modules.
+
+Concrete examples:
+
+Good fits for `module_data` (usually *not* platform core):
+- Module UI preferences (dismissed tips, layout options)
+- Draft wizard state / onboarding progress
+- Per-user module configuration blobs
+- Single “profile enhancer” output per user (if not queried across users)
+
+Good fits for new tables (often platform core):
+- Badges/achievements (definitions + user awards)
+- Entitlements/roles (authorization primitives)
+- Announcement feeds
+- Event/audit logs
+- Payment-related records
+
+#### Case study: badges
+Badges were implemented with two tables:
+- `badge_definitions`: the shared catalog
+- `user_badges`: the join table of awards (enforces uniqueness with a composite primary key)
+
+This would be awkward in `module_data` because it’s naturally many-to-many, benefits from
+unique constraints, and is useful across surfaces (e.g. public profiles) and potentially
+across multiple modules.
+
+#### Designing for external consumption
+If you want third parties to build tools on top of portal data:
+- Prefer stable, human-facing identifiers (e.g. `handle`) in public APIs.
+- Consider adding portal-owned endpoints that return “composed” views (e.g. badges by handle)
+  so external apps don’t need to join raw tables.
+
 ### Generate a module key
 ```bash
 npm run module:key
