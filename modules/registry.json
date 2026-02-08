@@ -293,6 +293,30 @@
           "allowedRoles": ["host", "role-scoped"]
         }
       }
+    },
+    {
+      "id": "bounty-board",
+      "title": "Bounty Board",
+      "description": "Browse, claim, and complete community bounties.",
+      "lane": "hosts",
+      "type": "link",
+      "url": "/modules/bounty-board",
+      "status": "in-progress",
+      "owner": { "name": "Hosts", "contact": "discord:@hosts" },
+      "requiresAuth": true,
+      "tags": ["people-tools", "me-tools"],
+      "presentation": {
+        "mode": "page",
+        "trigger": "button"
+      },
+      "summary": {
+        "source": "api",
+        "title": "Bounty Board",
+        "endpoint": "/api/modules/bounty-board/summary",
+        "layout": "list",
+        "maxItems": 2,
+        "showTitle": true
+      }
     }
   ]
 }
