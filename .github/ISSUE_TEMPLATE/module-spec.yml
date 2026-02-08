@@ -91,6 +91,23 @@ body:
     validations:
       required: true
 
+  - type: textarea
+    id: testing
+    attributes:
+      label: Testing / seed data (required for DB-backed features)
+      description: "If the module touches the DB (new tables, new queries, new permissions), define how we can reliably test it on staging/preview."
+      value: |
+        - [ ] Seed plan: what minimum data must exist to demo/test this module?
+        - [ ] Staging seed added (idempotent; safe to run repeatedly)
+          - Location: supabase/seeds/staging/
+          - Uses deterministic IDs and/or upserts
+        - [ ] Personas covered (if authz matters): host / contributor / admin (list which)
+        - [ ] Smoke tests defined (at least one):
+          - API checks (endpoint + expected status/shape)
+          - Optional: Playwright flow + screenshots for the "ready PR" report
+    validations:
+      required: true
+
   - type: checkboxes
     id: automation
     attributes:

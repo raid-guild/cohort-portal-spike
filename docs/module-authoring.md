@@ -257,6 +257,25 @@ Visibility rules:
 - `private` is returned only for the owner
 - module key can read all rows for its module
 
+## Staging validation: seeds + smoke tests (recommended)
+If your module adds new tables/migrations or depends on specific data states, add a staging seed so preview deployments can be tested reliably.
+
+Guidelines:
+- Put staging-only seeds under `supabase/seeds/staging/`.
+- Make seeds **idempotent** (safe to run multiple times):
+  - prefer deterministic UUIDs and `insert ... on conflict ... do update` (upsert)
+  - avoid creating duplicates on repeated runs
+- If permissions matter, define test personas (e.g. host/admin/contributor) and document which roles/entitlements are required.
+- Define at least one smoke test:
+  - API-level checks (fast) for key endpoints
+  - optionally a Playwright flow + screenshots for a human-readable PR report
+
+This pairs well with an automated "PR ready" pipeline that:
+1) migrates staging
+2) applies staging seeds
+3) runs smoke tests (and optionally Playwright)
+4) posts a short report back to the PR
+
 ## 3) (Optional) Sync registry to DB
 If you need queryable module metadata:
 
