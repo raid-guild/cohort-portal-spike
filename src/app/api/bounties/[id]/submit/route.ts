@@ -12,6 +12,27 @@ export async function POST(
 
   const { id } = await context.params;
 
+  const { data: bounty, error: bountyFetchError } = await auth.admin
+    .from("bounties")
+    .select("status")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (bountyFetchError) {
+    return Response.json({ error: bountyFetchError.message }, { status: 500 });
+  }
+
+  if (!bounty) {
+    return Response.json({ error: "Bounty not found." }, { status: 404 });
+  }
+
+  if (bounty.status !== "claimed") {
+    return Response.json(
+      { error: `Bounty cannot be submitted when status is \"${bounty.status}\".` },
+      { status: 409 },
+    );
+  }
+
   const { data: claim, error } = await auth.admin
     .from("bounty_claims")
     .select("id, user_id, status")
@@ -25,7 +46,10 @@ export async function POST(
   }
 
   if (!claim) {
-    return Response.json({ error: "You must claim this bounty first." }, { status: 400 });
+    return Response.json(
+      { error: "You must claim this bounty first." },
+      { status: 400 },
+    );
   }
 
   const now = new Date().toISOString();
@@ -33,20 +57,22 @@ export async function POST(
     .from("bounty_claims")
     .update({ status: "submitted", submitted_at: now })
     .eq("id", claim.id)
-    .select("id, bounty_id, user_id, status, created_at, updated_at, submitted_at, resolved_at")
+    .select(
+      "id, bounty_id, user_id, status, created_at, updated_at, submitted_at, resolved_at",
+    )
     .single();
 
   if (updateError) {
     return Response.json({ error: updateError.message }, { status: 500 });
   }
 
-  const { error: bountyError } = await auth.admin
+  const { error: bountyUpdateError } = await auth.admin
     .from("bounties")
     .update({ status: "submitted" })
     .eq("id", id);
 
-  if (bountyError) {
-    return Response.json({ error: bountyError.message }, { status: 500 });
+  if (bountyUpdateError) {
+    return Response.json({ error: bountyUpdateError.message }, { status: 500 });
   }
 
   return Response.json({ claim: updated });

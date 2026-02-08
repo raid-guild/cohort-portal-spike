@@ -12,6 +12,20 @@ export async function POST(
 
   const { id } = await context.params;
 
+  const { data: bounty, error: bountyError } = await auth.admin
+    .from("bounties")
+    .select("id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (bountyError) {
+    return Response.json({ error: bountyError.message }, { status: 500 });
+  }
+
+  if (!bounty) {
+    return Response.json({ error: "Bounty not found." }, { status: 404 });
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await request.json();

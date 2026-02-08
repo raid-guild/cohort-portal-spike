@@ -96,11 +96,23 @@ export function BountyBoard() {
         return;
       }
 
-      const rolesRes = await fetch("/api/me/roles", {
-        headers: { Authorization: `Bearer ${sessionToken}` },
-      });
-      const rolesJson = await rolesRes.json();
-      if (!cancelled) setRoles(rolesJson.roles ?? []);
+      try {
+        const rolesRes = await fetch("/api/me/roles", {
+          headers: { Authorization: `Bearer ${sessionToken}` },
+        });
+
+        if (!rolesRes.ok) {
+          console.warn("Failed to fetch user roles:", rolesRes.status);
+          if (!cancelled) setRoles([]);
+          return;
+        }
+
+        const rolesJson = await rolesRes.json();
+        if (!cancelled) setRoles(rolesJson.roles ?? []);
+      } catch (error) {
+        console.warn("Failed to fetch user roles:", error);
+        if (!cancelled) setRoles([]);
+      }
     };
 
     load();
