@@ -93,6 +93,11 @@ function listSql(dir) {
     console.error(err && (err.stack || err.message || err));
     process.exit(1);
   } finally {
-    try { await client.end(); } catch {}
+    try {
+      await client.end();
+    } catch (err) {
+      console.warn("WARN: failed to close DB client");
+      console.warn(err && (err.stack || err.message || err));
+    }
   }
 })();
