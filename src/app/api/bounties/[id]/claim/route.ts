@@ -57,6 +57,11 @@ export async function POST(
     .single();
 
   if (claimError) {
+    // Unique partial index `bounty_claims_one_active_per_bounty` prevents race-condition double-claims.
+    // Map that constraint failure to a conflict response.
+    if (claimError.code === "23505") {
+      return Response.json({ error: "Bounty already claimed." }, { status: 409 });
+    }
     return Response.json({ error: claimError.message }, { status: 500 });
   }
 

@@ -58,6 +58,14 @@ function safeHttpUrl(value: string | null): string | null {
   }
 }
 
+async function readJsonSafe<T>(res: Response): Promise<T | null> {
+  try {
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
 export function BountyBoard() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
   const [token, setToken] = useState<string | null>(null);
@@ -134,18 +142,22 @@ export function BountyBoard() {
     const res = await fetch(`/api/bounties?${params.toString()}`, {
       headers: { Authorization: `Bearer ${authToken}` },
     });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || "Failed to load bounties.");
-    setBounties(json.bounties ?? []);
+    const json = await readJsonSafe<{ bounties?: Bounty[]; error?: string }>(res);
+    if (!res.ok) {
+      throw new Error(json?.error || `Failed to load bounties (HTTP ${res.status}).`);
+    }
+    setBounties(json?.bounties ?? []);
   };
 
   const loadDetail = async (authToken: string, id: string) => {
     const res = await fetch(`/api/bounties/${id}`, {
       headers: { Authorization: `Bearer ${authToken}` },
     });
-    const json = (await res.json()) as DetailResponse & { error?: string };
-    if (!res.ok) throw new Error(json.error || "Failed to load bounty.");
-    setDetail(json);
+    const json = await readJsonSafe<(DetailResponse & { error?: string }) | null>(res);
+    if (!res.ok) {
+      throw new Error(json?.error || `Failed to load bounty (HTTP ${res.status}).`);
+    }
+    if (json) setDetail(json);
   };
 
   useEffect(() => {
@@ -188,8 +200,10 @@ export function BountyBoard() {
       },
       body: body ? JSON.stringify(body) : undefined,
     });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || "Request failed.");
+    const json = await readJsonSafe<{ error?: string }>(res);
+    if (!res.ok) {
+      throw new Error(json?.error || `Request failed (HTTP ${res.status}).`);
+    }
     await refresh();
   };
 
@@ -203,8 +217,10 @@ export function BountyBoard() {
       },
       body: JSON.stringify(body),
     });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || "Request failed.");
+    const json = await readJsonSafe<{ error?: string }>(res);
+    if (!res.ok) {
+      throw new Error(json?.error || `Request failed (HTTP ${res.status}).`);
+    }
     await refresh();
   };
 

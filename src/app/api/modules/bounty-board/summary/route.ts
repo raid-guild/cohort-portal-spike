@@ -1,5 +1,4 @@
 import { NextRequest } from "next/server";
-import { supabaseAdminClient } from "@/lib/supabase/admin";
 import { requireAuth } from "@/app/api/bounties/_auth";
 
 export async function GET(request: NextRequest) {
@@ -8,7 +7,7 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: auth.error }, { status: auth.status ?? 401 });
   }
 
-  const admin = supabaseAdminClient();
+  const admin = auth.admin;
 
   const { count: openCount, error: openError } = await admin
     .from("bounties")
