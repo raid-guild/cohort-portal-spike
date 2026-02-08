@@ -91,7 +91,7 @@ function listSql(dir) {
   } catch (err) {
     console.error('ERROR: seed runner failed');
     console.error(err && (err.stack || err.message || err));
-    process.exit(1);
+    process.exitCode = 1;
   } finally {
     try {
       await client.end();
