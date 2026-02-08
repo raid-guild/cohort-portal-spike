@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { PaidStar } from "./PaidStar";
 
@@ -12,16 +12,19 @@ export function AuthLink() {
   const [initials, setInitials] = useState<string>("RG");
   const [isPaid, setIsPaid] = useState(false);
 
-  const loadProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("avatar_url, display_name, handle")
-      .eq("user_id", userId)
-      .maybeSingle();
-    setAvatarUrl(data?.avatar_url ?? null);
-    const nameSource = data?.display_name || data?.handle || "";
-    setInitials(getInitials(nameSource));
-  };
+  const loadProfile = useCallback(
+    async (userId: string) => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("avatar_url, display_name, handle")
+        .eq("user_id", userId)
+        .maybeSingle();
+      setAvatarUrl(data?.avatar_url ?? null);
+      const nameSource = data?.display_name || data?.handle || "";
+      setInitials(getInitials(nameSource));
+    },
+    [supabase],
+  );
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -66,7 +69,7 @@ export function AuthLink() {
     return () => {
       listener.subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, [loadProfile, supabase]);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -93,7 +96,7 @@ export function AuthLink() {
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("message", handleMessage);
     };
-  }, [supabase]);
+  }, [loadProfile, supabase]);
 
   return (
     <Link
