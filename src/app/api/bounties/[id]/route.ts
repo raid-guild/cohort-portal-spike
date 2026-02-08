@@ -54,7 +54,13 @@ export async function PUT(
   }
 
   const { id } = await context.params;
-  const body = await request.json();
+
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
 
   const patch: Record<string, unknown> = {};
   if (body?.title != null) patch.title = String(body.title).trim();

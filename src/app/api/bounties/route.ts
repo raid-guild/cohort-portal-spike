@@ -40,7 +40,13 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: auth.error }, { status: auth.status ?? 403 });
   }
 
-  const body = await request.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+
   const title = String(body?.title ?? "").trim();
   const description = String(body?.description ?? "").trim();
   const githubUrl = body?.githubUrl ? String(body.githubUrl).trim() : null;

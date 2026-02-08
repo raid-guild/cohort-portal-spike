@@ -11,7 +11,14 @@ export async function POST(
   }
 
   const { id } = await context.params;
-  const body = await request.json();
+
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+
   const message = String(body?.body ?? "").trim();
   if (!message) {
     return Response.json({ error: "Comment body is required." }, { status: 400 });
