@@ -47,6 +47,17 @@ type DetailResponse = {
 
 const statusOptions = ["all", "open", "claimed", "submitted", "accepted", "closed"];
 
+function safeHttpUrl(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 export function BountyBoard() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
   const [token, setToken] = useState<string | null>(null);
@@ -185,6 +196,18 @@ export function BountyBoard() {
     await refresh();
   };
 
+  const runAction = async (fn: () => Promise<void>) => {
+    setMessage("");
+    setLoading(true);
+    try {
+      await fn();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const createBounty = async () => {
     setMessage("");
     setLoading(true);
@@ -227,6 +250,8 @@ export function BountyBoard() {
   const claim = detail?.activeClaim;
   const canClaim = bounty?.status === "open";
   const isClaimer = claim?.user_id && viewerId ? claim.user_id === viewerId : false;
+
+  const safeGithubUrl = bounty?.github_url ? safeHttpUrl(bounty.github_url) : null;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
@@ -328,11 +353,7 @@ export function BountyBoard() {
                     <button
                       className="h-9 rounded-md bg-primary px-3 text-sm text-primary-foreground disabled:opacity-50"
                       disabled={loading}
-                      onClick={() =>
-                        callPost(`/api/bounties/${bounty?.id}/claim`).catch((e) =>
-                          setMessage(e instanceof Error ? e.message : "Failed."),
-                        )
-                      }
+                      onClick={() => runAction(() => callPost(`/api/bounties/${bounty?.id}/claim`))}
                     >
                       Claim
                     </button>
@@ -342,11 +363,7 @@ export function BountyBoard() {
                     <button
                       className="h-9 rounded-md border border-border px-3 text-sm disabled:opacity-50"
                       disabled={loading}
-                      onClick={() =>
-                        callPost(`/api/bounties/${bounty?.id}/unclaim`).catch((e) =>
-                          setMessage(e instanceof Error ? e.message : "Failed."),
-                        )
-                      }
+                      onClick={() => runAction(() => callPost(`/api/bounties/${bounty?.id}/unclaim`))}
                     >
                       Unclaim
                     </button>
@@ -356,11 +373,7 @@ export function BountyBoard() {
                     <button
                       className="h-9 rounded-md bg-primary px-3 text-sm text-primary-foreground disabled:opacity-50"
                       disabled={loading}
-                      onClick={() =>
-                        callPost(`/api/bounties/${bounty?.id}/submit`).catch((e) =>
-                          setMessage(e instanceof Error ? e.message : "Failed."),
-                        )
-                      }
+                      onClick={() => runAction(() => callPost(`/api/bounties/${bounty?.id}/submit`))}
                     >
                       Mark complete
                     </button>
@@ -371,22 +384,14 @@ export function BountyBoard() {
                       <button
                         className="h-9 rounded-md bg-primary px-3 text-sm text-primary-foreground disabled:opacity-50"
                         disabled={loading}
-                        onClick={() =>
-                          callPost(`/api/bounties/${bounty?.id}/accept`).catch((e) =>
-                            setMessage(e instanceof Error ? e.message : "Failed."),
-                          )
-                        }
+                        onClick={() => runAction(() => callPost(`/api/bounties/${bounty?.id}/accept`))}
                       >
                         Accept
                       </button>
                       <button
                         className="h-9 rounded-md border border-border px-3 text-sm disabled:opacity-50"
                         disabled={loading}
-                        onClick={() =>
-                          callPost(`/api/bounties/${bounty?.id}/reject`).catch((e) =>
-                            setMessage(e instanceof Error ? e.message : "Failed."),
-                          )
-                        }
+                        onClick={() => runAction(() => callPost(`/api/bounties/${bounty?.id}/reject`))}
                       >
                         Reject
                       </button>
@@ -398,9 +403,7 @@ export function BountyBoard() {
                       className="h-9 rounded-md border border-border px-3 text-sm disabled:opacity-50"
                       disabled={loading}
                       onClick={() =>
-                        callPut(`/api/bounties/${bounty?.id}`, { status: "closed" }).catch(
-                          (e) => setMessage(e instanceof Error ? e.message : "Failed."),
-                        )
+                        runAction(() => callPut(`/api/bounties/${bounty?.id}`, { status: "closed" }))
                       }
                     >
                       Close
@@ -409,16 +412,20 @@ export function BountyBoard() {
                 </div>
               </div>
 
-              {bounty?.github_url ? (
+              {safeGithubUrl ? (
                 <div className="mt-3 text-sm">
                   <a
                     className="text-primary underline"
-                    href={bounty.github_url}
+                    href={safeGithubUrl}
                     target="_blank"
                     rel="noreferrer"
                   >
                     GitHub issue
                   </a>
+                </div>
+              ) : bounty?.github_url ? (
+                <div className="mt-3 text-xs text-muted-foreground">
+                  GitHub issue link is invalid.
                 </div>
               ) : null}
 

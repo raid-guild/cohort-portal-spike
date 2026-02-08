@@ -19,10 +19,14 @@ export async function requireAuth(request: NextRequest): Promise<AuthResult> {
   }
 
   const admin = supabaseAdminClient();
-  const { data: roleRows } = await admin
+  const { data: roleRows, error: rolesError } = await admin
     .from("user_roles")
     .select("role")
     .eq("user_id", data.user.id);
+
+  if (rolesError) {
+    return { error: `Failed to load user roles: ${rolesError.message}`, status: 500 };
+  }
 
   const roles = roleRows?.map((row) => row.role) ?? [];
   return { userId: data.user.id, roles, admin };

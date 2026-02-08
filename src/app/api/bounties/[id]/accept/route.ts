@@ -38,7 +38,14 @@ export async function POST(
     return Response.json({ error: updateError.message }, { status: 500 });
   }
 
-  await auth.admin.from("bounties").update({ status: "accepted" }).eq("id", id);
+  const { error: bountyError } = await auth.admin
+    .from("bounties")
+    .update({ status: "accepted" })
+    .eq("id", id);
+
+  if (bountyError) {
+    return Response.json({ error: bountyError.message }, { status: 500 });
+  }
 
   return Response.json({ claim: updated });
 }

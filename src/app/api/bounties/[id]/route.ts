@@ -62,14 +62,36 @@ export async function PUT(
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
+  const allowedBountyStatuses = new Set([
+    "open",
+    "claimed",
+    "submitted",
+    "accepted",
+    "closed",
+  ]);
+
   const patch: Record<string, unknown> = {};
   if (body?.title != null) patch.title = String(body.title).trim();
   if (body?.description != null) patch.description = String(body.description).trim();
-  if (body?.status != null) patch.status = String(body.status).trim();
+
+  if (body?.status != null) {
+    const status = String(body.status).trim();
+    if (!allowedBountyStatuses.has(status)) {
+      return Response.json({ error: `Invalid status: ${status}` }, { status: 400 });
+    }
+    patch.status = status;
+  }
+
   if (body?.githubUrl != null) patch.github_url = String(body.githubUrl).trim() || null;
   if (body?.rewardType != null) patch.reward_type = String(body.rewardType).trim();
-  if (body?.rewardAmount != null)
-    patch.reward_amount = body.rewardAmount === "" ? null : Number(body.rewardAmount);
+  if (body?.rewardAmount != null) {
+    if (body.rewardAmount === "") {
+      patch.reward_amount = null;
+    } else {
+      const n = Number(body.rewardAmount);
+      patch.reward_amount = Number.isFinite(n) ? n : null;
+    }
+  }
   if (body?.rewardToken != null) patch.reward_token = String(body.rewardToken).trim() || null;
   if (body?.badgeId != null) patch.badge_id = String(body.badgeId).trim() || null;
   if (body?.dueAt != null) patch.due_at = body.dueAt ? String(body.dueAt) : null;

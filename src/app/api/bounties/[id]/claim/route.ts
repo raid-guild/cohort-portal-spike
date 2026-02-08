@@ -12,12 +12,16 @@ export async function POST(
 
   const { id } = await context.params;
 
-  const { data: existing } = await auth.admin
+  const { data: existing, error: existingError } = await auth.admin
     .from("bounty_claims")
     .select("id, user_id, status")
     .eq("bounty_id", id)
     .in("status", ["claimed", "submitted"])
     .maybeSingle();
+
+  if (existingError) {
+    return Response.json({ error: existingError.message }, { status: 500 });
+  }
 
   if (existing) {
     return Response.json(
@@ -36,10 +40,14 @@ export async function POST(
     return Response.json({ error: claimError.message }, { status: 500 });
   }
 
-  await auth.admin
+  const { error: bountyError } = await auth.admin
     .from("bounties")
     .update({ status: "claimed" })
     .eq("id", id);
+
+  if (bountyError) {
+    return Response.json({ error: bountyError.message }, { status: 500 });
+  }
 
   return Response.json({ claim });
 }
