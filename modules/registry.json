@@ -14,14 +14,23 @@
       "type": "link",
       "url": "/modules/daily-brief",
       "status": "live",
-      "owner": { "name": "Portal Core", "contact": "discord:@portal" },
+      "owner": {
+        "name": "Portal Core",
+        "contact": "discord:@portal"
+      },
       "requiresAuth": false,
-      "tags": ["start-here"],
+      "tags": [
+        "start-here"
+      ],
       "presentation": {
         "mode": "dialog",
         "trigger": "button",
-        "dialog": { "size": "md" },
-        "iframe": { "height": 520 },
+        "dialog": {
+          "size": "md"
+        },
+        "iframe": {
+          "height": 520
+        },
         "layout": "wide"
       },
       "summary": {
@@ -40,9 +49,15 @@
       "lane": "profiles",
       "type": "link",
       "status": "live",
-      "owner": { "name": "Profiles Lane", "contact": "discord:@profiles" },
+      "owner": {
+        "name": "Profiles Lane",
+        "contact": "discord:@profiles"
+      },
       "requiresAuth": true,
-      "tags": ["profile-tools-public", "me-tools"],
+      "tags": [
+        "profile-tools-public",
+        "me-tools"
+      ],
       "presentation": {
         "action": "none"
       },
@@ -68,16 +83,28 @@
       "lane": "profiles",
       "type": "link",
       "status": "live",
-      "owner": { "name": "Profiles Lane", "contact": "discord:@profiles" },
+      "owner": {
+        "name": "Profiles Lane",
+        "contact": "discord:@profiles"
+      },
       "requiresAuth": true,
-      "access": { "requiresAuth": true, "entitlement": "cohort-approved" },
-      "tags": ["me-tools"],
+      "access": {
+        "requiresAuth": true,
+        "entitlement": "cohort-approved"
+      },
+      "tags": [
+        "me-tools"
+      ],
       "url": "/modules/profile-generators",
       "presentation": {
         "mode": "dialog",
         "trigger": "button",
-        "dialog": { "size": "md" },
-        "iframe": { "height": 640 }
+        "dialog": {
+          "size": "md"
+        },
+        "iframe": {
+          "height": 640
+        }
       },
       "summary": {
         "source": "api",
@@ -87,8 +114,63 @@
         "imageKey": "Avatar"
       },
       "capabilities": {
-        "profileWrite": { "fields": ["display_name", "avatar_url"], "requiresUserAuth": true },
-        "aiGenerate": { "requiresUserAuth": true, "provider": "venice" }
+        "profileWrite": {
+          "fields": [
+            "display_name",
+            "avatar_url"
+          ],
+          "requiresUserAuth": true
+        },
+        "aiGenerate": {
+          "requiresUserAuth": true,
+          "provider": "venice"
+        }
+      }
+    },
+    {
+      "id": "raider-timeline",
+      "title": "Raider Timeline",
+      "description": "A lightweight chronicle of milestones and notes on your RaidGuild profile.",
+      "lane": "profiles",
+      "type": "link",
+      "url": "/modules/raider-timeline",
+      "status": "beta",
+      "owner": {
+        "name": "Profiles Lane",
+        "contact": "@dekanbro"
+      },
+      "requiresAuth": false,
+      "tags": [
+        "profile-tools-public",
+        "me-tools"
+      ],
+      "presentation": {
+        "mode": "dialog",
+        "trigger": "button",
+        "dialog": {
+          "size": "md"
+        },
+        "iframe": {
+          "height": 720
+        }
+      },
+      "summaryBySurface": {
+        "profile": {
+          "source": "api",
+          "title": "Timeline",
+          "endpoint": "/api/modules/raider-timeline/summary/profile?handle={handle}",
+          "layout": "excerpt",
+          "maxItems": 2,
+          "showTitle": true
+        },
+        "me": {
+          "source": "api",
+          "title": "Timeline",
+          "endpoint": "/api/modules/raider-timeline/summary",
+          "layout": "list",
+          "maxItems": 2,
+          "showTitle": true
+        }
       }
     },
     {
@@ -98,10 +180,18 @@
       "lane": "billing",
       "type": "link",
       "status": "beta",
-      "owner": { "name": "Ops Lane", "contact": "discord:@ops" },
+      "owner": {
+        "name": "Ops Lane",
+        "contact": "discord:@ops"
+      },
       "requiresAuth": true,
-      "access": { "requiresAuth": true, "entitlement": "cohort-approved" },
-      "tags": ["me-tools"],
+      "access": {
+        "requiresAuth": true,
+        "entitlement": "cohort-approved"
+      },
+      "tags": [
+        "me-tools"
+      ],
       "url": "/modules/billing",
       "presentation": {
         "mode": "page",
@@ -112,12 +202,18 @@
         "source": "static",
         "title": "Cohort Billing & Escrow",
         "items": [
-          { "label": "$100 / month", "value": "6-month commitment window." },
+          {
+            "label": "$100 / month",
+            "value": "6-month commitment window."
+          },
           {
             "label": "Membership escrow",
             "value": "75% of every payment goes toward your RaidGuild membership stake."
           },
-          { "label": "Leave anytime.", "value": "Crypto payments include partial refunds." }
+          {
+            "label": "Leave anytime.",
+            "value": "Crypto payments include partial refunds."
+          }
         ],
         "layout": "excerpt",
         "maxItems": 3,
@@ -131,9 +227,14 @@
       "lane": "cohort",
       "type": "link",
       "status": "beta",
-      "owner": { "name": "Ops Lane", "contact": "discord:@ops" },
+      "owner": {
+        "name": "Ops Lane",
+        "contact": "discord:@ops"
+      },
       "requiresAuth": true,
-      "tags": ["me-tools"],
+      "tags": [
+        "me-tools"
+      ],
       "url": "/modules/cohort-application",
       "presentation": {
         "mode": "page",
@@ -155,9 +256,15 @@
       "lane": "cohort",
       "type": "link",
       "status": "beta",
-      "owner": { "name": "Ops Lane", "contact": "discord:@ops" },
+      "owner": {
+        "name": "Ops Lane",
+        "contact": "discord:@ops"
+      },
       "requiresAuth": true,
-      "tags": ["start-here", "hosts"],
+      "tags": [
+        "start-here",
+        "hosts"
+      ],
       "url": "/modules/cohort-application",
       "presentation": {
         "mode": "page",
@@ -180,10 +287,18 @@
       "lane": "cohort",
       "type": "link",
       "status": "beta",
-      "owner": { "name": "Ops Lane", "contact": "discord:@ops" },
+      "owner": {
+        "name": "Ops Lane",
+        "contact": "discord:@ops"
+      },
       "requiresAuth": true,
-      "access": { "requiresAuth": true, "entitlement": "cohort-access" },
-      "tags": ["start-here"],
+      "access": {
+        "requiresAuth": true,
+        "entitlement": "cohort-access"
+      },
+      "tags": [
+        "start-here"
+      ],
       "url": "/modules/cohort-hub",
       "presentation": {
         "mode": "page",
@@ -194,9 +309,18 @@
         "source": "static",
         "title": "Cohort Hub",
         "items": [
-          { "label": "Schedule", "value": "Daily agenda and notes." },
-          { "label": "Projects", "value": "Teams, goals, and updates." },
-          { "label": "Resources", "value": "Docs, links, and assets." }
+          {
+            "label": "Schedule",
+            "value": "Daily agenda and notes."
+          },
+          {
+            "label": "Projects",
+            "value": "Teams, goals, and updates."
+          },
+          {
+            "label": "Resources",
+            "value": "Docs, links, and assets."
+          }
         ],
         "layout": "list",
         "maxItems": 3,
@@ -211,9 +335,18 @@
       "type": "link",
       "url": "/modules/skills-explorer",
       "status": "live",
-      "owner": { "name": "Profiles Lane", "contact": "discord:@profiles" },
+      "owner": {
+        "name": "Profiles Lane",
+        "contact": "discord:@profiles"
+      },
       "requiresAuth": false,
-      "tags": ["people-tools", "skills", "directory", "profile-tools-public", "start-here"],
+      "tags": [
+        "people-tools",
+        "skills",
+        "directory",
+        "profile-tools-public",
+        "start-here"
+      ],
       "presentation": {
         "mode": "page",
         "trigger": "button"
@@ -249,7 +382,10 @@
       "url": "/modules/badges",
       "status": "in-progress",
       "requiresAuth": true,
-      "tags": ["badges", "profile-tools-public"]
+      "tags": [
+        "badges",
+        "profile-tools-public"
+      ]
     },
     {
       "id": "payments",
@@ -259,9 +395,15 @@
       "type": "link",
       "url": "https://example.com/payments",
       "status": "planned",
-      "owner": { "name": "Payments Lane", "contact": "discord:@payments" },
+      "owner": {
+        "name": "Payments Lane",
+        "contact": "discord:@payments"
+      },
       "requiresAuth": true,
-      "tags": ["payments", "finance"]
+      "tags": [
+        "payments",
+        "finance"
+      ]
     },
     {
       "id": "announcements",
@@ -271,9 +413,15 @@
       "type": "link",
       "url": "/modules/announcements",
       "status": "live",
-      "owner": { "name": "Host Lane", "contact": "discord:@hosts" },
+      "owner": {
+        "name": "Host Lane",
+        "contact": "discord:@hosts"
+      },
       "requiresAuth": false,
-      "tags": ["admin", "start-here"],
+      "tags": [
+        "admin",
+        "start-here"
+      ],
       "presentation": {
         "layout": "wide",
         "height": "double"
@@ -290,7 +438,10 @@
       "capabilities": {
         "announcementsWrite": {
           "requiresUserAuth": true,
-          "allowedRoles": ["host", "role-scoped"]
+          "allowedRoles": [
+            "host",
+            "role-scoped"
+          ]
         }
       }
     }
