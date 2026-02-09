@@ -28,6 +28,7 @@ A directory-first community portal for RaidGuild that centralizes profiles and c
 - `/modules/profile-generators` profile generators module
 - `/modules/skills-explorer` skills explorer module
 - `/api/modules` registry JSON
+- `/api/health` deploy/smoke health check (returns ok + git sha)
 - `/api/module-data` module data API
 - `/api/announcements` announcements API
 - `/api/cohorts` cohorts API
