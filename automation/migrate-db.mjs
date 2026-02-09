@@ -81,7 +81,16 @@ async function trackApplied(client, name, checksum) {
   }
 }
 
-async function applyOne(client, name, sql, checksum) {
+async function isAlreadyAppliedError(err) {
+  const msg = String(err?.message || err);
+  return (
+    /already exists/i.test(msg) ||
+    /duplicate (?:key|object)/i.test(msg) ||
+    /policy .* already exists/i.test(msg)
+  );
+}
+
+async function applyOne(client, name, sql, checksum, { bootstrap = false } = {}) {
   const transactional = !needsNonTransactional(sql);
 
   if (transactional) await client.query("begin");
@@ -96,16 +105,15 @@ async function applyOne(client, name, sql, checksum) {
         [name, checksum]
       );
       await client.query("commit");
-      return;
+      return { applied: true };
     }
 
     // Non-transactional migrations (e.g. CREATE INDEX CONCURRENTLY) can't be wrapped.
     // Track them separately so we don't end up in an "applied but untracked" state.
     try {
       await trackApplied(client, name, checksum);
+      return { applied: true };
     } catch (trackErr) {
-      // At this point, the SQL likely already ran successfully, so re-running can get stuck.
-      // Provide a clear recovery path.
       throw new Error(
         `Migration ${name} executed but failed to record in ${MIGRATIONS_TABLE}. ` +
           `To unblock future runs, manually insert it, e.g.\n\n` +
@@ -119,6 +127,14 @@ async function applyOne(client, name, sql, checksum) {
         await client.query("rollback");
       } catch {}
     }
+
+    // Bootstrap mode: DB may already have this migration applied but untracked.
+    if (bootstrap && (await isAlreadyAppliedError(err))) {
+      process.stdout.write("already applied; tracking\n");
+      await trackApplied(client, name, checksum);
+      return { applied: false, bootstrapped: true };
+    }
+
     throw err;
   }
 }
@@ -135,6 +151,11 @@ async function main() {
 
     const files = await listMigrationFiles();
     const applied = await appliedSet(client);
+
+    // If the ledger is empty but the DB already has tables/policies, we're bootstrapping.
+    // In that case, treat "already exists" errors as already-applied migrations and just record them.
+    const hasProfiles = (await client.query("select to_regclass('public.profiles') as t")).rows?.[0]?.t;
+    const bootstrap = applied.size === 0 && Boolean(hasProfiles);
 
     let appliedCount = 0;
     for (const file of files) {
@@ -155,9 +176,14 @@ async function main() {
       }
 
       process.stdout.write(`Applying ${file}... `);
-      await applyOne(client, file, sql, checksum);
-      appliedCount += 1;
-      process.stdout.write("ok\n");
+      const res = await applyOne(client, file, sql, checksum, { bootstrap });
+      if (res?.applied) {
+        appliedCount += 1;
+        process.stdout.write("ok\n");
+      } else {
+        // bootstrapped / tracked
+        // (applyOne already printed a short note)
+      }
     }
 
     console.log(`Done. Newly applied migrations: ${appliedCount}`);
