@@ -1,55 +1,15 @@
 import { NextRequest } from "next/server";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
-import { supabaseServerClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/types/db";
-
-type Visibility = "public" | "authenticated" | "private";
-type Kind = "note" | "milestone" | "attendance";
-
-type TimelineEntry = {
-  id: string;
-  kind: Kind;
-  title: string;
-  body: string | null;
-  visibility: Visibility;
-  occurredAt: string;
-  pinned: boolean;
-  createdBy: string | null;
-  createdViaRole: string | null;
-};
-
-function normalizeVisibility(value: unknown): Visibility {
-  return value === "public" || value === "authenticated" || value === "private"
-    ? value
-    : "private";
-}
-
-function normalizeKind(value: unknown): Kind {
-  return value === "note" || value === "milestone" || value === "attendance"
-    ? value
-    : "note";
-}
-
-async function getViewerIdFromAuthHeader(
-  request: NextRequest,
-): Promise<string | null> {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return null;
-  }
-
-  const token = authHeader.slice("Bearer ".length).trim();
-  if (!token) {
-    return null;
-  }
-
-  const supabase = supabaseServerClient();
-  const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data.user) {
-    return null;
-  }
-  return data.user.id;
-}
+import {
+  getViewerIdFromAuthHeader,
+  normalizeKind,
+  normalizeVisibility,
+  toPayload,
+  type Kind,
+  type TimelineEntry,
+  type Visibility,
+} from "@/app/api/modules/raider-timeline/lib";
 
 async function getUserIdForHandle(handle: string) {
   const supabase = supabaseAdminClient();
@@ -65,30 +25,6 @@ async function getUserIdForHandle(handle: string) {
   return data?.user_id ?? null;
 }
 
-function toPayload(row: {
-  id: string;
-  kind: string;
-  title: string;
-  body: string | null;
-  visibility: string;
-  occurred_at: string;
-  pinned: boolean;
-  created_by: string | null;
-  created_via_role: string | null;
-}): TimelineEntry {
-  return {
-    id: row.id,
-    kind: normalizeKind(row.kind),
-    title: row.title,
-    body: row.body,
-    visibility: normalizeVisibility(row.visibility),
-    occurredAt: row.occurred_at,
-    pinned: row.pinned,
-    createdBy: row.created_by,
-    createdViaRole: row.created_via_role,
-  };
-}
-
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const handle = String(url.searchParams.get("handle") ?? "").trim();
@@ -97,7 +33,16 @@ export async function GET(request: NextRequest) {
   }
 
   const viewerId = await getViewerIdFromAuthHeader(request);
-  const userId = await getUserIdForHandle(handle);
+
+  let userId: string | null;
+  try {
+    userId = await getUserIdForHandle(handle);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to resolve handle.";
+    return Response.json({ error: message }, { status: 500 });
+  }
+
   if (!userId) {
     return Response.json({ items: [] satisfies TimelineEntry[] });
   }
@@ -105,7 +50,10 @@ export async function GET(request: NextRequest) {
   const supabase = supabaseAdminClient();
   let visibilityFilter: Visibility[] = ["public"];
   if (viewerId) {
-    visibilityFilter = viewerId === userId ? ["public", "authenticated", "private"] : ["public", "authenticated"];
+    visibilityFilter =
+      viewerId === userId
+        ? ["public", "authenticated", "private"]
+        : ["public", "authenticated"];
   }
 
   const { data, error } = await supabase
@@ -173,8 +121,8 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Body is too long." }, { status: 400 });
   }
 
-  const visibility = normalizeVisibility(body.visibility);
-  const kind = normalizeKind(body.kind);
+  const visibility = normalizeVisibility(body.visibility, "private");
+  const kind = normalizeKind(body.kind, "note");
 
   let occurredAt: string;
   if (body.occurredAt) {
@@ -186,6 +134,7 @@ export async function POST(request: NextRequest) {
   } else {
     occurredAt = new Date().toISOString();
   }
+
   const pinned = Boolean(body.pinned);
 
   const supabase = supabaseAdminClient();

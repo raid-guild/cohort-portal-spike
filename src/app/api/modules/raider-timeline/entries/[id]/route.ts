@@ -1,21 +1,13 @@
 import { NextRequest } from "next/server";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
-import { supabaseServerClient } from "@/lib/supabase/server";
-
-type Visibility = "public" | "authenticated" | "private";
-type Kind = "note" | "milestone" | "attendance";
-
-type TimelineEntry = {
-  id: string;
-  kind: Kind;
-  title: string;
-  body: string | null;
-  visibility: Visibility;
-  occurredAt: string;
-  pinned: boolean;
-  createdBy: string | null;
-  createdViaRole: string | null;
-};
+import {
+  parseKind,
+  parseVisibility,
+  toPayload,
+  getViewerIdFromAuthHeader,
+  type Kind,
+  type Visibility,
+} from "@/app/api/modules/raider-timeline/lib";
 
 type PatchEntryRequest = {
   title?: string;
@@ -26,72 +18,17 @@ type PatchEntryRequest = {
   kind?: Kind;
 };
 
-function normalizeVisibility(value: unknown): Visibility | null {
-  return value === "public" || value === "authenticated" || value === "private"
-    ? value
-    : null;
-}
-
-function normalizeKind(value: unknown): Kind | null {
-  return value === "note" || value === "milestone" || value === "attendance"
-    ? value
-    : null;
-}
-
-function toPayload(row: {
-  id: string;
-  kind: string;
-  title: string;
-  body: string | null;
-  visibility: string;
-  occurred_at: string;
-  pinned: boolean;
-  created_by: string | null;
-  created_via_role: string | null;
-}): TimelineEntry {
-  return {
-    id: row.id,
-    kind: normalizeKind(row.kind) ?? "note",
-    title: row.title,
-    body: row.body,
-    visibility: normalizeVisibility(row.visibility) ?? "private",
-    occurredAt: row.occurred_at,
-    pinned: row.pinned,
-    createdBy: row.created_by,
-    createdViaRole: row.created_via_role,
-  };
-}
-
-async function getViewerIdFromAuthHeader(
-  request: NextRequest,
-): Promise<string | null> {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return null;
-  }
-
-  const token = authHeader.slice("Bearer ".length).trim();
-  if (!token) {
-    return null;
-  }
-
-  const supabase = supabaseServerClient();
-  const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data.user) {
-    return null;
-  }
-  return data.user.id;
-}
-
 async function assertOwner(entryId: string, viewerId: string) {
   const supabase = supabaseAdminClient();
   const { data, error } = await supabase
     .from("timeline_entries")
     .select("id, user_id")
     .eq("id", entryId)
+    .is("deleted_at", null)
     .maybeSingle();
+
   if (error) {
-    throw new Error(error.message);
+    return { ok: false as const, status: 500 as const, error: error.message };
   }
   if (!data) {
     return { ok: false as const, status: 404 as const, error: "Not found." };
@@ -114,7 +51,10 @@ export async function PATCH(
 
   const ownerCheck = await assertOwner(id, viewerId);
   if (!ownerCheck.ok) {
-    return Response.json({ error: ownerCheck.error }, { status: ownerCheck.status });
+    return Response.json(
+      { error: ownerCheck.error },
+      { status: ownerCheck.status },
+    );
   }
 
   let body: PatchEntryRequest;
@@ -125,6 +65,7 @@ export async function PATCH(
   }
 
   const payload: Record<string, unknown> = {};
+
   if (typeof body.title === "string") {
     const title = body.title.trim();
     if (!title) {
@@ -144,12 +85,12 @@ export async function PATCH(
     payload.body = content.length ? content : null;
   }
 
-  const visibility = normalizeVisibility(body.visibility);
+  const visibility = parseVisibility(body.visibility);
   if (visibility) {
     payload.visibility = visibility;
   }
 
-  const kind = normalizeKind(body.kind);
+  const kind = parseKind(body.kind);
   if (kind) {
     payload.kind = kind;
   }
@@ -199,7 +140,10 @@ export async function DELETE(
 
   const ownerCheck = await assertOwner(id, viewerId);
   if (!ownerCheck.ok) {
-    return Response.json({ error: ownerCheck.error }, { status: ownerCheck.status });
+    return Response.json(
+      { error: ownerCheck.error },
+      { status: ownerCheck.status },
+    );
   }
 
   const supabase = supabaseAdminClient();
