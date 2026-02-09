@@ -1,0 +1,79 @@
+import { NextRequest } from "next/server";
+import { requireAuth } from "../../_auth";
+
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
+  const auth = await requireAuth(request);
+  if ("error" in auth) {
+    return Response.json({ error: auth.error }, { status: auth.status ?? 401 });
+  }
+
+  const { id } = await context.params;
+
+  const { data: bounty, error: bountyFetchError } = await auth.admin
+    .from("bounties")
+    .select("status")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (bountyFetchError) {
+    return Response.json({ error: bountyFetchError.message }, { status: 500 });
+  }
+
+  if (!bounty) {
+    return Response.json({ error: "Bounty not found." }, { status: 404 });
+  }
+
+  if (bounty.status !== "claimed") {
+    return Response.json(
+      { error: `Bounty cannot be submitted when status is \"${bounty.status}\".` },
+      { status: 409 },
+    );
+  }
+
+  const { data: claim, error } = await auth.admin
+    .from("bounty_claims")
+    .select("id, user_id, status")
+    .eq("bounty_id", id)
+    .eq("user_id", auth.userId)
+    .eq("status", "claimed")
+    .maybeSingle();
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+
+  if (!claim) {
+    return Response.json(
+      { error: "You must claim this bounty first." },
+      { status: 400 },
+    );
+  }
+
+  const now = new Date().toISOString();
+  const { data: updated, error: updateError } = await auth.admin
+    .from("bounty_claims")
+    .update({ status: "submitted", submitted_at: now })
+    .eq("id", claim.id)
+    .select(
+      "id, bounty_id, user_id, status, created_at, updated_at, submitted_at, resolved_at",
+    )
+    .single();
+
+  if (updateError) {
+    return Response.json({ error: updateError.message }, { status: 500 });
+  }
+
+  const { error: bountyUpdateError } = await auth.admin
+    .from("bounties")
+    .update({ status: "submitted" })
+    .eq("id", id);
+
+  if (bountyUpdateError) {
+    return Response.json({ error: bountyUpdateError.message }, { status: 500 });
+  }
+
+  return Response.json({ claim: updated });
+}
