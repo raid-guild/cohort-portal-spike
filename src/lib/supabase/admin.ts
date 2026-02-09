@@ -1,7 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/db";
 
-const supabaseUrl = process.env.SUPABASE_URL ?? "";
+// Allow SUPABASE_URL, but fall back to NEXT_PUBLIC_SUPABASE_URL so Preview builds don't
+// need to duplicate the URL in two variables.
+const supabaseUrl =
+  process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
 export const supabaseAdminClient = () => {

@@ -40,7 +40,7 @@ export const getOrCreateStripeCustomer = async (stripe: Stripe, user: User) => {
       limit: 1,
     });
     customer = existing.data[0] ?? null;
-  } catch (error) {
+  } catch {
     if (user.email) {
       const existing = await stripe.customers.list({
         email: user.email,

@@ -469,6 +469,130 @@ export type Database = {
         }
         Relationships: []
       }
+      bounties: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          status: string
+          github_url: string | null
+          reward_type: string
+          reward_amount: number | null
+          reward_token: string | null
+          badge_id: string | null
+          created_by: string
+          created_at: string
+          updated_at: string
+          due_at: string | null
+          tags: string[] | null
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string
+          status?: string
+          github_url?: string | null
+          reward_type?: string
+          reward_amount?: number | null
+          reward_token?: string | null
+          badge_id?: string | null
+          created_by: string
+          created_at?: string
+          updated_at?: string
+          due_at?: string | null
+          tags?: string[] | null
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string
+          status?: string
+          github_url?: string | null
+          reward_type?: string
+          reward_amount?: number | null
+          reward_token?: string | null
+          badge_id?: string | null
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+          due_at?: string | null
+          tags?: string[] | null
+        }
+        Relationships: []
+      }
+      bounty_claims: {
+        Row: {
+          id: string
+          bounty_id: string
+          user_id: string
+          status: string
+          created_at: string
+          updated_at: string
+          submitted_at: string | null
+          resolved_at: string | null
+        }
+        Insert: {
+          id?: string
+          bounty_id: string
+          user_id: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+          submitted_at?: string | null
+          resolved_at?: string | null
+        }
+        Update: {
+          id?: string
+          bounty_id?: string
+          user_id?: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+          submitted_at?: string | null
+          resolved_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bounty_claims_bounty_id_fkey"
+            columns: ["bounty_id"]
+            isOneToOne: false
+            referencedRelation: "bounties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bounty_comments: {
+        Row: {
+          id: string
+          bounty_id: string
+          user_id: string
+          body: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          bounty_id: string
+          user_id: string
+          body: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          bounty_id?: string
+          user_id?: string
+          body?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bounty_comments_bounty_id_fkey"
+            columns: ["bounty_id"]
+            isOneToOne: false
+            referencedRelation: "bounties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null
