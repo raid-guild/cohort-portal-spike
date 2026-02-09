@@ -104,10 +104,11 @@ async function forceUpdateBranch(branch, sha) {
   });
 }
 
-async function acquireLock() {
+async function acquireLock({ staleAfterMs = 30 * 60_000 } = {}) {
   const lockFile = path.join(repoRoot, ".stage.lock");
   const lockId = crypto.randomUUID();
-  try {
+
+  async function tryCreate() {
     const fh = await fs.open(lockFile, "wx");
     await fh.writeFile(`${lockId}\n${new Date().toISOString()}\n`);
     await fh.close();
@@ -118,7 +119,20 @@ async function acquireLock() {
         if (current.startsWith(lockId)) await fs.unlink(lockFile);
       } catch {}
     };
+  }
+
+  try {
+    return await tryCreate();
   } catch {
+    // If lock exists, check staleness (e.g., prior run was killed).
+    try {
+      const stat = await fs.stat(lockFile);
+      const ageMs = Date.now() - stat.mtimeMs;
+      if (ageMs > staleAfterMs) {
+        await fs.unlink(lockFile).catch(() => {});
+        return await tryCreate();
+      }
+    } catch {}
     return null;
   }
 }
@@ -213,26 +227,44 @@ async function applySeed() {
   if (sql.trim()) await dbExecMany(sql);
 }
 
-async function waitForHealthSha(expectedSha, { timeoutMs = 10 * 60_000 } = {}) {
+async function waitForHealthSha(
+  expectedSha,
+  { timeoutMs = 10 * 60_000, intervalMs = 8000 } = {}
+) {
   const start = Date.now();
   const urlBase = STAGING_BASE_URL;
+  let lastStatus = null;
+  let lastSha = null;
 
   while (Date.now() - start < timeoutMs) {
     const t = Date.now();
     const url = `${urlBase}/api/health?t=${t}`;
     try {
-      const res = await fetch(url, { headers: { "cache-control": "no-cache" } });
+      const res = await fetch(url, {
+        headers: { "cache-control": "no-cache" },
+        redirect: "follow",
+      });
+      lastStatus = res.status;
+
       if (res.ok) {
         const json = await res.json().catch(() => null);
         const got = json?.git?.sha;
+        lastSha = got || null;
         if (got && got.startsWith(expectedSha.slice(0, 7))) return { ok: true, got };
       }
-    } catch {}
+    } catch {
+      // ignore transient network errors
+    }
 
-    await new Promise((r) => setTimeout(r, 8000));
+    const elapsed = Math.floor((Date.now() - start) / 1000);
+    console.log(
+      `Waiting for staging deploy… ${elapsed}s elapsed (last /api/health status=${lastStatus}, sha=${lastSha || "n/a"})`
+    );
+
+    await new Promise((r) => setTimeout(r, intervalMs));
   }
 
-  return { ok: false };
+  return { ok: false, lastStatus, lastSha };
 }
 
 async function smokeTest() {
