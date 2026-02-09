@@ -97,13 +97,13 @@ async function assertOwner(entryId: string, viewerId: string) {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: { id: string } },
 ) {
   const viewerId = await getViewerIdFromAuthHeader(request);
   if (!viewerId) {
     return Response.json({ error: "Missing auth token." }, { status: 401 });
   }
-  const { id } = await params;
+  const { id } = params;
 
   const ownerCheck = await assertOwner(id, viewerId);
   if (!ownerCheck.ok) {
@@ -182,13 +182,13 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: { id: string } },
 ) {
   const viewerId = await getViewerIdFromAuthHeader(request);
   if (!viewerId) {
     return Response.json({ error: "Missing auth token." }, { status: 401 });
   }
-  const { id } = await params;
+  const { id } = params;
 
   const ownerCheck = await assertOwner(id, viewerId);
   if (!ownerCheck.ok) {

@@ -57,36 +57,49 @@ export function RaiderTimelineModule() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
+
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => setSession(newSession),
+      (_event, newSession) => {
+        setSession(newSession);
+        if (!newSession?.user) {
+          setHandle(null);
+          setItems([]);
+        }
+      },
     );
+
     return () => listener.subscription.unsubscribe();
   }, [supabase]);
 
   useEffect(() => {
-    if (!session?.user) {
-      setHandle(null);
-      return;
-    }
+    if (!session?.user) return;
 
-    supabase
-      .from("profiles")
-      .select("handle")
-      .eq("user_id", session.user.id)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (error) {
-          setMessage(error.message);
-          setHandle(null);
-          return;
-        }
-        setHandle(data?.handle ?? null);
-      });
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("handle")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (error) {
+        setMessage(error.message);
+        setHandle(null);
+        return;
+      }
+      setHandle(data?.handle ?? null);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [supabase, session]);
 
   const loadEntries = useCallback(async () => {
     if (!handle) return;
-    setMessage("");
+
     const res = await fetch(
       `/api/modules/raider-timeline/entries?handle=${encodeURIComponent(handle)}`,
       {
@@ -100,12 +113,46 @@ export function RaiderTimelineModule() {
       setMessage(json.error || "Failed to load timeline.");
       return;
     }
+
+    setMessage("");
     setItems((json.items ?? []) as TimelineEntry[]);
-  }, [handle, session?.access_token]);
+  }, [handle, session]);
 
   useEffect(() => {
-    loadEntries();
-  }, [loadEntries]);
+    if (!handle) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/modules/raider-timeline/entries?handle=${encodeURIComponent(handle)}`,
+          {
+            headers: session?.access_token
+              ? { Authorization: `Bearer ${session.access_token}` }
+              : undefined,
+          },
+        );
+        const json = await res.json();
+        if (cancelled) return;
+
+        if (!res.ok) {
+          setMessage(json.error || "Failed to load timeline.");
+          return;
+        }
+
+        setMessage("");
+        setItems((json.items ?? []) as TimelineEntry[]);
+      } catch {
+        if (!cancelled) {
+          setMessage("Failed to load timeline.");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [handle, session]);
 
   const createEntry = async () => {
     if (!session?.access_token) {
