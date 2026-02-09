@@ -1,0 +1,38 @@
+name: prod-migrate
+
+on:
+  push:
+    branches: [ main ]
+
+# Principle of least privilege.
+permissions:
+  contents: read
+
+concurrency:
+  group: prod-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Run production migrations
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: node automation/migrate-db.mjs
+
+      - name: Post-migrate note
+        run: echo "Production migrations complete."
