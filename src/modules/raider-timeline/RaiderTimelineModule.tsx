@@ -19,13 +19,13 @@ type TimelineEntry = {
   createdViaRole: string | null;
 };
 
-const emptyDraft = {
-  kind: "milestone" as Kind,
-  title: "",
-  body: "",
-  visibility: "public" as Visibility,
-  occurredAt: new Date().toISOString().slice(0, 16),
-  pinned: false,
+type DraftEntry = {
+  kind: Kind;
+  title: string;
+  body: string;
+  visibility: Visibility;
+  occurredAt: string;
+  pinned: boolean;
 };
 
 function toLocalDateTimeInput(iso: string) {
@@ -34,17 +34,26 @@ function toLocalDateTimeInput(iso: string) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+const emptyDraft: DraftEntry = {
+  kind: "milestone",
+  title: "",
+  body: "",
+  visibility: "public",
+  occurredAt: toLocalDateTimeInput(new Date().toISOString()),
+  pinned: false,
+};
+
 export function RaiderTimelineModule() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
   const [session, setSession] = useState<Session | null>(null);
   const [handle, setHandle] = useState<string | null>(null);
   const [items, setItems] = useState<TimelineEntry[]>([]);
-  const [draft, setDraft] = useState({ ...emptyDraft });
+  const [draft, setDraft] = useState<DraftEntry>({ ...emptyDraft });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>("");
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState({ ...emptyDraft });
+  const [editDraft, setEditDraft] = useState<DraftEntry>({ ...emptyDraft });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -128,7 +137,7 @@ export function RaiderTimelineModule() {
       setMessage(json.error || "Failed to create entry.");
       return;
     }
-    setDraft({ ...emptyDraft, occurredAt: new Date().toISOString().slice(0, 16) });
+    setDraft({ ...emptyDraft, occurredAt: toLocalDateTimeInput(new Date().toISOString()) });
     await loadEntries();
     window.localStorage.setItem("profile-updated", String(Date.now()));
     window.postMessage({ type: "profile-updated" }, "*");

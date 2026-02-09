@@ -67,7 +67,8 @@ create policy "Timeline entries: owner update"
 on public.timeline_entries
 for update
 to authenticated
-using (user_id = auth.uid());
+using (user_id = auth.uid())
+with check (user_id = auth.uid());
 
 drop policy if exists "Timeline entries: owner delete" on public.timeline_entries;
 create policy "Timeline entries: owner delete"

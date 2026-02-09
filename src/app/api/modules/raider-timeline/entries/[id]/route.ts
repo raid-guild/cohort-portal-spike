@@ -5,6 +5,18 @@ import { supabaseServerClient } from "@/lib/supabase/server";
 type Visibility = "public" | "authenticated" | "private";
 type Kind = "note" | "milestone" | "attendance";
 
+type TimelineEntry = {
+  id: string;
+  kind: Kind;
+  title: string;
+  body: string | null;
+  visibility: Visibility;
+  occurredAt: string;
+  pinned: boolean;
+  createdBy: string | null;
+  createdViaRole: string | null;
+};
+
 type PatchEntryRequest = {
   title?: string;
   body?: string;
@@ -24,6 +36,30 @@ function normalizeKind(value: unknown): Kind | null {
   return value === "note" || value === "milestone" || value === "attendance"
     ? value
     : null;
+}
+
+function toPayload(row: {
+  id: string;
+  kind: string;
+  title: string;
+  body: string | null;
+  visibility: string;
+  occurred_at: string;
+  pinned: boolean;
+  created_by: string | null;
+  created_via_role: string | null;
+}): TimelineEntry {
+  return {
+    id: row.id,
+    kind: normalizeKind(row.kind) ?? "note",
+    title: row.title,
+    body: row.body,
+    visibility: normalizeVisibility(row.visibility) ?? "private",
+    occurredAt: row.occurred_at,
+    pinned: row.pinned,
+    createdBy: row.created_by,
+    createdViaRole: row.created_via_role,
+  };
 }
 
 async function getViewerIdFromAuthHeader(request: NextRequest) {
@@ -74,7 +110,12 @@ export async function PATCH(
     return Response.json({ error: ownerCheck.error }, { status: ownerCheck.status });
   }
 
-  const body = (await request.json()) as PatchEntryRequest;
+  let body: PatchEntryRequest;
+  try {
+    body = (await request.json()) as PatchEntryRequest;
+  } catch {
+    return Response.json({ error: "Invalid JSON." }, { status: 400 });
+  }
 
   const payload: Record<string, unknown> = {};
   if (typeof body.title === "string") {
@@ -111,7 +152,11 @@ export async function PATCH(
   }
 
   if (typeof body.occurredAt === "string" && body.occurredAt.trim()) {
-    payload.occurred_at = new Date(body.occurredAt).toISOString();
+    const date = new Date(body.occurredAt);
+    if (Number.isNaN(date.getTime())) {
+      return Response.json({ error: "Invalid occurredAt." }, { status: 400 });
+    }
+    payload.occurred_at = date.toISOString();
   }
 
   if (!Object.keys(payload).length) {
@@ -132,19 +177,7 @@ export async function PATCH(
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  return Response.json({
-    item: {
-      id: data.id,
-      kind: data.kind,
-      title: data.title,
-      body: data.body,
-      visibility: data.visibility,
-      occurredAt: data.occurred_at,
-      pinned: data.pinned,
-      createdBy: data.created_by,
-      createdViaRole: data.created_via_role,
-    },
-  });
+  return Response.json({ item: toPayload(data) });
 }
 
 export async function DELETE(

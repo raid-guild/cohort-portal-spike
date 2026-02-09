@@ -138,7 +138,12 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Missing auth token." }, { status: 401 });
   }
 
-  const body = (await request.json()) as CreateEntryRequest;
+  let body: CreateEntryRequest;
+  try {
+    body = (await request.json()) as CreateEntryRequest;
+  } catch {
+    return Response.json({ error: "Invalid JSON." }, { status: 400 });
+  }
 
   if (body.userHandle) {
     return Response.json(
@@ -164,7 +169,16 @@ export async function POST(request: NextRequest) {
   const visibility = normalizeVisibility(body.visibility);
   const kind = normalizeKind(body.kind);
 
-  const occurredAt = body.occurredAt ? new Date(body.occurredAt).toISOString() : new Date().toISOString();
+  let occurredAt: string;
+  if (body.occurredAt) {
+    const date = new Date(body.occurredAt);
+    if (Number.isNaN(date.getTime())) {
+      return Response.json({ error: "Invalid occurredAt." }, { status: 400 });
+    }
+    occurredAt = date.toISOString();
+  } else {
+    occurredAt = new Date().toISOString();
+  }
   const pinned = Boolean(body.pinned);
 
   const supabase = supabaseAdminClient();
