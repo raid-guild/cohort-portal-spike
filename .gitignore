@@ -37,6 +37,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# staging poller
+/.stage.lock
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
