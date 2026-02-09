@@ -12,6 +12,8 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
 // pg is added as a devDependency in this PR.
 import pg from "pg";
@@ -37,8 +39,16 @@ const STAGING_BASE_URL = reqEnv("STAGING_BASE_URL").replace(/\/$/, "");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
-const migrationsDir = path.join(repoRoot, "supabase", "migrations");
-const seedPath = path.join(repoRoot, "supabase", "seed.sql");
+
+const execFileAsync = promisify(execFile);
+
+function pathsForRoot(root) {
+  return {
+    migrationsDir: path.join(root, "supabase", "migrations"),
+    seedPath: path.join(root, "supabase", "seed.sql"),
+    stagingSeedsDir: path.join(root, "supabase", "seeds", "staging"),
+  };
+}
 
 async function gh(pathname, { method = "GET", body } = {}) {
   const res = await fetch(`https://api.github.com${pathname}`, {
@@ -208,7 +218,8 @@ async function resetDb() {
   await dbExecMany(sql);
 }
 
-async function applyMigrations() {
+async function applyMigrations(fromRoot) {
+  const { migrationsDir } = pathsForRoot(fromRoot);
   const files = (await fs.readdir(migrationsDir))
     .filter((f) => f.endsWith(".sql"))
     .sort();
@@ -216,15 +227,34 @@ async function applyMigrations() {
   for (const file of files) {
     const full = path.join(migrationsDir, file);
     const sql = await fs.readFile(full, "utf8");
-    // Skip empty files
     if (!sql.trim()) continue;
     await dbExecMany(sql);
   }
 }
 
-async function applySeed() {
-  const sql = await fs.readFile(seedPath, "utf8");
+async function applySeed(fromRoot) {
+  const { seedPath } = pathsForRoot(fromRoot);
+  const sql = await fs.readFile(seedPath, "utf8").catch(() => "");
   if (sql.trim()) await dbExecMany(sql);
+}
+
+async function applyStagingSeeds(fromRoot) {
+  const { stagingSeedsDir } = pathsForRoot(fromRoot);
+  let files;
+  try {
+    files = (await fs.readdir(stagingSeedsDir))
+      .filter((f) => f.endsWith(".sql"))
+      .sort();
+  } catch {
+    return; // no staging seeds
+  }
+
+  for (const file of files) {
+    const full = path.join(stagingSeedsDir, file);
+    const sql = await fs.readFile(full, "utf8");
+    if (!sql.trim()) continue;
+    await dbExecMany(sql);
+  }
 }
 
 async function waitForHealthSha(
@@ -269,10 +299,7 @@ async function waitForHealthSha(
 
 async function smokeTest() {
   // Minimal, fast checks. Expand later.
-  const endpoints = [
-    `/api/health?t=${Date.now()}`,
-    `/api/modules?t=${Date.now()}`,
-  ];
+  const endpoints = [`/api/health?t=${Date.now()}`, `/api/modules?t=${Date.now()}`];
 
   for (const ep of endpoints) {
     const url = `${STAGING_BASE_URL}${ep}`;
@@ -316,6 +343,7 @@ async function main() {
 
   let prNumber;
   let sha;
+  let worktreeDir;
 
   try {
     const items = await listReadyPRs();
@@ -331,13 +359,19 @@ async function main() {
 
     await comment(
       prNumber,
-      `Staging pipeline starting for ${sha.slice(0, 7)} → ${STAGING_BASE_URL}\n\n(automation: reset DB → migrate/seed → promote to \`${STAGING_BRANCH}\` → wait for /api/health → smoke test)`
+      `Staging pipeline starting for ${sha.slice(0, 7)} → ${STAGING_BASE_URL}\n\n(automation: reset DB → migrate/seed (+ staging fixtures) → promote to \`${STAGING_BRANCH}\` → wait for /api/health → smoke test)`
     );
 
-    // DB reset + migrations + seed
+    // Check out the PR's exact SHA in a detached worktree so migrations/seeds match the staged code.
+    worktreeDir = path.join("/tmp", `cohort-portal-stage-${sha.slice(0, 12)}`);
+    await fs.rm(worktreeDir, { recursive: true, force: true });
+    await execFileAsync("git", ["-C", repoRoot, "worktree", "add", "--detach", worktreeDir, sha]);
+
+    // DB reset + migrations + seeds (including staging fixtures from the PR code)
     await resetDb();
-    await applyMigrations();
-    await applySeed();
+    await applyMigrations(worktreeDir);
+    await applySeed(worktreeDir);
+    await applyStagingSeeds(worktreeDir);
 
     // Promote by moving staging branch
     await forceUpdateBranch(STAGING_BRANCH, sha);
@@ -378,6 +412,14 @@ async function main() {
     console.error(msg);
     process.exitCode = 1;
   } finally {
+    if (worktreeDir) {
+      try {
+        await execFileAsync("git", ["-C", repoRoot, "worktree", "remove", "--force", worktreeDir]);
+      } catch {
+        // ignore cleanup failures
+      }
+      await fs.rm(worktreeDir, { recursive: true, force: true }).catch(() => {});
+    }
     await releaser();
   }
 }
