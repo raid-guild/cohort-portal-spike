@@ -334,6 +334,11 @@ function failureHint(errText) {
   return "Check the logs above; likely a migration/seed error or deploy not becoming ready.";
 }
 
+function emitResult(obj) {
+  // Single-line machine-readable marker for cron wrapper.
+  console.log(`OPENCLAW_STAGE_RESULT=${JSON.stringify(obj)}`);
+}
+
 async function main() {
   const releaser = await acquireLock();
   if (!releaser) {
@@ -349,6 +354,7 @@ async function main() {
     const items = await listReadyPRs();
     if (!items.length) {
       console.log("No PRs labeled ready-to-stage.");
+      emitResult({ result: "noop" });
       return;
     }
 
@@ -394,6 +400,14 @@ async function main() {
       prNumber,
       `✅ Staged successfully.\n\n- **Staging URL:** ${STAGING_BASE_URL}\n- **Commit:** ${sha}\n\n${checklistText()}\n\nWhen finished, apply \`verified-on-staging\` or re-apply \`ready-to-stage\` after fixes.`
     );
+
+    emitResult({
+      result: "staged",
+      prNumber,
+      prUrl: pr.html_url,
+      sha,
+      stagingUrl: STAGING_BASE_URL,
+    });
   } catch (err) {
     const msg = err instanceof Error ? `${err.message}\n${err.stack || ""}` : String(err);
 
