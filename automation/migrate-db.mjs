@@ -101,7 +101,18 @@ async function applyOne(client, name, sql, checksum) {
 
     // Non-transactional migrations (e.g. CREATE INDEX CONCURRENTLY) can't be wrapped.
     // Track them separately so we don't end up in an "applied but untracked" state.
-    await trackApplied(client, name, checksum);
+    try {
+      await trackApplied(client, name, checksum);
+    } catch (trackErr) {
+      // At this point, the SQL likely already ran successfully, so re-running can get stuck.
+      // Provide a clear recovery path.
+      throw new Error(
+        `Migration ${name} executed but failed to record in ${MIGRATIONS_TABLE}. ` +
+          `To unblock future runs, manually insert it, e.g.\n\n` +
+          `  insert into ${MIGRATIONS_TABLE} (name, checksum) values ('${name}', '${checksum}')\n\n` +
+          `Original error: ${String(trackErr?.message || trackErr)}`
+      );
+    }
   } catch (err) {
     if (transactional) {
       try {
