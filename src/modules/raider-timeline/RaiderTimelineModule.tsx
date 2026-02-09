@@ -56,16 +56,46 @@ export function RaiderTimelineModule() {
   const [editDraft, setEditDraft] = useState<DraftEntry>({ ...emptyDraft });
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      if (!data.session?.user) {
+        setHandle(null);
+      }
+    });
+
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => setSession(newSession),
+      (_event, newSession) => {
+        setSession(newSession);
+        if (!newSession?.user) {
+          setHandle(null);
+        }
+      },
     );
+
     return () => listener.subscription.unsubscribe();
   }, [supabase]);
 
+  const fetchEntries = useCallback(
+    async (viewerHandle: string, accessToken?: string) => {
+      setMessage("");
+      const res = await fetch(
+        `/api/modules/raider-timeline/entries?handle=${encodeURIComponent(viewerHandle)}`,
+        {
+          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+        },
+      );
+      const json = await res.json();
+      if (!res.ok) {
+        setMessage(json.error || "Failed to load timeline.");
+        return;
+      }
+      setItems((json.items ?? []) as TimelineEntry[]);
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!session?.user) {
-      setHandle(null);
       return;
     }
 
@@ -80,32 +110,19 @@ export function RaiderTimelineModule() {
           setHandle(null);
           return;
         }
-        setHandle(data?.handle ?? null);
+
+        const nextHandle = data?.handle ?? null;
+        setHandle(nextHandle);
+        if (nextHandle) {
+          void fetchEntries(nextHandle, session.access_token);
+        }
       });
-  }, [supabase, session]);
+  }, [fetchEntries, supabase, session]);
 
   const loadEntries = useCallback(async () => {
     if (!handle) return;
-    setMessage("");
-    const res = await fetch(
-      `/api/modules/raider-timeline/entries?handle=${encodeURIComponent(handle)}`,
-      {
-        headers: session?.access_token
-          ? { Authorization: `Bearer ${session.access_token}` }
-          : undefined,
-      },
-    );
-    const json = await res.json();
-    if (!res.ok) {
-      setMessage(json.error || "Failed to load timeline.");
-      return;
-    }
-    setItems((json.items ?? []) as TimelineEntry[]);
-  }, [handle, session?.access_token]);
-
-  useEffect(() => {
-    loadEntries();
-  }, [loadEntries]);
+    await fetchEntries(handle, session?.access_token);
+  }, [fetchEntries, handle, session?.access_token]);
 
   const createEntry = async () => {
     if (!session?.access_token) {

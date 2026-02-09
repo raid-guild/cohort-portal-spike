@@ -30,12 +30,19 @@ function normalizeKind(value: unknown): Kind {
     : "note";
 }
 
-async function getViewerIdFromAuthHeader(request: NextRequest) {
+async function getViewerIdFromAuthHeader(
+  request: NextRequest,
+): Promise<string | null> {
   const authHeader = request.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return null;
   }
-  const token = authHeader.replace("Bearer ", "");
+
+  const token = authHeader.slice("Bearer ".length).trim();
+  if (!token) {
+    return null;
+  }
+
   const supabase = supabaseServerClient();
   const { data, error } = await supabase.auth.getUser(token);
   if (error || !data.user) {
