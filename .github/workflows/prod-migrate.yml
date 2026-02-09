@@ -4,6 +4,10 @@ on:
   push:
     branches: [ main ]
 
+# Principle of least privilege.
+permissions:
+  contents: read
+
 concurrency:
   group: prod-migrate
   cancel-in-progress: false

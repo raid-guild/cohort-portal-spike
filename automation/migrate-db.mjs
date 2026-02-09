@@ -30,7 +30,8 @@ function reqEnv(name) {
 const DATABASE_URL = reqEnv("DATABASE_URL");
 const MIGRATIONS_DIR = process.env.MIGRATIONS_DIR || path.join(process.cwd(), "supabase", "migrations");
 
-const MIGRATIONS_TABLE = "public._openclaw_migrations";
+// Avoid coupling production schema to OpenClaw naming; this is just a migration ledger.
+const MIGRATIONS_TABLE = "public._migrations";
 const ADVISORY_LOCK_KEY = 918273645; // arbitrary constant for this repo
 
 function needsNonTransactional(sql) {
@@ -62,18 +63,45 @@ async function appliedSet(client) {
   return map;
 }
 
+async function trackApplied(client, name, checksum) {
+  // Write to the ledger in its own (short) transaction.
+  await client.query("begin");
+  try {
+    await client.query(
+      `insert into ${MIGRATIONS_TABLE} (name, checksum) values ($1, $2)
+       on conflict (name) do nothing`,
+      [name, checksum]
+    );
+    await client.query("commit");
+  } catch (err) {
+    try {
+      await client.query("rollback");
+    } catch {}
+    throw err;
+  }
+}
+
 async function applyOne(client, name, sql, checksum) {
   const transactional = !needsNonTransactional(sql);
 
   if (transactional) await client.query("begin");
   try {
     await client.query(sql);
-    await client.query(
-      `insert into ${MIGRATIONS_TABLE} (name, checksum) values ($1, $2)
-       on conflict (name) do nothing`,
-      [name, checksum]
-    );
-    if (transactional) await client.query("commit");
+
+    if (transactional) {
+      // Ledger write is within the same transaction for fully transactional migrations.
+      await client.query(
+        `insert into ${MIGRATIONS_TABLE} (name, checksum) values ($1, $2)
+         on conflict (name) do nothing`,
+        [name, checksum]
+      );
+      await client.query("commit");
+      return;
+    }
+
+    // Non-transactional migrations (e.g. CREATE INDEX CONCURRENTLY) can't be wrapped.
+    // Track them separately so we don't end up in an "applied but untracked" state.
+    await trackApplied(client, name, checksum);
   } catch (err) {
     if (transactional) {
       try {
@@ -122,6 +150,7 @@ async function main() {
     }
 
     console.log(`Done. Newly applied migrations: ${appliedCount}`);
+    if (appliedCount === 0) console.log("No pending migrations.");
   } finally {
     try {
       await client.query("select pg_advisory_unlock($1)", [ADVISORY_LOCK_KEY]);
