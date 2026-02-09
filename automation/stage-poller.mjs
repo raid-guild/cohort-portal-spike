@@ -133,9 +133,15 @@ async function dbExecMany(sql) {
   }
 }
 
+/**
+ * Nuke & pave: drop + recreate `public` schema.
+ *
+ * Also re-applies common Supabase role grants (best-effort) so anon/authenticated/service_role
+ * can access objects after schema recreation.
+ *
+ * NOTE: This requires sufficient privileges on the database.
+ */
 async function resetDb() {
-  // Nuke & pave: drop + recreate public schema.
-  // Note: this requires sufficient privileges on the database.
   const sql = `
     DO $$
     BEGIN
@@ -152,7 +158,37 @@ async function resetDb() {
     DROP SCHEMA IF EXISTS public CASCADE;
     CREATE SCHEMA public;
 
+    -- baseline schema usage
     GRANT USAGE ON SCHEMA public TO public;
+
+    -- Supabase roles (best effort; ignore if roles don't exist)
+    DO $$
+    BEGIN
+      EXECUTE 'GRANT USAGE ON SCHEMA public TO anon';
+      EXECUTE 'GRANT USAGE ON SCHEMA public TO authenticated';
+      EXECUTE 'GRANT USAGE ON SCHEMA public TO service_role';
+    EXCEPTION WHEN undefined_object THEN
+      NULL;
+    END $$;
+
+    -- Grant table/sequence/function access so RLS policies can take effect.
+    DO $$
+    BEGIN
+      EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated';
+      EXECUTE 'GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated';
+      EXECUTE 'GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role';
+      EXECUTE 'GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role';
+      EXECUTE 'GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO service_role';
+
+      -- Ensure future objects created by migrations inherit these defaults.
+      EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon, authenticated';
+      EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO anon, authenticated';
+      EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO service_role';
+      EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO service_role';
+      EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO service_role';
+    EXCEPTION WHEN undefined_object THEN
+      NULL;
+    END $$;
   `;
 
   await dbExecMany(sql);
@@ -190,7 +226,6 @@ async function waitForHealthSha(expectedSha, { timeoutMs = 10 * 60_000 } = {}) {
         const json = await res.json().catch(() => null);
         const got = json?.git?.sha;
         if (got && got.startsWith(expectedSha.slice(0, 7))) return { ok: true, got };
-        if (got === expectedSha) return { ok: true, got };
       }
     } catch {}
 
@@ -247,6 +282,9 @@ async function main() {
     return;
   }
 
+  let prNumber;
+  let sha;
+
   try {
     const items = await listReadyPRs();
     if (!items.length) {
@@ -255,13 +293,13 @@ async function main() {
     }
 
     // Pick the newest updated PR.
-    const prNumber = items[0].number;
+    prNumber = items[0].number;
     const pr = await getPR(prNumber);
-    const sha = pr.head.sha;
+    sha = pr.head.sha;
 
     await comment(
       prNumber,
-      `Staging pipeline starting for ${sha.slice(0, 7)} → ${STAGING_BASE_URL}\n\n(automation: reset DB → migrate/seed → promote to \\`${STAGING_BRANCH}\\` → wait for /api/health → smoke test)`
+      `Staging pipeline starting for ${sha.slice(0, 7)} → ${STAGING_BASE_URL}\n\n(automation: reset DB → migrate/seed → promote to \`${STAGING_BRANCH}\` → wait for /api/health → smoke test)`
     );
 
     // DB reset + migrations + seed
@@ -288,24 +326,22 @@ async function main() {
 
     await comment(
       prNumber,
-      `✅ Staged successfully.\n\n- **Staging URL:** ${STAGING_BASE_URL}\n- **Commit:** ${sha}\n\n${checklistText()}\n\nWhen finished, apply \\`verified-on-staging\\` or re-apply \\`ready-to-stage\\` after fixes.`
+      `✅ Staged successfully.\n\n- **Staging URL:** ${STAGING_BASE_URL}\n- **Commit:** ${sha}\n\n${checklistText()}\n\nWhen finished, apply \`verified-on-staging\` or re-apply \`ready-to-stage\` after fixes.`
     );
   } catch (err) {
     const msg = err instanceof Error ? `${err.message}\n${err.stack || ""}` : String(err);
 
-    // Best effort: if we can determine PR number, label it.
-    try {
-      const items = await listReadyPRs();
-      if (items.length) {
-        const prNumber = items[0].number;
+    // Best effort: label/comment the same PR we started working on.
+    if (prNumber) {
+      try {
         await removeLabel(prNumber, READY_LABEL);
         await addLabel(prNumber, FAILED_LABEL);
         await comment(
           prNumber,
-          `❌ Staging failed.\n\n**Error:**\n\n\`\`\`\n${msg.slice(0, 6500)}\n\`\`\`\n\n**Likely cause:** ${failureHint(msg)}\n\nFix and re-apply \\`ready-to-stage\\` to retry.`
+          `❌ Staging failed.\n\n**Error:**\n\n\`\`\`\n${msg.slice(0, 6500)}\n\`\`\`\n\n**Likely cause:** ${failureHint(msg)}\n\nFix and re-apply \`ready-to-stage\` to retry.`
         );
-      }
-    } catch {}
+      } catch {}
+    }
 
     console.error(msg);
     process.exitCode = 1;
