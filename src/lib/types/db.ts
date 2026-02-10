@@ -334,6 +334,60 @@ export type Database = {
         }
         Relationships: []
       }
+      timeline_entries: {
+        Row: {
+          body: string | null
+          created_at: string
+          created_by: string | null
+          created_via_role: string | null
+          deleted_at: string | null
+          id: string
+          kind: string
+          occurred_at: string
+          pinned: boolean
+          source_kind: string | null
+          source_ref: Json | null
+          title: string
+          updated_at: string
+          user_id: string
+          visibility: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_via_role?: string | null
+          deleted_at?: string | null
+          id?: string
+          kind: string
+          occurred_at?: string
+          pinned?: boolean
+          source_kind?: string | null
+          source_ref?: Json | null
+          title: string
+          updated_at?: string
+          user_id: string
+          visibility?: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_via_role?: string | null
+          deleted_at?: string | null
+          id?: string
+          kind?: string
+          occurred_at?: string
+          pinned?: boolean
+          source_kind?: string | null
+          source_ref?: Json | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          visibility?: string
+        }
+        Relationships: []
+      }
       modules: {
         Row: {
           description: string | null
