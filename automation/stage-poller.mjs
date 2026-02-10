@@ -320,6 +320,59 @@ function checklistText() {
   ].join("\n");
 }
 
+function extractMarkdownSection(md, { headingText, minLevel = 2 } = {}) {
+  if (!md) return null;
+  const lines = String(md).split(/\r?\n/);
+
+  // Match headings like: "## Manual test plan (staging)" (case-insensitive)
+  const escaped = headingText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const startRe = new RegExp(`^(#{${minLevel},6})\\s+${escaped}\\s*$`, "i");
+
+  let startIdx = -1;
+  let level = null;
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(startRe);
+    if (m) {
+      startIdx = i;
+      level = m[1].length;
+      break;
+    }
+  }
+  if (startIdx === -1) return null;
+
+  // Capture until next heading of same or higher importance (<= level)
+  const nextHeadingRe = new RegExp(`^#{1,${level}}\\s+`);
+  let endIdx = lines.length;
+  for (let i = startIdx + 1; i < lines.length; i++) {
+    if (nextHeadingRe.test(lines[i])) {
+      endIdx = i;
+      break;
+    }
+  }
+
+  const section = lines.slice(startIdx, endIdx).join("\n").trim();
+  return section || null;
+}
+
+function manualTestPlanBlock(prBody) {
+  const section = extractMarkdownSection(prBody, {
+    headingText: "Manual test plan (staging)",
+    minLevel: 2,
+  });
+
+  if (!section) {
+    return [
+      "## PR manual test plan (staging)",
+      "_(No `## Manual test plan (staging)` section found in the PR body.)_",
+    ].join("\n");
+  }
+
+  // Re-title it so it stands out in the staging comment while preserving content.
+  const lines = section.split(/\r?\n/);
+  lines[0] = "## PR manual test plan (staging)";
+  return lines.join("\n");
+}
+
 function failureHint(errText) {
   // crude heuristics
   if (/permission|privilege|denied/i.test(errText)) {
@@ -362,6 +415,7 @@ async function main() {
     prNumber = items[0].number;
     const pr = await getPR(prNumber);
     sha = pr.head.sha;
+    const prBody = pr.body || "";
 
     await comment(
       prNumber,
@@ -398,7 +452,7 @@ async function main() {
 
     await comment(
       prNumber,
-      `✅ Staged successfully.\n\n- **Staging URL:** ${STAGING_BASE_URL}\n- **Commit:** ${sha}\n\n${checklistText()}\n\nWhen finished, apply \`verified-on-staging\` or re-apply \`ready-to-stage\` after fixes.`
+      `✅ Staged successfully.\n\n- **Staging URL:** ${STAGING_BASE_URL}\n- **Commit:** ${sha}\n\n${checklistText()}\n\n${manualTestPlanBlock(prBody)}\n\nWhen finished, apply \`verified-on-staging\` or re-apply \`ready-to-stage\` after fixes.`
     );
 
     emitResult({
