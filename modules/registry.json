@@ -540,7 +540,7 @@
         "title": "Latest Wins",
         "endpoint": "/api/modules/raid-showcase/summary",
         "layout": "compact",
-        "maxItems": 4,
+        "maxItems": 3,
         "showTitle": true,
         "imageKey": "Image"
       }
