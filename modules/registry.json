@@ -124,6 +124,13 @@
         "aiGenerate": {
           "requiresUserAuth": true,
           "provider": "venice"
+        },
+        "portalRpc": {
+          "allowedActions": [
+            "auth.getToken",
+            "profile.refresh",
+            "ui.toast"
+          ]
         }
       }
     },
@@ -170,6 +177,15 @@
           "layout": "list",
           "maxItems": 2,
           "showTitle": true
+        }
+      },
+      "capabilities": {
+        "portalRpc": {
+          "allowedActions": [
+            "auth.getToken",
+            "profile.refresh",
+            "ui.toast"
+          ]
         }
       }
     },

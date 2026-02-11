@@ -4,6 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { DisplayNameGenerator } from "@/modules/profile-generators/DisplayNameGenerator";
 import { AvatarGenerator } from "@/modules/profile-generators/AvatarGenerator";
+import {
+  createPortalRpcClient,
+  emitLocalProfileRefresh,
+} from "@/modules/_shared/portalRpc";
 
 export default function ProfileGeneratorsPage() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
@@ -13,6 +17,10 @@ export default function ProfileGeneratorsPage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [message, setMessage] = useState("");
   const [context, setContext] = useState("");
+  const portalRpc = useMemo(
+    () => createPortalRpcClient("profile-generators"),
+    [],
+  );
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -105,8 +113,11 @@ export default function ProfileGeneratorsPage() {
       return;
     }
     setDisplayName(nextValue);
-    window.localStorage.setItem("profile-updated", new Date().toISOString());
-    window.parent.postMessage({ type: "profile-updated" }, window.location.origin);
+    try {
+      await portalRpc("profile.refresh");
+    } catch {
+      emitLocalProfileRefresh();
+    }
     setMessage("Display name updated.");
   };
 
@@ -152,8 +163,7 @@ export default function ProfileGeneratorsPage() {
           compact
           onUpdated={(url) => {
             setAvatarUrl(url);
-            window.localStorage.setItem("profile-updated", new Date().toISOString());
-            window.parent.postMessage({ type: "profile-updated" }, window.location.origin);
+            portalRpc("profile.refresh").catch(() => emitLocalProfileRefresh());
           }}
         />
       </div>

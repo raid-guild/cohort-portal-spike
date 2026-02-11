@@ -78,6 +78,24 @@ body:
       required: true
 
   - type: textarea
+    id: portal_rpc
+    attributes:
+      label: Portal RPC (optional)
+      description: "If the module uses portal RPC, list allowed actions and any payload expectations. Also note if it needs auth.getToken."
+      placeholder: "Example: actions: profile.refresh, ui.toast. Needs auth.getToken for API calls."
+    validations:
+      required: false
+
+  - type: textarea
+    id: allowed_origins
+    attributes:
+      label: Allowed iframe origins (optional)
+      description: "If the module is hosted outside the portal, list exact origins to allow."
+      placeholder: "Example: https://modules.raidguild.org"
+    validations:
+      required: false
+
+  - type: textarea
     id: acceptance
     attributes:
       label: Acceptance criteria
