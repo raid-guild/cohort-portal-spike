@@ -386,7 +386,7 @@ export function ArcaneExchange() {
               </div>
               {canManageSelected ? (
                 <div className="flex flex-wrap gap-2">
-                  {selected.status !== "fulfilled" ? (
+                  {selected.status === "open" ? (
                     <button
                       className="h-9 rounded-md bg-primary px-3 text-sm text-primary-foreground disabled:opacity-50"
                       disabled={loading}
