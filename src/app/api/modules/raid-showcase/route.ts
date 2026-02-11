@@ -13,7 +13,15 @@ const ALLOWED_IMAGE_MIME_TYPES = new Set([
   "image/gif",
 ]);
 
-function sanitizeHttpUrl(raw: string | null): string | null {
+const ALLOWED_IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "gif"]);
+
+function extensionFromFilename(filename: string) {
+  const ext = filename.split(".").pop()?.toLowerCase();
+  if (!ext) return null;
+  return ext;
+}
+
+function sanitizeHttpsUrl(raw: string | null): string | null {
   if (!raw) return null;
   const trimmed = raw.trim();
   if (!trimmed) return null;
@@ -21,7 +29,8 @@ function sanitizeHttpUrl(raw: string | null): string | null {
 
   try {
     const url = new URL(trimmed);
-    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    if (url.protocol !== "https:") return null;
+    if (!url.hostname) return null;
     return url.toString();
   } catch {
     return null;
@@ -38,6 +47,22 @@ function extensionForImageMimeType(mimeType: string) {
       return "webp";
     case "image/gif":
       return "gif";
+    default:
+      return null;
+  }
+}
+
+function mimeTypeForImageExtension(extension: string) {
+  switch (extension) {
+    case "png":
+      return "image/png";
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg";
+    case "webp":
+      return "image/webp";
+    case "gif":
+      return "image/gif";
     default:
       return null;
   }
@@ -91,7 +116,7 @@ export async function POST(request: NextRequest) {
     file = fileField instanceof File ? fileField : null;
 
     // Never trust user-supplied URLs.
-    imageUrl = sanitizeHttpUrl(imageUrl);
+    imageUrl = sanitizeHttpsUrl(imageUrl);
   } else {
     const json = (await request.json().catch(() => null)) as
       | {
@@ -107,7 +132,7 @@ export async function POST(request: NextRequest) {
     imageUrl = typeof json?.image_url === "string" ? json.image_url : null;
 
     // Never trust user-supplied URLs.
-    imageUrl = sanitizeHttpUrl(imageUrl);
+    imageUrl = sanitizeHttpsUrl(imageUrl);
   }
 
   if (!title || !title.trim()) {
@@ -140,12 +165,35 @@ export async function POST(request: NextRequest) {
   if (file) {
     if (file.size > MAX_UPLOAD_BYTES) {
       return Response.json(
-        { error: `File too large. Max size is ${MAX_UPLOAD_BYTES / (1024 * 1024)}MB.` },
-        { status: 400 },
+        {
+          error: `File too large. Max size is ${MAX_UPLOAD_BYTES / (1024 * 1024)}MB.`,
+        },
+        { status: 413 },
       );
     }
 
-    if (!ALLOWED_IMAGE_MIME_TYPES.has(file.type)) {
+    let mimeType = file.type;
+    let extension = mimeType ? extensionForImageMimeType(mimeType) : null;
+
+    // If the client didn't provide a MIME type, fall back to the filename extension.
+    if (!mimeType) {
+      const ext = extensionFromFilename(file.name);
+      if (!ext || !ALLOWED_IMAGE_EXTENSIONS.has(ext)) {
+        return Response.json(
+          {
+            error: `Unsupported file type. Allowed extensions: ${Array.from(ALLOWED_IMAGE_EXTENSIONS).join(
+              ", ",
+            )}.`,
+          },
+          { status: 400 },
+        );
+      }
+
+      mimeType = mimeTypeForImageExtension(ext) ?? "";
+      extension = ext === "jpeg" ? "jpg" : ext;
+    }
+
+    if (!mimeType || !extension || !ALLOWED_IMAGE_MIME_TYPES.has(mimeType)) {
       return Response.json(
         {
           error: `Unsupported file type. Allowed: ${Array.from(ALLOWED_IMAGE_MIME_TYPES).join(
@@ -156,9 +204,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const extension =
-      extensionForImageMimeType(file.type) || file.name.split(".").pop() || "png";
-
     const objectPath = `raid-showcase/${userData.user.id}/${crypto.randomUUID()}.${extension}`;
 
     // Note: arrayBuffer() reads the whole file into memory; keep MAX_UPLOAD_BYTES small.
@@ -168,7 +213,7 @@ export async function POST(request: NextRequest) {
       .from("modules")
       .upload(objectPath, buffer, {
         upsert: false,
-        contentType: file.type,
+        contentType: mimeType,
       });
 
     if (uploadError) {
