@@ -24,32 +24,55 @@ export function ModuleSurfaceList({
   const [entitlements, setEntitlements] = useState<string[]>([]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const fetchJson = async (input: RequestInfo | URL, init: RequestInit) => {
+      const res = await fetch(input, init);
+      if (!res.ok) return null;
+      return res.json();
+    };
+
     supabase.auth.getSession().then(async ({ data }) => {
-      const session = data.session;
-      if (!session) {
+      try {
+        const session = data.session;
+        if (!session) {
+          if (cancelled) return;
+          setRoles([]);
+          setAuthToken(null);
+          setEntitlements([]);
+          return;
+        }
+
+        if (cancelled) return;
+        setAuthToken(session.access_token);
+
+        const [rolesJson, entitlementsJson] = await Promise.all([
+          fetchJson("/api/me/roles", {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }),
+          fetchJson("/api/me/entitlements", {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }),
+        ]);
+
+        if (cancelled) return;
+        setRoles(rolesJson?.roles ?? []);
+        setEntitlements(entitlementsJson?.entitlements ?? []);
+      } catch {
+        if (cancelled) return;
         setRoles([]);
         setAuthToken(null);
         setEntitlements([]);
-        return;
       }
-      setAuthToken(session.access_token);
-      const [rolesRes, entitlementsRes] = await Promise.all([
-        fetch("/api/me/roles", {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }),
-        fetch("/api/me/entitlements", {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }),
-      ]);
-      const rolesJson = await rolesRes.json();
-      const entitlementsJson = await entitlementsRes.json();
-      setRoles(rolesJson.roles ?? []);
-      setEntitlements(entitlementsJson.entitlements ?? []);
     });
+
+    return () => {
+      cancelled = true;
+    };
   }, [supabase]);
 
   const filtered = modules.filter((module) => {
