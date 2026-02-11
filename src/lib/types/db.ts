@@ -647,6 +647,54 @@ export type Database = {
           },
         ]
       }
+      looking_for_listings: {
+        Row: {
+          category: string | null
+          contact_method: string
+          created_at: string
+          created_by: string
+          description: string
+          external_contact: string | null
+          fulfilled_at: string | null
+          id: string
+          status: string
+          tags: string[] | null
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          contact_method?: string
+          created_at?: string
+          created_by: string
+          description?: string
+          external_contact?: string | null
+          fulfilled_at?: string | null
+          id?: string
+          status?: string
+          tags?: string[] | null
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          contact_method?: string
+          created_at?: string
+          created_by?: string
+          description?: string
+          external_contact?: string | null
+          fulfilled_at?: string | null
+          id?: string
+          status?: string
+          tags?: string[] | null
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null

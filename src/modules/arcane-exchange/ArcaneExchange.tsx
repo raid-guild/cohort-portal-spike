@@ -227,6 +227,7 @@ export function ArcaneExchange() {
           <div className="mt-3 grid gap-2">
             <div className="grid grid-cols-2 gap-2">
               <select
+                aria-label="Type filter"
                 className="h-9 rounded-md border border-border bg-background px-2 text-sm"
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
@@ -236,6 +237,7 @@ export function ArcaneExchange() {
                 <option value="offering">Offering</option>
               </select>
               <select
+                aria-label="Status filter"
                 className="h-9 rounded-md border border-border bg-background px-2 text-sm"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -247,12 +249,14 @@ export function ArcaneExchange() {
               </select>
             </div>
             <input
+              aria-label="Category filter"
               className="h-9 rounded-md border border-border bg-background px-3 text-sm"
               placeholder="Category (e.g. dev)"
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
             />
             <input
+              aria-label="Tag filter"
               className="h-9 rounded-md border border-border bg-background px-3 text-sm"
               placeholder="Tag (single tag)"
               value={tagFilter}
@@ -295,6 +299,7 @@ export function ArcaneExchange() {
           <div className="text-sm font-medium">Create listing</div>
           <div className="mt-3 space-y-2">
             <select
+              aria-label="Listing type"
               className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
               value={newType}
               onChange={(e) => setNewType(e.target.value as Listing["type"])}
@@ -303,30 +308,35 @@ export function ArcaneExchange() {
               <option value="offering">Offering</option>
             </select>
             <input
+              aria-label="Title"
               className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
               placeholder="Title"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
             />
             <textarea
+              aria-label="Description"
               className="min-h-24 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
               placeholder="Description"
               value={newDescription}
               onChange={(e) => setNewDescription(e.target.value)}
             />
             <input
+              aria-label="Category"
               className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
               placeholder="Category (optional)"
               value={newCategory}
               onChange={(e) => setNewCategory(e.target.value)}
             />
             <input
+              aria-label="Tags"
               className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
               placeholder="Tags (comma-separated)"
               value={newTags}
               onChange={(e) => setNewTags(e.target.value)}
             />
             <select
+              aria-label="Contact method"
               className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
               value={newContactMethod}
               onChange={(e) => setNewContactMethod(e.target.value as Listing["contact_method"])}
@@ -337,6 +347,7 @@ export function ArcaneExchange() {
             </select>
             {newContactMethod === "external" ? (
               <input
+                aria-label="External contact"
                 className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
                 placeholder="External contact (email/telegram/etc)"
                 value={newExternalContact}

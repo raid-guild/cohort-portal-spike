@@ -8,19 +8,19 @@ export async function GET(request: NextRequest) {
   }
 
   const openRequests = await auth.admin
-    .from("looking_for_listings" as any)
+    .from("looking_for_listings")
     .select("id", { count: "exact", head: true })
     .eq("status", "open")
     .eq("type", "looking_for");
 
   const openOffers = await auth.admin
-    .from("looking_for_listings" as any)
+    .from("looking_for_listings")
     .select("id", { count: "exact", head: true })
     .eq("status", "open")
     .eq("type", "offering");
 
   const recentlyFulfilled = await auth.admin
-    .from("looking_for_listings" as any)
+    .from("looking_for_listings")
     .select("id", { count: "exact", head: true })
     .eq("status", "fulfilled")
     .gte("fulfilled_at", new Date(Date.now() - 1000 * 60 * 60 * 24 * 14).toISOString());

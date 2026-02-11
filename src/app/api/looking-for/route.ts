@@ -3,6 +3,7 @@ import { requireAuth } from "./_auth";
 
 const TYPE_VALUES = new Set(["looking_for", "offering"]);
 const STATUS_VALUES = new Set(["open", "fulfilled", "closed"]);
+const CONTACT_METHOD_VALUES = new Set(["profile", "dm", "external"]);
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
   const tag = request.nextUrl.searchParams.get("tag");
 
   let query = auth.admin
-    .from("looking_for_listings" as any)
+    .from("looking_for_listings")
     .select(
       "id, type, title, description, category, tags, status, created_by, contact_method, external_contact, created_at, updated_at, fulfilled_at",
     )
@@ -85,9 +86,15 @@ export async function POST(request: NextRequest) {
   if (!title) {
     return Response.json({ error: "Title is required." }, { status: 400 });
   }
+  if (!CONTACT_METHOD_VALUES.has(contactMethod)) {
+    return Response.json(
+      { error: "contact_method must be profile, dm, or external." },
+      { status: 400 },
+    );
+  }
 
   const { data, error } = await auth.admin
-    .from("looking_for_listings" as any)
+    .from("looking_for_listings")
     .insert({
       type,
       title,

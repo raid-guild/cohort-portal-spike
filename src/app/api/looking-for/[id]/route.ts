@@ -4,10 +4,11 @@ import { requireAuth } from "../_auth";
 
 const TYPE_VALUES = new Set(["looking_for", "offering"]);
 const STATUS_VALUES = new Set(["open", "fulfilled", "closed"]);
+const CONTACT_METHOD_VALUES = new Set(["profile", "dm", "external"]);
 
 async function loadListing(admin: ReturnType<typeof supabaseAdminClient>, id: string) {
   return admin
-    .from("looking_for_listings" as any)
+    .from("looking_for_listings")
     .select(
       "id, type, title, description, category, tags, status, created_by, contact_method, external_contact, created_at, updated_at, fulfilled_at",
     )
@@ -43,7 +44,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   }
 
   const isHost = auth.roles.includes("host");
-  const existingListing = existing.data as any;
+  const existingListing = existing.data;
   const isOwner = String(existingListing.created_by) === auth.userId;
   if (!isHost && !isOwner) {
     return Response.json({ error: "Not authorized." }, { status: 403 });
@@ -91,7 +92,14 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   }
 
   if (body.contact_method != null || body.contactMethod != null) {
-    patch.contact_method = String(body.contact_method ?? body.contactMethod).trim();
+    const contactMethod = String(body.contact_method ?? body.contactMethod).trim();
+    if (!CONTACT_METHOD_VALUES.has(contactMethod)) {
+      return Response.json(
+        { error: "contact_method must be profile, dm, or external." },
+        { status: 400 },
+      );
+    }
+    patch.contact_method = contactMethod;
   }
 
   if (body.external_contact !== undefined || body.externalContact !== undefined) {
@@ -108,7 +116,9 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       return Response.json({ error: "Invalid status." }, { status: 400 });
     }
     patch.status = status;
-    if (status !== "fulfilled") {
+    if (status === "fulfilled") {
+      patch.fulfilled_at = new Date().toISOString();
+    } else {
       patch.fulfilled_at = null;
     }
   }
@@ -118,7 +128,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   }
 
   const { data, error } = await auth.admin
-    .from("looking_for_listings" as any)
+    .from("looking_for_listings")
     .update(patch)
     .eq("id", id)
     .select(

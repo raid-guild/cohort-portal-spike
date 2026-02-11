@@ -10,12 +10,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const { id } = await context.params;
 
   const { data, error: loadError } = await auth.admin
-    .from("looking_for_listings" as any)
+    .from("looking_for_listings")
     .select("id, created_by, status")
     .eq("id", id)
     .single();
 
-  const listing = data as any;
+  const listing = data;
 
   if (loadError || !listing) {
     return Response.json({ error: loadError?.message ?? "Listing not found." }, { status: 404 });
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   }
 
   const { error } = await auth.admin
-    .from("looking_for_listings" as any)
+    .from("looking_for_listings")
     .update({ status: "closed" })
     .eq("id", id);
 
