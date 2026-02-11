@@ -70,7 +70,7 @@ export function createPortalRpcClient(moduleId: string, options?: PortalRpcClien
       throw new Error("portalRpc must run in a browser.");
     }
 
-    const id = crypto.randomUUID();
+    const id = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const request: PortalRpcRequest = {
       protocol: PORTAL_RPC_PROTOCOL,
       version: PORTAL_RPC_VERSION,
