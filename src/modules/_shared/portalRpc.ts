@@ -2,6 +2,7 @@ import {
   PORTAL_RPC_PROTOCOL,
   PORTAL_RPC_VERSION,
   isPortalRpcResponse,
+  type PortalRpcError,
   type PortalRpcRequest,
   type PortalRpcResponse,
 } from "@/lib/portal-rpc";
@@ -11,10 +12,7 @@ type PortalRpcClientOptions = {
   timeoutMs?: number;
 };
 
-type PortalRpcError = {
-  code: string;
-  message: string;
-};
+// PortalRpcError imported from @/lib/portal-rpc
 
 type PendingRequest = {
   resolve: (value: unknown) => void;
@@ -22,22 +20,31 @@ type PendingRequest = {
   timeoutId: number;
 };
 
-function getDefaultTargetOrigin() {
-  if (typeof document === "undefined") return "*";
-  if (document.referrer) {
+function getDefaultTargetOrigin(): string | null {
+  if (typeof window === "undefined") return null;
+
+  if (typeof document !== "undefined" && document.referrer) {
     try {
       return new URL(document.referrer).origin;
     } catch {
-      return "*";
+      // ignore
     }
   }
-  return "*";
+
+  // Safe fallback (never wildcard): this will only work when the parent is same-origin.
+  return window.location.origin;
 }
 
 export function createPortalRpcClient(moduleId: string, options?: PortalRpcClientOptions) {
   const pending = new Map<string, PendingRequest>();
   const targetOrigin = options?.targetOrigin ?? getDefaultTargetOrigin();
   const timeoutMs = options?.timeoutMs ?? 6000;
+
+  if (!targetOrigin) {
+    throw new Error(
+      "Unable to determine portal RPC targetOrigin. Pass { targetOrigin } explicitly (e.g. new URL(document.referrer).origin).",
+    );
+  }
 
   const handleMessage = (event: MessageEvent) => {
     if (!isPortalRpcResponse(event.data)) return;
@@ -50,9 +57,7 @@ export function createPortalRpcClient(moduleId: string, options?: PortalRpcClien
     if (response.ok) {
       entry.resolve(response.result);
     } else {
-      entry.reject(
-        response.error ?? { code: "UNKNOWN_ERROR", message: "Request failed." },
-      );
+      entry.reject(response.error ?? { code: "UNKNOWN_ERROR", message: "Request failed." });
     }
   };
 
@@ -60,10 +65,11 @@ export function createPortalRpcClient(moduleId: string, options?: PortalRpcClien
     window.addEventListener("message", handleMessage);
   }
 
-  return async function portalRpc(action: string, payload?: unknown) {
+  const call = async (action: string, payload?: unknown) => {
     if (typeof window === "undefined") {
       throw new Error("portalRpc must run in a browser.");
     }
+
     const id = crypto.randomUUID();
     const request: PortalRpcRequest = {
       protocol: PORTAL_RPC_PROTOCOL,
@@ -78,14 +84,27 @@ export function createPortalRpcClient(moduleId: string, options?: PortalRpcClien
     const promise = new Promise<unknown>((resolve, reject) => {
       const timeoutId = window.setTimeout(() => {
         pending.delete(id);
-        reject({ code: "TIMEOUT", message: "Portal RPC timed out." });
+        reject({ code: "TIMEOUT", message: "Portal RPC timed out." } satisfies PortalRpcError);
       }, timeoutMs);
-      pending.set(id, { resolve, reject, timeoutId });
+      pending.set(id, { resolve, reject: reject as PendingRequest["reject"], timeoutId });
     });
 
     window.parent.postMessage(request, targetOrigin);
     return promise;
   };
+
+  const dispose = () => {
+    if (typeof window !== "undefined") {
+      window.removeEventListener("message", handleMessage);
+    }
+    for (const [id, entry] of pending.entries()) {
+      window.clearTimeout(entry.timeoutId);
+      entry.reject({ code: "DISPOSED", message: "Portal RPC client disposed." });
+      pending.delete(id);
+    }
+  };
+
+  return { call, dispose };
 }
 
 export function emitLocalProfileRefresh() {

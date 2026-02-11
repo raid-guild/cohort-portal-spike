@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { DisplayNameGenerator } from "@/modules/profile-generators/DisplayNameGenerator";
 import { AvatarGenerator } from "@/modules/profile-generators/AvatarGenerator";
@@ -17,10 +17,18 @@ export default function ProfileGeneratorsPage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [message, setMessage] = useState("");
   const [context, setContext] = useState("");
-  const portalRpc = useMemo(
-    () => createPortalRpcClient("profile-generators"),
-    [],
+  const portalRpcRef = useRef<null | ((action: string, payload?: unknown) => Promise<unknown>)>(
+    null,
   );
+
+  useEffect(() => {
+    const client = createPortalRpcClient("profile-generators");
+    portalRpcRef.current = client.call;
+    return () => {
+      portalRpcRef.current = null;
+      client.dispose();
+    };
+  }, []);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -114,7 +122,7 @@ export default function ProfileGeneratorsPage() {
     }
     setDisplayName(nextValue);
     try {
-      await portalRpc("profile.refresh");
+      await portalRpcRef.current?.("profile.refresh");
     } catch {
       emitLocalProfileRefresh();
     }
@@ -163,7 +171,7 @@ export default function ProfileGeneratorsPage() {
           compact
           onUpdated={(url) => {
             setAvatarUrl(url);
-            portalRpc("profile.refresh").catch(() => emitLocalProfileRefresh());
+            portalRpcRef.current?.("profile.refresh")?.catch(() => emitLocalProfileRefresh());
           }}
         />
       </div>

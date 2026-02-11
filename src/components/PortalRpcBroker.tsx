@@ -8,6 +8,7 @@ import {
   isPortalRpcRequest,
   type PortalRpcRequest,
 } from "@/lib/portal-rpc";
+import { emitLocalProfileRefresh } from "@/modules/_shared/portalRpc";
 import { emitPortalToast } from "./PortalToastHost";
 
 const OPEN_MODULE_EVENT = "portal-open-module";
@@ -62,11 +63,7 @@ export function PortalRpcBroker({
     };
   }, [registerIframe]);
 
-  const emitProfileRefresh = useCallback(() => {
-    const stamp = new Date().toISOString();
-    window.localStorage.setItem("profile-updated", stamp);
-    window.postMessage({ type: "profile-updated" }, window.location.origin);
-  }, []);
+  // profile.refresh uses shared emitLocalProfileRefresh
 
   const resolveModuleUrl = useCallback(
     (module: ModuleEntry, params?: Record<string, string>) => {
@@ -183,7 +180,7 @@ export function PortalRpcBroker({
       }
 
       if (request.action === "profile.refresh") {
-        emitProfileRefresh();
+        emitLocalProfileRefresh();
         return createPortalRpcResponse(request, true, { queued: true });
       }
 
@@ -193,8 +190,9 @@ export function PortalRpcBroker({
           const kind =
             payload.kind === "success" || payload.kind === "error" ? payload.kind : "info";
           emitPortalToast({ kind, message: payload.message });
+          return createPortalRpcResponse(request, true, { shown: true });
         }
-        return createPortalRpcResponse(request, true, { shown: true });
+        return createPortalRpcResponse(request, true, { shown: false });
       }
 
       if (request.action === "module.open") {
@@ -210,7 +208,7 @@ export function PortalRpcBroker({
         message: "Unsupported action.",
       });
     },
-    [authToken, emitProfileRefresh, handleModuleOpen, moduleIndex, sessionExpiresAt],
+    [authToken, handleModuleOpen, moduleIndex, sessionExpiresAt],
   );
 
   useEffect(() => {
