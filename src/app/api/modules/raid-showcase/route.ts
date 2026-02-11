@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
-import { supabaseServerClient } from "@/lib/supabase/server";
+import { getViewerIdFromAuthHeader } from "@/app/api/modules/raider-timeline/lib";
 
 const MAX_TITLE = 100;
 const MAX_IMPACT = 280;
@@ -69,16 +69,9 @@ function mimeTypeForImageExtension(extension: string) {
 }
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
+  const viewerId = await getViewerIdFromAuthHeader(request);
+  if (!viewerId) {
     return Response.json({ error: "Missing auth token." }, { status: 401 });
-  }
-
-  const token = authHeader.replace("Bearer ", "");
-  const supabase = supabaseServerClient();
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
-  if (userError || !userData.user) {
-    return Response.json({ error: "Invalid auth token." }, { status: 401 });
   }
 
   const admin = supabaseAdminClient();
@@ -97,16 +90,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
+  const viewerId = await getViewerIdFromAuthHeader(request);
+  if (!viewerId) {
     return Response.json({ error: "Missing auth token." }, { status: 401 });
-  }
-
-  const token = authHeader.replace("Bearer ", "");
-  const supabase = supabaseServerClient();
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
-  if (userError || !userData.user) {
-    return Response.json({ error: "Invalid auth token." }, { status: 401 });
   }
 
   const contentType = request.headers.get("content-type") ?? "";
@@ -184,7 +170,7 @@ export async function POST(request: NextRequest) {
   const { data: existingProfile, error: profileLookupError } = await admin
     .from("profiles")
     .select("handle")
-    .eq("user_id", userData.user.id)
+    .eq("user_id", viewerId)
     .maybeSingle();
 
   if (profileLookupError) {
@@ -244,7 +230,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const objectPath = `raid-showcase/${userData.user.id}/${crypto.randomUUID()}.${extension}`;
+    const objectPath = `raid-showcase/${viewerId}/${crypto.randomUUID()}.${extension}`;
 
     // Note: arrayBuffer() reads the whole file into memory; keep MAX_UPLOAD_BYTES small.
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -277,7 +263,7 @@ export async function POST(request: NextRequest) {
   const { data: inserted, error: insertError } = await admin
     .from("showcase_posts")
     .insert({
-      user_id: userData.user.id,
+      user_id: viewerId,
       image_url: imageUrl,
       title,
       impact_statement: impactStatement,

@@ -1,18 +1,11 @@
 import { NextRequest } from "next/server";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
-import { supabaseServerClient } from "@/lib/supabase/server";
+import { getViewerIdFromAuthHeader } from "@/app/api/modules/raider-timeline/lib";
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
+  const viewerId = await getViewerIdFromAuthHeader(request);
+  if (!viewerId) {
     return Response.json({ error: "Missing auth token." }, { status: 401 });
-  }
-
-  const token = authHeader.replace("Bearer ", "");
-  const supabase = supabaseServerClient();
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
-  if (userError || !userData.user) {
-    return Response.json({ error: "Invalid auth token." }, { status: 401 });
   }
 
   const admin = supabaseAdminClient();
@@ -28,13 +21,15 @@ export async function GET(request: NextRequest) {
   }
 
   const top = data?.[0];
+  const includeImage = Boolean(top?.image_url);
 
   const items: { label: string; value: string }[] = [];
-  if (top?.image_url) {
+  if (includeImage && top?.image_url) {
     items.push({ label: "Image", value: top.image_url });
   }
 
-  for (const post of data ?? []) {
+  const postLimit = includeImage ? 2 : 3;
+  for (const post of (data ?? []).slice(0, postLimit)) {
     items.push({ label: post.title, value: post.impact_statement });
   }
 
