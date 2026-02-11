@@ -30,7 +30,16 @@ export function RaidShowcaseFeed() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/modules/raid-showcase", { cache: "no-store" });
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
+      if (!accessToken) {
+        throw new Error("You must be signed in to view the feed.");
+      }
+
+      const res = await fetch("/api/modules/raid-showcase", {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
       const json = (await res.json()) as { posts?: ShowcasePost[]; error?: string };
       if (!res.ok) {
         throw new Error(json.error || "Failed to load feed.");
@@ -42,7 +51,7 @@ export function RaidShowcaseFeed() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [supabase]);
 
   useEffect(() => {
     load();

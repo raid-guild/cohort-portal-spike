@@ -137,10 +137,8 @@ function renderSummary(payload: SummaryPayload, config?: SummaryConfig) {
   const progressKey = config?.progressKey;
   const imageKey = config?.imageKey;
   const title = payload.title ?? config?.title;
-  const items = (payload.items ?? config?.items ?? []).slice(
-    0,
-    maxItems && maxItems > 0 ? maxItems : undefined,
-  );
+  const allItems = payload.items ?? config?.items ?? [];
+  const items = allItems.slice(0, maxItems && maxItems > 0 ? maxItems : undefined);
   const truncateValue = (value: string) =>
     truncate && value.length > truncate
       ? `${value.slice(0, Math.max(0, truncate - 3))}...`
@@ -174,11 +172,19 @@ function renderSummary(payload: SummaryPayload, config?: SummaryConfig) {
 
   if (layout === "compact") {
     const imageItem = imageKey
-      ? items.find((item) => item.label === imageKey)
+      ? allItems.find((item) => item.label === imageKey)
       : undefined;
-    const compactItems = imageKey
-      ? items.filter((item) => item.label !== imageKey)
-      : items;
+
+    const compactItemsAll = imageKey
+      ? allItems.filter((item) => item.label !== imageKey)
+      : allItems;
+
+    // In compact layout, `maxItems` refers to the non-image items.
+    const compactItems = compactItemsAll.slice(
+      0,
+      maxItems && maxItems > 0 ? maxItems : undefined,
+    );
+
     return (
       <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
         {showTitle && title ? (
@@ -188,15 +194,9 @@ function renderSummary(payload: SummaryPayload, config?: SummaryConfig) {
           <div className="mt-2 flex items-center gap-3">
             <div className="h-10 w-10 overflow-hidden rounded-full border border-border bg-muted">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={imageItem.value}
-                alt=""
-                className="h-full w-full object-cover"
-              />
+              <img src={imageItem.value} alt="" className="h-full w-full object-cover" />
             </div>
-            <div className="text-xs text-muted-foreground">
-              {imageItem.label}
-            </div>
+            <div className="text-xs text-muted-foreground">{imageItem.label}</div>
           </div>
         ) : null}
         {compactItems.length ? (
