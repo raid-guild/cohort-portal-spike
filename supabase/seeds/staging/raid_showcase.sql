@@ -46,7 +46,7 @@ insert into public.showcase_posts (
   'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
   'https://picsum.photos/seed/raid-showcase-5/1200/800',
   'Published a cohort update',
-  'Summarized the week's progress and shared next steps so everyone stays aligned.',
+  'Summarized the week''s progress and shared next steps so everyone stays aligned.',
   0
 )
 on conflict (id) do update set
