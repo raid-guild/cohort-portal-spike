@@ -5,6 +5,44 @@ import { supabaseServerClient } from "@/lib/supabase/server";
 const MAX_TITLE = 100;
 const MAX_IMPACT = 280;
 
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5MB
+const ALLOWED_IMAGE_MIME_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+]);
+
+function sanitizeHttpUrl(raw: string | null): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (trimmed.length > 2048) return null;
+
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function extensionForImageMimeType(mimeType: string) {
+  switch (mimeType) {
+    case "image/png":
+      return "png";
+    case "image/jpeg":
+      return "jpg";
+    case "image/webp":
+      return "webp";
+    case "image/gif":
+      return "gif";
+    default:
+      return null;
+  }
+}
+
 export async function GET() {
   const admin = supabaseAdminClient();
   const { data, error } = await admin
@@ -51,6 +89,9 @@ export async function POST(request: NextRequest) {
     impactStatement = typeof impactField === "string" ? impactField : null;
     imageUrl = typeof imageUrlField === "string" ? imageUrlField : null;
     file = fileField instanceof File ? fileField : null;
+
+    // Never trust user-supplied URLs.
+    imageUrl = sanitizeHttpUrl(imageUrl);
   } else {
     const json = (await request.json().catch(() => null)) as
       | {
@@ -64,6 +105,9 @@ export async function POST(request: NextRequest) {
     impactStatement =
       typeof json?.impact_statement === "string" ? json.impact_statement : null;
     imageUrl = typeof json?.image_url === "string" ? json.image_url : null;
+
+    // Never trust user-supplied URLs.
+    imageUrl = sanitizeHttpUrl(imageUrl);
   }
 
   if (!title || !title.trim()) {
@@ -94,22 +138,46 @@ export async function POST(request: NextRequest) {
   const admin = supabaseAdminClient();
 
   if (file) {
-    const extension = file.name.split(".").pop() || "png";
-    const path = `raid-showcase/${userData.user.id}/${crypto.randomUUID()}.${extension}`;
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return Response.json(
+        { error: `File too large. Max size is ${MAX_UPLOAD_BYTES / (1024 * 1024)}MB.` },
+        { status: 400 },
+      );
+    }
+
+    if (!ALLOWED_IMAGE_MIME_TYPES.has(file.type)) {
+      return Response.json(
+        {
+          error: `Unsupported file type. Allowed: ${Array.from(ALLOWED_IMAGE_MIME_TYPES).join(
+            ", ",
+          )}.`,
+        },
+        { status: 400 },
+      );
+    }
+
+    const extension =
+      extensionForImageMimeType(file.type) || file.name.split(".").pop() || "png";
+
+    const objectPath = `raid-showcase/${userData.user.id}/${crypto.randomUUID()}.${extension}`;
+
+    // Note: arrayBuffer() reads the whole file into memory; keep MAX_UPLOAD_BYTES small.
     const buffer = Buffer.from(await file.arrayBuffer());
 
     const { error: uploadError } = await admin.storage
       .from("modules")
-      .upload(path, buffer, {
+      .upload(objectPath, buffer, {
         upsert: false,
-        contentType: file.type || "image/png",
+        contentType: file.type,
       });
 
     if (uploadError) {
       return Response.json({ error: uploadError.message }, { status: 500 });
     }
 
-    const { data: publicData } = admin.storage.from("modules").getPublicUrl(path);
+    const { data: publicData } = admin.storage
+      .from("modules")
+      .getPublicUrl(objectPath);
     imageUrl = publicData.publicUrl;
   }
 
