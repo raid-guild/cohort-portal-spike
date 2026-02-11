@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 type ShowcasePost = {
@@ -23,6 +23,8 @@ export function RaidShowcaseFeed() {
   const [title, setTitle] = useState("");
   const [impact, setImpact] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -45,6 +47,20 @@ export function RaidShowcaseFeed() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null);
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [file]);
 
   const submit = async (accessToken: string | null | undefined) => {
     if (!accessToken) {
@@ -77,6 +93,10 @@ export function RaidShowcaseFeed() {
       setTitle("");
       setImpact("");
       setFile(null);
+      setPreviewUrl(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
 
       await load();
     } catch (err) {
@@ -118,19 +138,37 @@ export function RaidShowcaseFeed() {
           <label className="grid gap-1 text-sm">
             <span className="text-xs text-muted-foreground">Image upload</span>
             <input
+              ref={fileInputRef}
               type="file"
               accept="image/*"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
+            {previewUrl ? (
+              <div className="mt-2 overflow-hidden rounded-lg border border-border bg-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewUrl}
+                  alt="Selected preview"
+                  className="max-h-64 w-full object-cover"
+                />
+              </div>
+            ) : null}
           </label>
 
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => {
-                supabase.auth.getSession().then(({ data }) => {
-                  submit(data.session?.access_token);
-                });
+              onClick={async () => {
+                try {
+                  const { data } = await supabase.auth.getSession();
+                  await submit(data.session?.access_token);
+                } catch (err) {
+                  setError(
+                    err instanceof Error
+                      ? err.message
+                      : "Failed to read your session.",
+                  );
+                }
               }}
               disabled={saving}
               className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60"
