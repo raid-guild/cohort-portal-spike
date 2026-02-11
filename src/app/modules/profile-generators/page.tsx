@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { DisplayNameGenerator } from "@/modules/profile-generators/DisplayNameGenerator";
 import { AvatarGenerator } from "@/modules/profile-generators/AvatarGenerator";
+import {
+  createPortalRpcClient,
+  emitLocalProfileRefresh,
+} from "@/modules/_shared/portalRpc";
 
 export default function ProfileGeneratorsPage() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
@@ -13,6 +17,18 @@ export default function ProfileGeneratorsPage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [message, setMessage] = useState("");
   const [context, setContext] = useState("");
+  const portalRpcRef = useRef<null | ((action: string, payload?: unknown) => Promise<unknown>)>(
+    null,
+  );
+
+  useEffect(() => {
+    const client = createPortalRpcClient("profile-generators");
+    portalRpcRef.current = client.call;
+    return () => {
+      portalRpcRef.current = null;
+      client.dispose();
+    };
+  }, []);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -105,8 +121,11 @@ export default function ProfileGeneratorsPage() {
       return;
     }
     setDisplayName(nextValue);
-    window.localStorage.setItem("profile-updated", new Date().toISOString());
-    window.parent.postMessage({ type: "profile-updated" }, window.location.origin);
+    try {
+      await portalRpcRef.current?.("profile.refresh");
+    } catch {
+      emitLocalProfileRefresh();
+    }
     setMessage("Display name updated.");
   };
 
@@ -152,8 +171,7 @@ export default function ProfileGeneratorsPage() {
           compact
           onUpdated={(url) => {
             setAvatarUrl(url);
-            window.localStorage.setItem("profile-updated", new Date().toISOString());
-            window.parent.postMessage({ type: "profile-updated" }, window.location.origin);
+            portalRpcRef.current?.("profile.refresh")?.catch(() => emitLocalProfileRefresh());
           }}
         />
       </div>

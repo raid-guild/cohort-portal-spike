@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ModuleEntry } from "@/lib/types";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { ModuleCard } from "./ModuleCard";
+import { PortalRpcBroker } from "./PortalRpcBroker";
 
 export function ModuleSurfaceList({
   modules,
@@ -17,6 +18,7 @@ export function ModuleSurfaceList({
   const supabase = useMemo(() => supabaseBrowserClient(), []);
   const [roles, setRoles] = useState<string[]>([]);
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [sessionExpiresAt, setSessionExpiresAt] = useState<number | null>(null);
   const [entitlements, setEntitlements] = useState<string[]>([]);
 
   useEffect(() => {
@@ -25,10 +27,12 @@ export function ModuleSurfaceList({
       if (!session) {
         setRoles([]);
         setAuthToken(null);
+        setSessionExpiresAt(null);
         setEntitlements([]);
         return;
       }
       setAuthToken(session.access_token);
+      setSessionExpiresAt(session.expires_at ?? null);
       const [rolesRes, entitlementsRes] = await Promise.all([
         fetch("/api/me/roles", {
           headers: {
@@ -62,20 +66,29 @@ export function ModuleSurfaceList({
   });
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {gated.map((module) => (
-        <div
-          key={module.id}
-          className={module.presentation?.layout === "wide" ? "md:col-span-2" : ""}
-        >
-          <ModuleCard
-            module={module}
-            surface={surface}
-            summaryParams={summaryParams}
-            authToken={authToken}
-          />
-        </div>
-      ))}
-    </div>
+    <>
+      <PortalRpcBroker
+        modules={gated}
+        authToken={authToken}
+        sessionExpiresAt={sessionExpiresAt}
+        roles={roles}
+        entitlements={entitlements}
+      />
+      <div className="grid gap-4 md:grid-cols-2">
+        {gated.map((module) => (
+          <div
+            key={module.id}
+            className={module.presentation?.layout === "wide" ? "md:col-span-2" : ""}
+          >
+            <ModuleCard
+              module={module}
+              surface={surface}
+              summaryParams={summaryParams}
+              authToken={authToken}
+            />
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
