@@ -162,9 +162,9 @@ export async function POST(request: NextRequest) {
 
   const admin = supabaseAdminClient();
 
-  // Ensure the authenticated user exists in public.profiles.
-  // showcase_posts.user_id has a FK to public.profiles(user_id), so new users
-  // who haven't completed onboarding would otherwise fail to create posts.
+  // Require users to complete their profile before posting.
+  // showcase_posts.user_id has a FK to public.profiles(user_id), so users without
+  // a profiles row will fail with a FK violation.
   const { data: existingProfile, error: profileLookupError } = await admin
     .from("profiles")
     .select("handle")
@@ -176,24 +176,13 @@ export async function POST(request: NextRequest) {
   }
 
   if (!existingProfile) {
-    const email = userData.user.email ?? null;
-    const handle = `user-${userData.user.id.slice(0, 8)}`;
-    const displayName =
-      (typeof userData.user.user_metadata?.full_name === "string" &&
-        userData.user.user_metadata.full_name.trim()) ||
-      (email ? email.split("@")[0] : null) ||
-      `Raider ${userData.user.id.slice(0, 4)}`;
-
-    const { error: profileInsertError } = await admin.from("profiles").insert({
-      user_id: userData.user.id,
-      handle,
-      display_name: displayName,
-      email,
-    });
-
-    if (profileInsertError) {
-      return Response.json({ error: profileInsertError.message }, { status: 500 });
-    }
+    return Response.json(
+      {
+        error:
+          "Please complete your profile before posting to Raid Showcase (Profiles → Profile Completion).",
+      },
+      { status: 403 },
+    );
   }
 
   if (file) {
