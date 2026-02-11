@@ -468,6 +468,33 @@
         "maxItems": 2,
         "showTitle": true
       }
+    },
+    {
+      "id": "arcane-exchange",
+      "title": "Arcane Exchange",
+      "description": "A lightweight internal marketplace for requests and offers.",
+      "lane": "portal",
+      "type": "link",
+      "url": "/modules/arcane-exchange",
+      "status": "beta",
+      "owner": {
+        "name": "Plague",
+        "contact": "@skuhlmann"
+      },
+      "requiresAuth": true,
+      "tags": ["people-tools", "me-tools", "home"],
+      "presentation": {
+        "mode": "page",
+        "trigger": "button"
+      },
+      "summary": {
+        "source": "api",
+        "title": "Arcane Exchange",
+        "endpoint": "/api/modules/arcane-exchange/summary",
+        "layout": "list",
+        "maxItems": 3,
+        "showTitle": true
+      }
     }
   ]
 }
