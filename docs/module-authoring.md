@@ -45,6 +45,65 @@ modules and to avoid leaking state across surfaces.
 If a module needs portal context (for example, the auth token or a profile refresh),
 use portal-owned APIs and messaging between the iframe and parent window.
 
+## Portal RPC (message bus v0)
+The portal supports a minimal request/response RPC bridge over `window.postMessage`.
+Modules can opt in to this contract to request common portal actions.
+
+Envelope:
+```ts
+type PortalRpcRequest = {
+  protocol: "rg-portal-rpc";
+  version: 1;
+  type: "request";
+  id: string;
+  moduleId: string;
+  action: string;
+  payload?: any;
+};
+
+type PortalRpcResponse = {
+  protocol: "rg-portal-rpc";
+  version: 1;
+  type: "response";
+  id: string;
+  ok: boolean;
+  result?: any;
+  error?: { code: string; message: string };
+};
+```
+
+### Allowed actions (v0)
+- `auth.getToken`
+- `profile.refresh`
+- `ui.toast`
+- `module.open`
+
+### Capabilities + origins
+Add `capabilities.portalRpc.allowedActions` and `allowedOrigins` in the registry entry.
+The portal broker enforces both.
+
+Example:
+```json
+{
+  "allowedOrigins": ["https://portal.raidguild.org"],
+  "capabilities": {
+    "portalRpc": {
+      "allowedActions": ["auth.getToken", "profile.refresh", "ui.toast"]
+    }
+  }
+}
+```
+
+### Module helper (portal-owned)
+Use `src/modules/_shared/portalRpc.ts` to send requests from a module:
+```ts
+const portalRpc = createPortalRpcClient("raider-timeline");
+await portalRpc("profile.refresh", { handle: "dekanbro" });
+```
+
+If RPC fails (for example, when running standalone), modules should fall back to
+local refresh signals (see `emitLocalProfileRefresh`).
+
 ## Capabilities (contract metadata)
 Use `capabilities` to document what a module is allowed to do. This is a registry-side
 contract for now (not enforced automatically), but it keeps portal-owned and third-party
