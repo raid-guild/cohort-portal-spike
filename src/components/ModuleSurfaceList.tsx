@@ -32,43 +32,51 @@ export function ModuleSurfaceList({
       return res.json();
     };
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      try {
-        const session = data.session;
-        if (!session) {
+    supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        try {
+          const session = data.session;
+          if (!session) {
+            if (cancelled) return;
+            setRoles([]);
+            setAuthToken(null);
+            setEntitlements([]);
+            return;
+          }
+
+          if (cancelled) return;
+          setAuthToken(session.access_token);
+
+          const [rolesJson, entitlementsJson] = await Promise.all([
+            fetchJson("/api/me/roles", {
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+              },
+            }),
+            fetchJson("/api/me/entitlements", {
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+              },
+            }),
+          ]);
+
+          if (cancelled) return;
+          setRoles(rolesJson?.roles ?? []);
+          setEntitlements(entitlementsJson?.entitlements ?? []);
+        } catch {
           if (cancelled) return;
           setRoles([]);
           setAuthToken(null);
           setEntitlements([]);
-          return;
         }
-
-        if (cancelled) return;
-        setAuthToken(session.access_token);
-
-        const [rolesJson, entitlementsJson] = await Promise.all([
-          fetchJson("/api/me/roles", {
-            headers: {
-              Authorization: `Bearer ${session.access_token}`,
-            },
-          }),
-          fetchJson("/api/me/entitlements", {
-            headers: {
-              Authorization: `Bearer ${session.access_token}`,
-            },
-          }),
-        ]);
-
-        if (cancelled) return;
-        setRoles(rolesJson?.roles ?? []);
-        setEntitlements(entitlementsJson?.entitlements ?? []);
-      } catch {
+      })
+      .catch(() => {
         if (cancelled) return;
         setRoles([]);
         setAuthToken(null);
         setEntitlements([]);
-      }
-    });
+      });
 
     return () => {
       cancelled = true;

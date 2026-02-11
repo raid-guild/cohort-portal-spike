@@ -115,9 +115,11 @@ export default function MePage() {
 
   const saveModuleViews = useCallback(
     async (nextConfig: ModuleViewsConfig) => {
+      const prevConfig = moduleViewConfig;
       setModuleViewConfig(nextConfig);
       setModuleViewMessage("Saving...");
       if (!user) {
+        setModuleViewConfig(prevConfig);
         setModuleViewMessage("Sign in to save module views.");
         return;
       }
@@ -132,18 +134,21 @@ export default function MePage() {
         { onConflict: "module_id,user_id" },
       );
       if (error) {
+        setModuleViewConfig(prevConfig);
         setModuleViewMessage(error.message);
         return;
       }
       setModuleViewMessage("Saved.");
     },
-    [supabase, user],
+    [moduleViewConfig, supabase, user],
   );
 
   const resetModuleViews = useCallback(async () => {
+    const prevConfig = moduleViewConfig;
     setModuleViewConfig(null);
     setModuleViewMessage("Resetting...");
     if (!user) {
+      setModuleViewConfig(prevConfig);
       setModuleViewMessage("Sign in to reset module views.");
       return;
     }
@@ -153,11 +158,12 @@ export default function MePage() {
       .eq("module_id", "module-views")
       .eq("user_id", user.id);
     if (error) {
+      setModuleViewConfig(prevConfig);
       setModuleViewMessage(error.message);
       return;
     }
     setModuleViewMessage("Reset to defaults.");
-  }, [supabase, user]);
+  }, [moduleViewConfig, supabase, user]);
 
   const loadProfile = useCallback(async () => {
     if (!user) {

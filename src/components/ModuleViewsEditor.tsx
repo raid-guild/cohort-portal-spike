@@ -81,14 +81,14 @@ export function ModuleViewsEditor({
               key={id}
               className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2"
             >
-              <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={!isHidden}
                   onChange={() => toggleHidden(id)}
                 />
                 <span className="text-sm text-foreground">{module.title}</span>
-              </div>
+              </label>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
