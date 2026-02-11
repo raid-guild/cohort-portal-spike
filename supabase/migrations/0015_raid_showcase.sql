@@ -13,6 +13,9 @@ create table if not exists public.showcase_posts (
   constraint showcase_posts_impact_length check (char_length(impact_statement) <= 280)
 );
 
+create index if not exists idx_showcase_posts_created_at on public.showcase_posts (created_at desc);
+create index if not exists idx_showcase_posts_user_id on public.showcase_posts (user_id);
+
 drop trigger if exists set_showcase_posts_updated_at on public.showcase_posts;
 create trigger set_showcase_posts_updated_at
 before update on public.showcase_posts

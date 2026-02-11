@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     .limit(3);
 
   if (error) {
+    console.error("[raid-showcase/summary] query error:", error.message);
     return Response.json({ title: "Latest Wins", items: [] });
   }
 

@@ -89,7 +89,8 @@ export async function GET(request: NextRequest) {
     .limit(50);
 
   if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error("[raid-showcase] feed query error:", error.message);
+    return Response.json({ error: "Failed to load feed." }, { status: 500 });
   }
 
   return Response.json({ posts: data ?? [] });
@@ -147,7 +148,10 @@ export async function POST(request: NextRequest) {
     imageUrl = sanitizeHttpsUrl(imageUrl);
   }
 
-  if (!title || !title.trim()) {
+  title = title?.trim() ?? "";
+  impactStatement = impactStatement?.trim() ?? "";
+
+  if (!title) {
     return Response.json({ error: "Title is required." }, { status: 400 });
   }
 
@@ -158,7 +162,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!impactStatement || !impactStatement.trim()) {
+  if (!impactStatement) {
     return Response.json(
       { error: "Impact statement is required." },
       { status: 400 },
@@ -184,7 +188,8 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (profileLookupError) {
-    return Response.json({ error: profileLookupError.message }, { status: 500 });
+    console.error("[raid-showcase] profile lookup error:", profileLookupError.message);
+    return Response.json({ error: "Failed to verify profile." }, { status: 500 });
   }
 
   if (!existingProfile) {
@@ -252,7 +257,8 @@ export async function POST(request: NextRequest) {
       });
 
     if (uploadError) {
-      return Response.json({ error: uploadError.message }, { status: 500 });
+      console.error("[raid-showcase] upload error:", uploadError.message);
+      return Response.json({ error: "Failed to upload image." }, { status: 500 });
     }
 
     const { data: publicData } = admin.storage
@@ -273,14 +279,15 @@ export async function POST(request: NextRequest) {
     .insert({
       user_id: userData.user.id,
       image_url: imageUrl,
-      title: title.trim(),
-      impact_statement: impactStatement.trim(),
+      title,
+      impact_statement: impactStatement,
     })
     .select("id,user_id,image_url,title,impact_statement,boost_count,created_at")
     .single();
 
   if (insertError) {
-    return Response.json({ error: insertError.message }, { status: 500 });
+    console.error("[raid-showcase] insert error:", insertError.message);
+    return Response.json({ error: "Failed to create post." }, { status: 500 });
   }
 
   return Response.json({ post: inserted }, { status: 201 });
