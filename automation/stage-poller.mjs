@@ -253,7 +253,14 @@ async function applyStagingSeeds(fromRoot) {
     const full = path.join(stagingSeedsDir, file);
     const sql = await fs.readFile(full, "utf8");
     if (!sql.trim()) continue;
-    await dbExecMany(sql);
+
+    console.log(`Applying staging seed: ${file}`);
+    try {
+      await dbExecMany(sql);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(`Staging seed failed (${file}): ${msg}`);
+    }
   }
 }
 
