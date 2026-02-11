@@ -94,7 +94,7 @@ async function removeLabel(number, label) {
     await gh(`/repos/${OWNER}/${REPO}/issues/${number}/labels/${encodeURIComponent(label)}`, {
       method: "DELETE",
     });
-  } catch (e) {
+  } catch {
     // ignore if missing
   }
 }
