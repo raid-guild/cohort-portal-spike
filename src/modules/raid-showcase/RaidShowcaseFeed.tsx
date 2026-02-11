@@ -23,6 +23,7 @@ export function RaidShowcaseFeed() {
   const [title, setTitle] = useState("");
   const [impact, setImpact] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -46,6 +47,20 @@ export function RaidShowcaseFeed() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null);
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [file]);
 
   const submit = async (accessToken: string | null | undefined) => {
     if (!accessToken) {
@@ -78,6 +93,7 @@ export function RaidShowcaseFeed() {
       setTitle("");
       setImpact("");
       setFile(null);
+      setPreviewUrl(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -127,6 +143,16 @@ export function RaidShowcaseFeed() {
               accept="image/*"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
+            {previewUrl ? (
+              <div className="mt-2 overflow-hidden rounded-lg border border-border bg-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewUrl}
+                  alt="Selected preview"
+                  className="max-h-64 w-full object-cover"
+                />
+              </div>
+            ) : null}
           </label>
 
           <div className="flex items-center gap-3">
