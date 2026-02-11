@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { ModuleSurfaceList } from "@/components/ModuleSurfaceList";
+import { ModuleViewsEditor } from "@/components/ModuleViewsEditor";
 import type { ModuleEntry } from "@/lib/types";
+import type { ModuleViewsConfig } from "@/lib/module-views";
 import { PaidStar } from "@/components/PaidStar";
 
 type ProfileForm = {
@@ -49,6 +51,11 @@ export default function MePage() {
   const [portalRoles, setPortalRoles] = useState<string[]>([]);
   const [isPaid, setIsPaid] = useState(false);
   const [paidSource, setPaidSource] = useState<string | null>(null);
+  const [moduleViewConfig, setModuleViewConfig] = useState<ModuleViewsConfig | null>(
+    null,
+  );
+  const [moduleViewMessage, setModuleViewMessage] = useState("");
+  const [showModuleCustomize, setShowModuleCustomize] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -79,6 +86,78 @@ export default function MePage() {
       })
       .catch(() => setMeTools([]));
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setModuleViewConfig(null);
+      setModuleViewMessage("");
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from("module_data")
+      .select("payload")
+      .eq("module_id", "module-views")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error || !data?.payload) {
+          setModuleViewConfig(null);
+          return;
+        }
+        setModuleViewConfig(data.payload as ModuleViewsConfig);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, user]);
+
+  const saveModuleViews = useCallback(
+    async (nextConfig: ModuleViewsConfig) => {
+      setModuleViewConfig(nextConfig);
+      setModuleViewMessage("Saving...");
+      if (!user) {
+        setModuleViewMessage("Sign in to save module views.");
+        return;
+      }
+      const { error } = await supabase.from("module_data").upsert(
+        {
+          module_id: "module-views",
+          user_id: user.id,
+          visibility: "private",
+          payload: nextConfig,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "module_id,user_id" },
+      );
+      if (error) {
+        setModuleViewMessage(error.message);
+        return;
+      }
+      setModuleViewMessage("Saved.");
+    },
+    [supabase, user],
+  );
+
+  const resetModuleViews = useCallback(async () => {
+    setModuleViewConfig(null);
+    setModuleViewMessage("Resetting...");
+    if (!user) {
+      setModuleViewMessage("Sign in to reset module views.");
+      return;
+    }
+    const { error } = await supabase
+      .from("module_data")
+      .delete()
+      .eq("module_id", "module-views")
+      .eq("user_id", user.id);
+    if (error) {
+      setModuleViewMessage(error.message);
+      return;
+    }
+    setModuleViewMessage("Reset to defaults.");
+  }, [supabase, user]);
 
   const loadProfile = useCallback(async () => {
     if (!user) {
@@ -435,9 +514,34 @@ export default function MePage() {
 
           {meTools.length ? (
             <div className="rounded-xl border border-border bg-card p-4">
-              <div className="text-sm font-semibold">Profile Tools</div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-sm font-semibold">Profile Tools</div>
+                <button
+                  type="button"
+                  onClick={() => setShowModuleCustomize((value) => !value)}
+                  className="rounded-lg border border-border px-3 py-1 text-xs hover:bg-muted"
+                >
+                  {showModuleCustomize ? "Hide customization" : "Customize"}
+                </button>
+              </div>
+              {showModuleCustomize ? (
+                <div className="mt-3">
+                  <ModuleViewsEditor
+                    modules={meTools}
+                    surface="me"
+                    config={moduleViewConfig}
+                    onChange={saveModuleViews}
+                    onReset={resetModuleViews}
+                    message={moduleViewMessage}
+                  />
+                </div>
+              ) : null}
               <div className="mt-3">
-                <ModuleSurfaceList modules={meTools} surface="me" />
+                <ModuleSurfaceList
+                  modules={meTools}
+                  surface="me"
+                  viewConfig={moduleViewConfig}
+                />
               </div>
             </div>
           ) : null}
