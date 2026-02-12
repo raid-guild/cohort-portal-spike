@@ -511,6 +511,39 @@
         "maxItems": 3,
         "showTitle": true
       }
+    },
+    {
+      "id": "raid-showcase",
+      "title": "Raid Showcase",
+      "description": "Share proof-of-work wins as a visual feed.",
+      "lane": "portal",
+      "type": "link",
+      "url": "/modules/raid-showcase",
+      "status": "beta",
+      "owner": {
+        "name": "@neriel2017",
+        "contact": "@neriel2017"
+      },
+      "requiresAuth": true,
+      "tags": [
+        "start-here",
+        "me-tools",
+        "profile-tools-public"
+      ],
+      "presentation": {
+        "mode": "page",
+        "trigger": "button",
+        "layout": "wide"
+      },
+      "summary": {
+        "source": "api",
+        "title": "Latest Wins",
+        "endpoint": "/api/modules/raid-showcase/summary",
+        "layout": "compact",
+        "maxItems": 3,
+        "showTitle": true,
+        "imageKey": "Image"
+      }
     }
   ]
 }

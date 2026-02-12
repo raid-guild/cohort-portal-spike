@@ -487,6 +487,47 @@ export type Database = {
         }
         Relationships: []
       }
+      showcase_posts: {
+        Row: {
+          boost_count: number
+          created_at: string
+          id: string
+          image_url: string
+          impact_statement: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          boost_count?: number
+          created_at?: string
+          id?: string
+          image_url: string
+          impact_statement: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          boost_count?: number
+          created_at?: string
+          id?: string
+          image_url?: string
+          impact_statement?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "showcase_posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       role_catalog: {
         Row: {
           category: string | null
