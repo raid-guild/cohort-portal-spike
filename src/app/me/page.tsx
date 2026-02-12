@@ -98,25 +98,27 @@ export default function MePage() {
       return;
     }
     let cancelled = false;
-    supabase
-      .from("module_data")
-      .select("payload")
-      .eq("module_id", "module-views")
-      .eq("user_id", user.id)
-      .maybeSingle()
-      .then(({ data, error }) => {
+    const loadModuleViews = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("module_data")
+          .select("payload")
+          .eq("module_id", "module-views")
+          .eq("user_id", user.id)
+          .maybeSingle();
         if (cancelled) return;
         if (error || !data?.payload) {
           setModuleViewConfig(null);
           return;
         }
         setModuleViewConfig(data.payload as ModuleViewsConfig);
-      })
-      .catch(() => {
+      } catch {
         if (cancelled) return;
         setModuleViewConfig(null);
         setModuleViewMessage("Unable to load saved module views.");
-      });
+      }
+    };
+    void loadModuleViews();
     return () => {
       cancelled = true;
     };
@@ -1039,7 +1041,9 @@ export default function MePage() {
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              onClick={handleProfileSave}
+              onClick={() => {
+                void handleProfileSave();
+              }}
               className="rounded-lg border border-border bg-primary px-4 py-2 text-sm text-background hover:opacity-90"
               disabled={loading}
             >
