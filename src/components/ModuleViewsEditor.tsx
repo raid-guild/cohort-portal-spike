@@ -57,7 +57,9 @@ export function ModuleViewsEditor({
     } else {
       nextHidden.add(id);
     }
-    updateConfig(view.order, Array.from(nextHidden));
+
+    const nextHiddenList = view.order.filter((moduleId) => nextHidden.has(moduleId));
+    updateConfig(view.order, nextHiddenList);
   };
 
   if (!modules.length) {

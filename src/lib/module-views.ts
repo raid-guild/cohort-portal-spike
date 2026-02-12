@@ -17,11 +17,13 @@ export function getSurfaceViewConfig(
   const knownIds = new Set(moduleIds);
   const order = Array.isArray(stored?.order) ? stored.order : [];
   const normalizedOrder = order.filter((id) => knownIds.has(id));
-  moduleIds.forEach((id) => {
-    if (!normalizedOrder.includes(id)) {
-      normalizedOrder.push(id);
-    }
-  });
+  const seen = new Set(normalizedOrder);
+
+  for (const id of moduleIds) {
+    if (seen.has(id)) continue;
+    normalizedOrder.push(id);
+    seen.add(id);
+  }
 
   const hidden = Array.isArray(stored?.hidden) ? stored.hidden : [];
   const normalizedHidden = hidden.filter((id) => knownIds.has(id));
