@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Profile } from "@/lib/types";
+import { RAID_GUILD_ROLES } from "@/lib/raidguild-roles";
 import { BadgePill } from "./BadgePill";
 import { PaidStar } from "./PaidStar";
 
@@ -34,6 +35,10 @@ export function PeopleDirectory({
       return matchesQuery && matchesSkill;
     });
   }, [people, query, skill]);
+
+  const roleIconMap = useMemo(() => {
+    return new Map(RAID_GUILD_ROLES.map((role) => [role.name, role.icon]));
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -78,6 +83,29 @@ export function PeopleDirectory({
                     ) : null}
                   </div>
                   <div className="text-sm text-muted-foreground">@{person.handle}</div>
+                  {person.roles?.length ? (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {person.roles.map((role) => {
+                        const icon = roleIconMap.get(role);
+                        return (
+                          <div
+                            key={role}
+                            className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-muted"
+                            title={role}
+                          >
+                            {icon ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={icon} alt={role} className="h-6 w-6" />
+                            ) : (
+                              <span className="text-[10px] font-semibold text-muted-foreground">
+                                {role.slice(0, 2).toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null}
                 </div>
               </div>
               {person.location ? <BadgePill>{person.location}</BadgePill> : null}

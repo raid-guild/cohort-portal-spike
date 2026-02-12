@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { ModuleSurfaceList } from "@/components/ModuleSurfaceList";
@@ -59,6 +59,7 @@ export default function MePage() {
     null,
   );
   const [moduleViewMessage, setModuleViewMessage] = useState("");
+  const autosaveTimer = useRef<number | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -366,44 +367,62 @@ export default function MePage() {
     }
   };
 
-  const handleProfileSave = async () => {
+  const handleProfileSave = async (options?: { silent?: boolean }) => {
     if (!user) {
-      setMessage("Please sign in first.");
+      if (!options?.silent) {
+        setMessage("Please sign in first.");
+      }
       return false;
     }
 
     const trimmedHandle = profile.handle.trim();
     if (!trimmedHandle) {
-      setMessage("Handle is required.");
+      if (!options?.silent) {
+        setMessage("Handle is required.");
+      }
       return false;
     }
     if (!/^[a-z0-9_-]+$/i.test(trimmedHandle)) {
-      setMessage("Handle can only use letters, numbers, hyphens, and underscores.");
+      if (!options?.silent) {
+        setMessage("Handle can only use letters, numbers, hyphens, and underscores.");
+      }
       return false;
     }
     if (!profile.displayName.trim()) {
-      setMessage("Name is required.");
+      if (!options?.silent) {
+        setMessage("Name is required.");
+      }
       return false;
     }
     if (!profile.bio.trim()) {
-      setMessage("Description is required.");
+      if (!options?.silent) {
+        setMessage("Description is required.");
+      }
       return false;
     }
     if (!profile.roles.length) {
-      setMessage("Select at least one role.");
+      if (!options?.silent) {
+        setMessage("Select at least one role.");
+      }
       return false;
     }
     if (profile.roles.length > rolesLimit) {
-      setMessage(`Select up to ${rolesLimit} roles.`);
+      if (!options?.silent) {
+        setMessage(`Select up to ${rolesLimit} roles.`);
+      }
       return false;
     }
     if (!profile.skills.length) {
-      setMessage("Select at least one skill.");
+      if (!options?.silent) {
+        setMessage("Select at least one skill.");
+      }
       return false;
     }
 
     setLoading(true);
-    setMessage("");
+    if (!options?.silent) {
+      setMessage("");
+    }
     const walletFromIdentity = getWalletFromUser(user);
     const payload = {
       user_id: user.id,
@@ -426,14 +445,36 @@ export default function MePage() {
       : await supabase.from("profiles").insert(payload);
 
     setLoading(false);
-    setMessage(error ? error.message : "Profile saved.");
+    if (!options?.silent) {
+      setMessage(error ? error.message : "Profile saved.");
+    } else if (error) {
+      setMessage(error.message);
+    }
     if (!error) {
       setProfileExists(true);
       setWizardOpen(false);
       setWizardStep(0);
+      window.localStorage.setItem("profile-updated", new Date().toISOString());
+      window.postMessage({ type: "profile-updated" }, window.location.origin);
     }
     return !error;
   };
+
+  useEffect(() => {
+    if (!session) return;
+    if (!isProfileComplete) return;
+    if (autosaveTimer.current) {
+      window.clearTimeout(autosaveTimer.current);
+    }
+    autosaveTimer.current = window.setTimeout(() => {
+      handleProfileSave({ silent: true }).catch(() => null);
+    }, 800);
+    return () => {
+      if (autosaveTimer.current) {
+        window.clearTimeout(autosaveTimer.current);
+      }
+    };
+  }, [handleProfileSave, isProfileComplete, profile, session]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
