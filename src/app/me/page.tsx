@@ -1,11 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { ModuleSurfaceList } from "@/components/ModuleSurfaceList";
+import { ModuleViewsEditor } from "@/components/ModuleViewsEditor";
+import { RolePicker } from "@/components/RolePicker";
 import type { ModuleEntry } from "@/lib/types";
+import type { ModuleViewsConfig } from "@/lib/module-views";
 import { PaidStar } from "@/components/PaidStar";
+import { RAID_GUILD_ROLES } from "@/lib/raidguild-roles";
 
 type ProfileForm = {
   handle: string;
@@ -43,12 +47,19 @@ export default function MePage() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [availableSkills, setAvailableSkills] = useState<string[]>([]);
-  const [availableRoles, setAvailableRoles] = useState<string[]>([]);
   const [linking, setLinking] = useState(false);
   const [meTools, setMeTools] = useState<ModuleEntry[]>([]);
   const [portalRoles, setPortalRoles] = useState<string[]>([]);
   const [isPaid, setIsPaid] = useState(false);
   const [paidSource, setPaidSource] = useState<string | null>(null);
+  const [wizardStep, setWizardStep] = useState(0);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [showModuleCustomize, setShowModuleCustomize] = useState(false);
+  const [moduleViewConfig, setModuleViewConfig] = useState<ModuleViewsConfig | null>(
+    null,
+  );
+  const [moduleViewMessage, setModuleViewMessage] = useState("");
+  const autosaveTimer = useRef<number | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -79,6 +90,83 @@ export default function MePage() {
       })
       .catch(() => setMeTools([]));
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setModuleViewConfig(null);
+      setModuleViewMessage("");
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from("module_data")
+      .select("payload")
+      .eq("module_id", "module-views")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error || !data?.payload) {
+          setModuleViewConfig(null);
+          return;
+        }
+        setModuleViewConfig(data.payload as ModuleViewsConfig);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setModuleViewConfig(null);
+        setModuleViewMessage("Unable to load saved module views.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, user]);
+
+  const saveModuleViews = useCallback(
+    async (nextConfig: ModuleViewsConfig) => {
+      setModuleViewConfig(nextConfig);
+      setModuleViewMessage("Saving...");
+      if (!user) {
+        setModuleViewMessage("Sign in to save module views.");
+        return;
+      }
+      const { error } = await supabase.from("module_data").upsert(
+        {
+          module_id: "module-views",
+          user_id: user.id,
+          visibility: "private",
+          payload: nextConfig,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "module_id,user_id" },
+      );
+      if (error) {
+        setModuleViewMessage(error.message);
+        return;
+      }
+      setModuleViewMessage("Saved.");
+    },
+    [supabase, user],
+  );
+
+  const resetModuleViews = useCallback(async () => {
+    setModuleViewConfig(null);
+    setModuleViewMessage("Resetting...");
+    if (!user) {
+      setModuleViewMessage("Sign in to reset module views.");
+      return;
+    }
+    const { error } = await supabase
+      .from("module_data")
+      .delete()
+      .eq("module_id", "module-views")
+      .eq("user_id", user.id);
+    if (error) {
+      setModuleViewMessage(error.message);
+      return;
+    }
+    setModuleViewMessage("Reset to defaults.");
+  }, [supabase, user]);
 
   const loadProfile = useCallback(async () => {
     if (!user) {
@@ -193,15 +281,6 @@ export default function MePage() {
         if (!data) return;
         setAvailableSkills(data.map((row) => row.skill));
       });
-
-    supabase
-      .from("role_catalog")
-      .select("role, category")
-      .order("role")
-      .then(({ data }) => {
-        if (!data) return;
-        setAvailableRoles(data.map((row) => row.role));
-      });
   }, [supabase]);
 
   useEffect(() => {
@@ -215,6 +294,50 @@ export default function MePage() {
       URL.revokeObjectURL(url);
     };
   }, [avatarFile]);
+
+  const rolesLimit = 2;
+  const isProfileComplete =
+    Boolean(profile.handle.trim()) &&
+    Boolean(profile.displayName.trim()) &&
+    Boolean(profile.bio.trim()) &&
+    profile.roles.length > 0 &&
+    profile.roles.length <= rolesLimit &&
+    profile.skills.length > 0;
+  const showWizard = Boolean(session) && wizardOpen;
+
+  const wizardSteps = [
+    {
+      title: "Basics",
+      valid:
+        Boolean(profile.handle.trim()) &&
+        Boolean(profile.displayName.trim()) &&
+        Boolean(profile.bio.trim()),
+    },
+    {
+      title: "Skills",
+      valid: profile.skills.length > 0,
+    },
+    {
+      title: "Roles",
+      valid: profile.roles.length > 0 && profile.roles.length <= rolesLimit,
+    },
+  ];
+
+  const wizardIsValid = wizardSteps.every((step) => step.valid);
+  const wizardCanAdvance = wizardSteps[wizardStep]?.valid ?? false;
+  const roleSuggestions = inferRoleSuggestions(profile.skills, RAID_GUILD_ROLES);
+
+  useEffect(() => {
+    if (!session) {
+      setWizardOpen(false);
+      return;
+    }
+    if (!profileExists || !isProfileComplete) {
+      setWizardOpen(true);
+      return;
+    }
+    setWizardOpen(false);
+  }, [isProfileComplete, profileExists, session]);
 
   const handleEmailSignIn = async () => {
     setLoading(true);
@@ -244,24 +367,62 @@ export default function MePage() {
     }
   };
 
-  const handleProfileSave = async () => {
+  const handleProfileSave = async (options?: { silent?: boolean }) => {
     if (!user) {
-      setMessage("Please sign in first.");
-      return;
+      if (!options?.silent) {
+        setMessage("Please sign in first.");
+      }
+      return false;
     }
 
     const trimmedHandle = profile.handle.trim();
     if (!trimmedHandle) {
-      setMessage("Handle is required.");
-      return;
+      if (!options?.silent) {
+        setMessage("Handle is required.");
+      }
+      return false;
     }
     if (!/^[a-z0-9_-]+$/i.test(trimmedHandle)) {
-      setMessage("Handle can only use letters, numbers, hyphens, and underscores.");
-      return;
+      if (!options?.silent) {
+        setMessage("Handle can only use letters, numbers, hyphens, and underscores.");
+      }
+      return false;
+    }
+    if (!profile.displayName.trim()) {
+      if (!options?.silent) {
+        setMessage("Name is required.");
+      }
+      return false;
+    }
+    if (!profile.bio.trim()) {
+      if (!options?.silent) {
+        setMessage("Description is required.");
+      }
+      return false;
+    }
+    if (!profile.roles.length) {
+      if (!options?.silent) {
+        setMessage("Select at least one role.");
+      }
+      return false;
+    }
+    if (profile.roles.length > rolesLimit) {
+      if (!options?.silent) {
+        setMessage(`Select up to ${rolesLimit} roles.`);
+      }
+      return false;
+    }
+    if (!profile.skills.length) {
+      if (!options?.silent) {
+        setMessage("Select at least one skill.");
+      }
+      return false;
     }
 
     setLoading(true);
-    setMessage("");
+    if (!options?.silent) {
+      setMessage("");
+    }
     const walletFromIdentity = getWalletFromUser(user);
     const payload = {
       user_id: user.id,
@@ -284,11 +445,36 @@ export default function MePage() {
       : await supabase.from("profiles").insert(payload);
 
     setLoading(false);
-    setMessage(error ? error.message : "Profile saved.");
+    if (!options?.silent) {
+      setMessage(error ? error.message : "Profile saved.");
+    } else if (error) {
+      setMessage(error.message);
+    }
     if (!error) {
       setProfileExists(true);
+      setWizardOpen(false);
+      setWizardStep(0);
+      window.localStorage.setItem("profile-updated", new Date().toISOString());
+      window.postMessage({ type: "profile-updated" }, window.location.origin);
     }
+    return !error;
   };
+
+  useEffect(() => {
+    if (!session) return;
+    if (!isProfileComplete) return;
+    if (autosaveTimer.current) {
+      window.clearTimeout(autosaveTimer.current);
+    }
+    autosaveTimer.current = window.setTimeout(() => {
+      handleProfileSave({ silent: true }).catch(() => null);
+    }, 800);
+    return () => {
+      if (autosaveTimer.current) {
+        window.clearTimeout(autosaveTimer.current);
+      }
+    };
+  }, [handleProfileSave, isProfileComplete, profile, session]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -363,6 +549,197 @@ export default function MePage() {
 
   return (
     <div className="space-y-6">
+      {showWizard ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-xl">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="space-y-1">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Profile setup
+                </div>
+                <h2 className="text-2xl font-semibold">Complete your profile</h2>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Step {wizardStep + 1} of {wizardSteps.length}
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
+              {wizardSteps.map((step, index) => (
+                <div
+                  key={step.title}
+                  className={`rounded-full border px-3 py-1 ${
+                    index === wizardStep
+                      ? "border-primary text-foreground"
+                      : step.valid
+                        ? "border-emerald-500/40 text-emerald-200"
+                        : "border-border"
+                  }`}
+                >
+                  {step.title}
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 space-y-4">
+              {wizardStep === 0 ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="space-y-2 text-sm md:col-span-2">
+                    <span className="font-semibold">Discord handle</span>
+                    <input
+                      value={profile.handle}
+                      onChange={(event) =>
+                        setProfile((prev) => ({
+                          ...prev,
+                          handle: event.target.value,
+                        }))
+                      }
+                      placeholder="your-handle"
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2"
+                    />
+                  </label>
+                  <label className="space-y-2 text-sm md:col-span-2">
+                    <span className="font-semibold">Name</span>
+                    <input
+                      value={profile.displayName}
+                      onChange={(event) =>
+                        setProfile((prev) => ({
+                          ...prev,
+                          displayName: event.target.value,
+                        }))
+                      }
+                      placeholder="Your name"
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2"
+                    />
+                  </label>
+                  <label className="space-y-2 text-sm md:col-span-2">
+                    <span className="font-semibold">Description</span>
+                    <textarea
+                      value={profile.bio}
+                      onChange={(event) =>
+                        setProfile((prev) => ({
+                          ...prev,
+                          bio: event.target.value,
+                        }))
+                      }
+                      placeholder="Tell the cohort about you."
+                      className="min-h-[120px] w-full rounded-lg border border-border bg-background px-3 py-2"
+                    />
+                  </label>
+                </div>
+              ) : null}
+
+              {wizardStep === 1 ? (
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-sm font-semibold">Skills</div>
+                    <p className="text-xs text-muted-foreground">
+                      Skills are broader than roles. You can list skills even if they
+                      aren’t your primary role.
+                    </p>
+                  </div>
+                  <MultiSelect
+                    options={availableSkills}
+                    value={profile.skills}
+                    onChange={(skills) =>
+                      setProfile((prev) => ({ ...prev, skills }))
+                    }
+                    emptyLabel="No skills available yet."
+                  />
+                </div>
+              ) : null}
+
+              {wizardStep === 2 ? (
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-sm font-semibold">Choose your roles</div>
+                    <p className="text-xs text-muted-foreground">
+                      Based on your skills, we’ve suggested roles below. You can adjust.
+                    </p>
+                  </div>
+                  {roleSuggestions.length ? (
+                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      {roleSuggestions.map((role) => (
+                        <span
+                          key={role}
+                          className="rounded-full border border-border px-3 py-1"
+                        >
+                          {role}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  <RolePicker
+                    roles={RAID_GUILD_ROLES}
+                    value={profile.roles}
+                    onChange={(roles) =>
+                      setProfile((prev) => ({ ...prev, roles }))
+                    }
+                    maxSelected={rolesLimit}
+                  />
+                </div>
+              ) : null}
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
+              <div className="text-xs text-muted-foreground">
+                {message ? message : null}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {wizardStep > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setWizardStep((step) => Math.max(0, step - 1))}
+                    className="rounded-lg border border-border px-3 py-2 text-xs hover:bg-muted"
+                  >
+                    Back
+                  </button>
+                ) : null}
+                {wizardStep < wizardSteps.length - 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!wizardCanAdvance) {
+                        setMessage("Complete this step to continue.");
+                        return;
+                      }
+                      setMessage("");
+                      if (wizardStep === 1 && profile.roles.length === 0) {
+                        const suggestions = roleSuggestions.slice(0, rolesLimit);
+                        if (suggestions.length) {
+                          setProfile((prev) => ({ ...prev, roles: suggestions }));
+                        }
+                      }
+                      setWizardStep((step) => Math.min(step + 1, wizardSteps.length - 1));
+                    }}
+                    className="rounded-lg border border-border bg-primary px-3 py-2 text-xs text-background hover:opacity-90"
+                  >
+                    Next
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!wizardIsValid) {
+                        setMessage("Complete all required fields.");
+                        return;
+                      }
+                      const ok = await handleProfileSave();
+                      if (ok) {
+                        setMessage("");
+                      }
+                    }}
+                    className="rounded-lg border border-border bg-primary px-3 py-2 text-xs text-background hover:opacity-90"
+                    disabled={loading}
+                  >
+                    Finish &amp; Save
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-3xl font-semibold">Your Profile</h1>
@@ -435,9 +812,43 @@ export default function MePage() {
 
           {meTools.length ? (
             <div className="rounded-xl border border-border bg-card p-4">
-              <div className="text-sm font-semibold">Profile Tools</div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-sm font-semibold">Profile Tools</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setWizardOpen(true)}
+                    className="rounded-lg border border-border px-3 py-1 text-xs hover:bg-muted"
+                  >
+                    Open profile wizard
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowModuleCustomize((value) => !value)}
+                    className="rounded-lg border border-border px-3 py-1 text-xs hover:bg-muted"
+                  >
+                    {showModuleCustomize ? "Hide customization" : "Customize"}
+                  </button>
+                </div>
+              </div>
+              {showModuleCustomize ? (
+                <div className="mt-3">
+                  <ModuleViewsEditor
+                    modules={meTools}
+                    surface="me"
+                    config={moduleViewConfig}
+                    onChange={saveModuleViews}
+                    onReset={resetModuleViews}
+                    message={moduleViewMessage}
+                  />
+                </div>
+              ) : null}
               <div className="mt-3">
-                <ModuleSurfaceList modules={meTools} surface="me" />
+                <ModuleSurfaceList
+                  modules={meTools}
+                  surface="me"
+                  viewConfig={moduleViewConfig}
+                />
               </div>
             </div>
           ) : null}
@@ -551,15 +962,13 @@ export default function MePage() {
               <span className="font-semibold">Wallet address</span>
               <input
                 value={profile.walletAddress}
-                onChange={(event) =>
-                  setProfile((prev) => ({
-                    ...prev,
-                    walletAddress: event.target.value,
-                  }))
-                }
+                readOnly
                 placeholder="0x..."
-                className="w-full rounded-lg border border-border bg-background px-3 py-2"
+                className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-muted-foreground"
               />
+              <div className="text-xs text-muted-foreground">
+                Wallet addresses are linked by signing a message.
+              </div>
             </label>
             <div className="space-y-2 text-sm">
               <span className="font-semibold">Email to link</span>
@@ -613,16 +1022,16 @@ export default function MePage() {
               <div>
                 <div className="text-sm font-semibold">Roles</div>
                 <p className="text-xs text-muted-foreground">
-                  Select the roles that match how you contribute.
+                  Select the roles that match how you contribute. Choose up to two.
                 </p>
               </div>
-              <MultiSelect
-                options={availableRoles}
+              <RolePicker
+                roles={RAID_GUILD_ROLES}
                 value={profile.roles}
                 onChange={(roles) =>
                   setProfile((prev) => ({ ...prev, roles }))
                 }
-                emptyLabel="No roles available yet."
+                maxSelected={rolesLimit}
               />
             </div>
           </div>
@@ -678,6 +1087,35 @@ function getWalletFromUser(user: User | null) {
     if (data?.custom_claims?.address) return data.custom_claims.address;
   }
   return null;
+}
+
+function inferRoleSuggestions(
+  skills: string[],
+  roles: { name: string; type: string }[],
+) {
+  const normalizedSkills = skills.map((skill) => skill.toLowerCase());
+  const scored = roles.map((role) => {
+    const keywords = new Set(
+      `${role.name} ${role.type}`
+        .toLowerCase()
+        .split(/[^a-z0-9]+/g)
+        .filter((token) => token.length >= 3),
+    );
+    let score = 0;
+    normalizedSkills.forEach((skill) => {
+      keywords.forEach((keyword) => {
+        if (skill.includes(keyword)) {
+          score += 1;
+        }
+      });
+    });
+    return { name: role.name, score };
+  });
+
+  return scored
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map((item) => item.name);
 }
 
 function MultiSelect({

@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ModuleEntry } from "@/lib/types";
+import type { ModuleViewsConfig } from "@/lib/module-views";
+import { getSurfaceViewConfig } from "@/lib/module-views";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { ModuleCard } from "./ModuleCard";
 import { PortalRpcBroker } from "./PortalRpcBroker";
@@ -10,10 +12,12 @@ export function ModuleSurfaceList({
   modules,
   surface,
   summaryParams,
+  viewConfig,
 }: {
   modules: ModuleEntry[];
   surface?: string;
   summaryParams?: Record<string, string>;
+  viewConfig?: ModuleViewsConfig | null;
 }) {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
   const [roles, setRoles] = useState<string[]>([]);
@@ -22,34 +26,67 @@ export function ModuleSurfaceList({
   const [entitlements, setEntitlements] = useState<string[]>([]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      const session = data.session;
-      if (!session) {
+    let cancelled = false;
+
+    const fetchJson = async (input: RequestInfo | URL, init: RequestInit) => {
+      const res = await fetch(input, init);
+      if (!res.ok) return null;
+      return res.json();
+    };
+
+    supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        try {
+          const session = data.session;
+          if (!session) {
+            if (cancelled) return;
+            setRoles([]);
+            setAuthToken(null);
+            setSessionExpiresAt(null);
+            setEntitlements([]);
+            return;
+          }
+
+          if (cancelled) return;
+          setAuthToken(session.access_token);
+          setSessionExpiresAt(session.expires_at ?? null);
+
+          const [rolesJson, entitlementsJson] = await Promise.all([
+            fetchJson("/api/me/roles", {
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+              },
+            }),
+            fetchJson("/api/me/entitlements", {
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+              },
+            }),
+          ]);
+
+          if (cancelled) return;
+          setRoles(rolesJson?.roles ?? []);
+          setEntitlements(entitlementsJson?.entitlements ?? []);
+        } catch {
+          if (cancelled) return;
+          setRoles([]);
+          setAuthToken(null);
+          setSessionExpiresAt(null);
+          setEntitlements([]);
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
         setRoles([]);
         setAuthToken(null);
         setSessionExpiresAt(null);
         setEntitlements([]);
-        return;
-      }
-      setAuthToken(session.access_token);
-      setSessionExpiresAt(session.expires_at ?? null);
-      const [rolesRes, entitlementsRes] = await Promise.all([
-        fetch("/api/me/roles", {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }),
-        fetch("/api/me/entitlements", {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }),
-      ]);
-      const rolesJson = await rolesRes.json();
-      const entitlementsJson = await entitlementsRes.json();
-      setRoles(rolesJson.roles ?? []);
-      setEntitlements(entitlementsJson.entitlements ?? []);
-    });
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [supabase]);
 
   const filtered = modules.filter((module) => {
@@ -65,6 +102,23 @@ export function ModuleSurfaceList({
     return entitlements.includes(entitlement);
   });
 
+  const moduleIds = gated.map((module) => module.id);
+  const surfaceView =
+    surface && viewConfig ? getSurfaceViewConfig(viewConfig, surface, moduleIds) : null;
+  const hiddenSet = surfaceView ? new Set(surfaceView.hidden) : null;
+  const baseIndex = new Map(moduleIds.map((id, index) => [id, index]));
+
+  let ordered = gated.filter((module) => !hiddenSet?.has(module.id));
+  if (surfaceView?.order?.length) {
+    const orderIndex = new Map(surfaceView.order.map((id, index) => [id, index]));
+    ordered = [...ordered].sort((a, b) => {
+      const aOrder = orderIndex.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+      const bOrder = orderIndex.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return (baseIndex.get(a.id) ?? 0) - (baseIndex.get(b.id) ?? 0);
+    });
+  }
+
   return (
     <>
       <PortalRpcBroker
@@ -75,7 +129,7 @@ export function ModuleSurfaceList({
         entitlements={entitlements}
       />
       <div className="grid gap-4 md:grid-cols-2">
-        {gated.map((module) => (
+        {ordered.map((module) => (
           <div
             key={module.id}
             className={module.presentation?.layout === "wide" ? "md:col-span-2" : ""}
