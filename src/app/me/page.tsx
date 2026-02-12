@@ -107,6 +107,11 @@ export default function MePage() {
           return;
         }
         setModuleViewConfig(data.payload as ModuleViewsConfig);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setModuleViewConfig(null);
+        setModuleViewMessage("Unable to load saved module views.");
       });
     return () => {
       cancelled = true;
