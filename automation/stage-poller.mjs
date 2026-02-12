@@ -253,7 +253,29 @@ async function applyStagingSeeds(fromRoot) {
     const full = path.join(stagingSeedsDir, file);
     const sql = await fs.readFile(full, "utf8");
     if (!sql.trim()) continue;
-    await dbExecMany(sql);
+
+    console.log(`Applying staging seed: ${file}`);
+    try {
+      await dbExecMany(sql);
+    } catch (err) {
+      const anyErr = /** @type {any} */ (err);
+      const baseMsg = err instanceof Error ? err.message : String(err);
+
+      // node-postgres sometimes provides a 1-indexed error position within the SQL string.
+      const posRaw = anyErr?.position;
+      const pos = typeof posRaw === "string" || typeof posRaw === "number" ? Number(posRaw) : null;
+
+      let context = "";
+      if (pos && Number.isFinite(pos) && pos > 0) {
+        const i = Math.max(0, pos - 1);
+        const start = Math.max(0, i - 60);
+        const end = Math.min(sql.length, i + 60);
+        const snippet = sql.slice(start, end).replace(/\s+/g, " ").trim();
+        context = ` (pos ${pos}; snippet: ${snippet})`;
+      }
+
+      throw new Error(`Staging seed failed (${file}): ${baseMsg}${context}`);
+    }
   }
 }
 

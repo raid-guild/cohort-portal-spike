@@ -1,8 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
+import {
+  createPortalRpcClient,
+  emitLocalProfileRefresh,
+} from "@/modules/_shared/portalRpc";
 
 type Visibility = "public" | "authenticated" | "private";
 type Kind = "note" | "milestone" | "attendance";
@@ -65,6 +69,18 @@ function getEmptyDraft(): DraftEntry {
 
 export function RaiderTimelineModule() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
+  const portalRpcRef = useRef<null | ((action: string, payload?: unknown) => Promise<unknown>)>(
+    null,
+  );
+
+  useEffect(() => {
+    const client = createPortalRpcClient("raider-timeline");
+    portalRpcRef.current = client.call;
+    return () => {
+      portalRpcRef.current = null;
+      client.dispose();
+    };
+  }, []);
   const [session, setSession] = useState<Session | null>(null);
   const [handle, setHandle] = useState<string | null>(null);
   const [items, setItems] = useState<TimelineEntry[]>([]);
@@ -214,8 +230,11 @@ export function RaiderTimelineModule() {
 
       setDraft(getEmptyDraft());
       await loadEntries();
-      window.localStorage.setItem("profile-updated", String(Date.now()));
-      window.postMessage({ type: "profile-updated" }, "*");
+      try {
+        await portalRpcRef.current?.("profile.refresh", { handle });
+      } catch {
+        emitLocalProfileRefresh();
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to create entry.");
     } finally {
@@ -282,8 +301,11 @@ export function RaiderTimelineModule() {
 
       setEditingId(null);
       await loadEntries();
-      window.localStorage.setItem("profile-updated", String(Date.now()));
-      window.postMessage({ type: "profile-updated" }, "*");
+      try {
+        await portalRpcRef.current?.("profile.refresh", { handle });
+      } catch {
+        emitLocalProfileRefresh();
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to update entry.");
     } finally {
@@ -322,8 +344,11 @@ export function RaiderTimelineModule() {
       }
 
       await loadEntries();
-      window.localStorage.setItem("profile-updated", String(Date.now()));
-      window.postMessage({ type: "profile-updated" }, "*");
+      try {
+        await portalRpcRef.current?.("profile.refresh", { handle });
+      } catch {
+        emitLocalProfileRefresh();
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to delete entry.");
     } finally {

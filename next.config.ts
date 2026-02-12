@@ -1,8 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   reactCompiler: true,
+
+  // Reduce worker concurrency in constrained CI environments.
+  experimental: {
+    cpus: 2,
+  },
 };
 
 export default nextConfig;

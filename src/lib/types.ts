@@ -76,11 +76,13 @@ export type ModuleEntry = {
     profileWrite?: { fields?: string[]; requiresKey?: boolean; requiresUserAuth?: boolean };
     announcementsWrite?: { requiresUserAuth?: boolean; allowedRoles?: string[] };
     aiGenerate?: { requiresUserAuth?: boolean; provider?: string };
+    portalRpc?: { allowedActions?: string[] };
   };
   access?: {
     requiresAuth?: boolean;
     entitlement?: string;
   };
+  allowedOrigins?: string[];
 };
 
 export type Registry = {

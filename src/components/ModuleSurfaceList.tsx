@@ -6,6 +6,7 @@ import type { ModuleViewsConfig } from "@/lib/module-views";
 import { getSurfaceViewConfig } from "@/lib/module-views";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { ModuleCard } from "./ModuleCard";
+import { PortalRpcBroker } from "./PortalRpcBroker";
 
 export function ModuleSurfaceList({
   modules,
@@ -21,6 +22,7 @@ export function ModuleSurfaceList({
   const supabase = useMemo(() => supabaseBrowserClient(), []);
   const [roles, setRoles] = useState<string[]>([]);
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [sessionExpiresAt, setSessionExpiresAt] = useState<number | null>(null);
   const [entitlements, setEntitlements] = useState<string[]>([]);
 
   useEffect(() => {
@@ -41,12 +43,14 @@ export function ModuleSurfaceList({
             if (cancelled) return;
             setRoles([]);
             setAuthToken(null);
+            setSessionExpiresAt(null);
             setEntitlements([]);
             return;
           }
 
           if (cancelled) return;
           setAuthToken(session.access_token);
+          setSessionExpiresAt(session.expires_at ?? null);
 
           const [rolesJson, entitlementsJson] = await Promise.all([
             fetchJson("/api/me/roles", {
@@ -68,6 +72,7 @@ export function ModuleSurfaceList({
           if (cancelled) return;
           setRoles([]);
           setAuthToken(null);
+          setSessionExpiresAt(null);
           setEntitlements([]);
         }
       })
@@ -75,6 +80,7 @@ export function ModuleSurfaceList({
         if (cancelled) return;
         setRoles([]);
         setAuthToken(null);
+        setSessionExpiresAt(null);
         setEntitlements([]);
       });
 
@@ -114,20 +120,29 @@ export function ModuleSurfaceList({
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {ordered.map((module) => (
-        <div
-          key={module.id}
-          className={module.presentation?.layout === "wide" ? "md:col-span-2" : ""}
-        >
-          <ModuleCard
-            module={module}
-            surface={surface}
-            summaryParams={summaryParams}
-            authToken={authToken}
-          />
-        </div>
-      ))}
-    </div>
+    <>
+      <PortalRpcBroker
+        modules={gated}
+        authToken={authToken}
+        sessionExpiresAt={sessionExpiresAt}
+        roles={roles}
+        entitlements={entitlements}
+      />
+      <div className="grid gap-4 md:grid-cols-2">
+        {ordered.map((module) => (
+          <div
+            key={module.id}
+            className={module.presentation?.layout === "wide" ? "md:col-span-2" : ""}
+          >
+            <ModuleCard
+              module={module}
+              surface={surface}
+              summaryParams={summaryParams}
+              authToken={authToken}
+            />
+          </div>
+        ))}
+      </div>
+    </>
   );
 }

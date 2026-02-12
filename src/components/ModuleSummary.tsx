@@ -137,14 +137,16 @@ function renderSummary(payload: SummaryPayload, config?: SummaryConfig) {
   const progressKey = config?.progressKey;
   const imageKey = config?.imageKey;
   const title = payload.title ?? config?.title;
-  const items = (payload.items ?? config?.items ?? []).slice(
-    0,
-    maxItems && maxItems > 0 ? maxItems : undefined,
-  );
+  const allItems = payload.items ?? config?.items ?? [];
+  const sliceItems = (items: { label: string; value: string }[]) =>
+    items.slice(0, maxItems && maxItems > 0 ? maxItems : undefined);
+
   const truncateValue = (value: string) =>
     truncate && value.length > truncate
       ? `${value.slice(0, Math.max(0, truncate - 3))}...`
       : value;
+
+  const items = sliceItems(allItems);
 
   if (layout === "excerpt") {
     return (
@@ -174,11 +176,14 @@ function renderSummary(payload: SummaryPayload, config?: SummaryConfig) {
 
   if (layout === "compact") {
     const imageItem = imageKey
-      ? items.find((item) => item.label === imageKey)
+      ? allItems.find((item) => item.label === imageKey)
       : undefined;
+
+    // In compact summaries, maxItems applies to *non-image* items.
     const compactItems = imageKey
-      ? items.filter((item) => item.label !== imageKey)
+      ? sliceItems(allItems.filter((item) => item.label !== imageKey))
       : items;
+
     return (
       <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
         {showTitle && title ? (
