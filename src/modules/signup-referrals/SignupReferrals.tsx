@@ -36,9 +36,11 @@ export function SignupReferrals() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
   const [token, setToken] = useState<string | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
+  const [rolesLoaded, setRolesLoaded] = useState(false);
   const isHost = roles.includes("host") || roles.includes("admin");
 
   const [q, setQ] = useState("");
+  const [committedQ, setCommittedQ] = useState("");
   const [status, setStatus] = useState<"all" | "converted" | "not_converted">("all");
   const [limit, setLimit] = useState(50);
 
@@ -55,12 +57,17 @@ export function SignupReferrals() {
     let cancelled = false;
 
     const load = async () => {
+      if (!cancelled) setRolesLoaded(false);
+
       const { data } = await supabase.auth.getSession();
       const sessionToken = data.session?.access_token ?? null;
       if (!cancelled) setToken(sessionToken);
 
       if (!sessionToken) {
-        if (!cancelled) setRoles([]);
+        if (!cancelled) {
+          setRoles([]);
+          setRolesLoaded(true);
+        }
         return;
       }
 
@@ -70,14 +77,23 @@ export function SignupReferrals() {
         });
 
         if (!rolesRes.ok) {
-          if (!cancelled) setRoles([]);
+          if (!cancelled) {
+            setRoles([]);
+            setRolesLoaded(true);
+          }
           return;
         }
 
         const rolesJson = await rolesRes.json();
-        if (!cancelled) setRoles(rolesJson.roles ?? []);
+        if (!cancelled) {
+          setRoles(rolesJson.roles ?? []);
+          setRolesLoaded(true);
+        }
       } catch {
-        if (!cancelled) setRoles([]);
+        if (!cancelled) {
+          setRoles([]);
+          setRolesLoaded(true);
+        }
       }
     };
 
@@ -94,11 +110,11 @@ export function SignupReferrals() {
     };
   }, [supabase]);
 
-  const loadReferrals = async (authToken: string, opts: { cursor: number }) => {
+  const loadReferrals = async (authToken: string, opts: { cursor: number; q: string }) => {
     const params = new URLSearchParams();
     params.set("limit", String(limit));
     params.set("cursor", String(opts.cursor));
-    if (q.trim()) params.set("q", q.trim());
+    if (opts.q.trim()) params.set("q", opts.q.trim());
     if (status !== "all") params.set("status", status);
 
     const res = await fetch(`/api/modules/signup-referrals?${params.toString()}`, {
@@ -118,20 +134,22 @@ export function SignupReferrals() {
     if (!token) return;
     setMessage("");
     setLoading(true);
-    loadReferrals(token, { cursor })
+    loadReferrals(token, { cursor, q: committedQ })
       .catch((error) => setMessage(error instanceof Error ? error.message : "Failed."))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, cursor, limit, status]);
+  }, [token, cursor, limit, status, committedQ]);
 
   const onSearch = async () => {
     if (!token) return;
+    const nextQ = q.trim();
+    setCommittedQ(nextQ);
     setCursor(0);
     setSelected({});
     setMessage("");
     setLoading(true);
     try {
-      await loadReferrals(token, { cursor: 0 });
+      await loadReferrals(token, { cursor: 0, q: nextQ });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed.");
     } finally {
@@ -198,6 +216,15 @@ export function SignupReferrals() {
       <div style={{ padding: 16 }}>
         <h1 style={{ fontSize: 18, fontWeight: 600 }}>Signup Referrals</h1>
         <p>Please sign in.</p>
+      </div>
+    );
+  }
+
+  if (!rolesLoaded) {
+    return (
+      <div style={{ padding: 16 }}>
+        <h1 style={{ fontSize: 18, fontWeight: 600 }}>Signup Referrals</h1>
+        <p>Loading…</p>
       </div>
     );
   }
