@@ -28,61 +28,61 @@ export function ModuleSurfaceList({
   useEffect(() => {
     let cancelled = false;
 
-    const fetchJson = async (input: RequestInfo | URL, init: RequestInit) => {
+    const fetchJson = async (input: RequestInfo | URL, init?: RequestInit) => {
       const res = await fetch(input, init);
       if (!res.ok) return null;
-      return res.json();
+
+      try {
+        return await res.json();
+      } catch {
+        return null;
+      }
     };
 
-    supabase.auth
-      .getSession()
-      .then(async ({ data }) => {
-        try {
-          const session = data.session;
-          if (!session) {
-            if (cancelled) return;
-            setRoles([]);
-            setAuthToken(null);
-            setSessionExpiresAt(null);
-            setEntitlements([]);
-            return;
-          }
+    const load = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
 
-          if (cancelled) return;
-          setAuthToken(session.access_token);
-          setSessionExpiresAt(session.expires_at ?? null);
-
-          const [rolesJson, entitlementsJson] = await Promise.all([
-            fetchJson("/api/me/roles", {
-              headers: {
-                Authorization: `Bearer ${session.access_token}`,
-              },
-            }),
-            fetchJson("/api/me/entitlements", {
-              headers: {
-                Authorization: `Bearer ${session.access_token}`,
-              },
-            }),
-          ]);
-
-          if (cancelled) return;
-          setRoles(rolesJson?.roles ?? []);
-          setEntitlements(entitlementsJson?.entitlements ?? []);
-        } catch {
+        const session = data.session;
+        if (!session) {
           if (cancelled) return;
           setRoles([]);
           setAuthToken(null);
           setSessionExpiresAt(null);
           setEntitlements([]);
+          return;
         }
-      })
-      .catch(() => {
+
+        if (cancelled) return;
+        setAuthToken(session.access_token);
+        setSessionExpiresAt(session.expires_at ?? null);
+
+        const [rolesJson, entitlementsJson] = await Promise.all([
+          fetchJson("/api/me/roles", {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }),
+          fetchJson("/api/me/entitlements", {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }),
+        ]);
+
+        if (cancelled) return;
+        setRoles(rolesJson?.roles ?? []);
+        setEntitlements(entitlementsJson?.entitlements ?? []);
+      } catch {
         if (cancelled) return;
         setRoles([]);
         setAuthToken(null);
         setSessionExpiresAt(null);
         setEntitlements([]);
-      });
+      }
+    };
+
+    void load();
 
     return () => {
       cancelled = true;
