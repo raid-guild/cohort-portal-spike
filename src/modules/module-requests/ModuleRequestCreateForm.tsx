@@ -69,12 +69,12 @@ export function ModuleRequestCreateForm() {
         }),
       });
 
-      const json = (await res.json()) as { request?: ModuleRequest; error?: string };
+      const json = (await res.json()) as { item?: ModuleRequest; error?: string };
       if (!res.ok) {
         throw new Error(json.error || "Failed to create request.");
       }
 
-      const requestId = json.request?.id;
+      const requestId = json.item?.id;
       if (!requestId) {
         throw new Error("Missing request id.");
       }

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireAuth } from "../../_auth";
+import type { Json } from "@/lib/types/db";
 
 export async function POST(
   request: NextRequest,
@@ -49,11 +50,14 @@ export async function POST(
     .filter(([, value]) => !value)
     .map(([key]) => key);
 
-  if (!existing.title?.trim() || !existing.module_id?.trim() || missing.length) {
+  const missingTop: string[] = [];
+  if (!existing.title?.trim()) missingTop.push("title");
+  if (!existing.module_id?.trim()) missingTop.push("module_id");
+  const allMissing = [...missingTop, ...missing];
+
+  if (allMissing.length) {
     return Response.json(
-      {
-        error: `Missing required fields: title/module_id and ${missing.join(", ")}.`,
-      },
+      { error: `Missing required fields: ${allMissing.join(", ")}.` },
       { status: 400 },
     );
   }

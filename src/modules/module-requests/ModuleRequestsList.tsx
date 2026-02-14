@@ -32,11 +32,11 @@ export function ModuleRequestsList() {
         cache: "no-store",
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-      const json = (await res.json()) as { requests?: ModuleRequest[]; error?: string };
+      const json = (await res.json()) as { items?: ModuleRequest[]; error?: string };
       if (!res.ok) {
         throw new Error(json.error || "Failed to load requests.");
       }
-      setRequests(json.requests ?? []);
+      setRequests(json.items ?? []);
     } catch (err) {
       setRequests([]);
       setError(err instanceof Error ? err.message : "Failed to load requests.");

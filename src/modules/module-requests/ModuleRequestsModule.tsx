@@ -2,24 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
-
-type ModuleRequest = {
-  id: string;
-  module_id: string;
-  title: string;
-  owner_contact: string | null;
-  status: string;
-  votes_count: number;
-  promotion_threshold: number;
-  github_issue_url: string | null;
-  created_at: string;
-  created_by: string;
-  spec: Record<string, unknown>;
-};
+import type { ModuleRequest } from "./types";
 
 type ListResponse = { items: ModuleRequest[] };
 
-type DetailResponse = { item: ModuleRequest; hasVoted: boolean };
+type DetailResponse = { item: ModuleRequest };
 
 type Tab = "new" | "trending" | "ready" | "mine";
 
@@ -33,7 +20,7 @@ async function authedFetch<T>(
     headers: {
       "Content-Type": "application/json",
       ...(init?.headers ?? {}),
-      authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
     },
   });
 
@@ -94,21 +81,32 @@ export function ModuleRequestsModule() {
       if (nextTab === "ready") params.set("status", "ready");
     }
 
-    const data = await authedFetch<ListResponse>(
-      token,
-      `/api/modules/module-requests?${params.toString()}`,
-    );
-    setItems(data.items);
+    try {
+      const data = await authedFetch<ListResponse>(
+        token,
+        `/api/modules/module-requests?${params.toString()}`,
+      );
+      setItems(data.items);
+    } catch (err) {
+      setItems([]);
+      setError(err instanceof Error ? err.message : "Failed to load requests.");
+    }
   }
 
   async function loadDetail(id: string) {
     if (!token) return;
     setError(null);
-    const data = await authedFetch<DetailResponse>(
-      token,
-      `/api/modules/module-requests/${id}`,
-    );
-    setSelected(data);
+
+    try {
+      const data = await authedFetch<DetailResponse>(
+        token,
+        `/api/modules/module-requests/${id}`,
+      );
+      setSelected(data);
+    } catch (err) {
+      setSelected(null);
+      setError(err instanceof Error ? err.message : "Failed to load request.");
+    }
   }
 
   useEffect(() => {
@@ -191,7 +189,7 @@ export function ModuleRequestsModule() {
     setBusy(true);
     setError(null);
     try {
-      if (selected.hasVoted) {
+      if (selected.item.viewer_has_voted) {
         await authedFetch(token, `/api/modules/module-requests/${selected.item.id}/vote`, {
           method: "DELETE",
         });
@@ -418,7 +416,7 @@ export function ModuleRequestsModule() {
                     disabled={busy || !new Set(["open", "ready"]).has(selected.item.status)}
                     onClick={() => void toggleVote()}
                   >
-                    {selected.hasVoted ? "Unvote" : "Vote"}
+                    {selected.item.viewer_has_voted ? "Unvote" : "Vote"}
                   </button>
 
                   <button

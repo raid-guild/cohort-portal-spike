@@ -19,4 +19,5 @@ export type ModuleRequest = {
   submitted_to_github_at: string | null;
   created_at: string;
   updated_at: string;
+  viewer_has_voted?: boolean;
 };

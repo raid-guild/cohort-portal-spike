@@ -87,11 +87,12 @@ export function ModuleRequests() {
       if (!res.ok) {
         throw new Error(json.error || "Failed to load requests.");
       }
-      setItems(json.items ?? []);
-      if (selected) {
-        const next = (json.items ?? []).find((r) => r.id === selected.id) ?? null;
-        setSelected(next);
-      }
+      const nextItems = json.items ?? [];
+      setItems(nextItems);
+      setSelected((prev) => {
+        if (!prev) return prev;
+        return nextItems.find((r) => r.id === prev.id) ?? null;
+      });
     } catch (err) {
       setItems([]);
       setSelected(null);
@@ -99,7 +100,7 @@ export function ModuleRequests() {
     } finally {
       setLoading(false);
     }
-  }, [supabase, tab, selected]);
+  }, [supabase, tab]);
 
   useEffect(() => {
     loadList();
@@ -208,6 +209,11 @@ export function ModuleRequests() {
   };
 
   const vote = async (id: string, next: boolean) => {
+    const current = selected?.id === id ? selected : items.find((r) => r.id === id);
+    if (current && !(current.status === "open" || current.status === "ready")) {
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
@@ -313,7 +319,7 @@ export function ModuleRequests() {
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <button
                         type="button"
-                        disabled={saving || r.status === "archived" || r.status === "submitted_to_github"}
+                        disabled={saving || !(r.status === "open" || r.status === "ready")}
                         onClick={() => vote(r.id, !voted)}
                         className={`inline-flex h-9 items-center justify-center rounded-lg px-3 text-sm ${
                           voted ? "bg-primary text-primary-foreground" : "border border-border hover:bg-muted"
@@ -428,7 +434,7 @@ export function ModuleRequests() {
                   </div>
                   <button
                     type="button"
-                    disabled={saving || selected.status === "archived" || selected.status === "submitted_to_github"}
+                    disabled={saving || !(selected.status === "open" || selected.status === "ready")}
                     onClick={() => vote(selected.id, !selected.viewer_has_voted)}
                     className={`inline-flex h-9 items-center justify-center rounded-lg px-3 text-sm ${
                       selected.viewer_has_voted

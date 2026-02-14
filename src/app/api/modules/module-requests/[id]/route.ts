@@ -2,7 +2,6 @@ import { NextRequest } from "next/server";
 import type { TablesUpdate } from "@/lib/types/db";
 import { requireAuth } from "../_auth";
 import type { ModuleRequestSpec } from "../lib";
-import type { ModuleRequestSpec } from "../lib";
 
 export async function GET(
   request: NextRequest,

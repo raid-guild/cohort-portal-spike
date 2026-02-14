@@ -35,7 +35,16 @@ export async function POST(
   const { id } = await params;
   const admin = auth.admin;
 
-  const existing = await loadRequest(admin, id);
+  let existing;
+  try {
+    existing = await loadRequest(admin, id);
+  } catch (err) {
+    return Response.json(
+      { error: err instanceof Error ? err.message : "Internal error." },
+      { status: 500 },
+    );
+  }
+
   if (!existing) {
     return Response.json({ error: "Not found." }, { status: 404 });
   }
@@ -58,7 +67,16 @@ export async function POST(
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  const updated = await loadRequest(admin, id);
+  let updated;
+  try {
+    updated = await loadRequest(admin, id);
+  } catch (err) {
+    return Response.json(
+      { error: err instanceof Error ? err.message : "Internal error." },
+      { status: 500 },
+    );
+  }
+
   return Response.json({ item: { ...updated, viewer_has_voted: true } });
 }
 
@@ -84,7 +102,16 @@ export async function DELETE(
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  const updated = await loadRequest(admin, id);
+  let updated;
+  try {
+    updated = await loadRequest(admin, id);
+  } catch (err) {
+    return Response.json(
+      { error: err instanceof Error ? err.message : "Internal error." },
+      { status: 500 },
+    );
+  }
+
   if (!updated) {
     return Response.json({ error: "Not found." }, { status: 404 });
   }

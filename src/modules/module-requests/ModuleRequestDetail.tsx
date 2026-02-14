@@ -35,11 +35,11 @@ export function ModuleRequestDetail({ id }: { id: string }) {
         cache: "no-store",
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-      const json = (await res.json()) as { request?: ModuleRequest; error?: string };
+      const json = (await res.json()) as { item?: ModuleRequest; error?: string };
       if (!res.ok) {
         throw new Error(json.error || "Failed to load request.");
       }
-      setRequest(json.request ?? null);
+      setRequest(json.item ?? null);
     } catch (err) {
       setRequest(null);
       setError(err instanceof Error ? err.message : "Failed to load request.");
@@ -121,11 +121,11 @@ export function ModuleRequestDetail({ id }: { id: string }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ github_issue_url: withLink ? githubUrl : undefined }),
-      })) as { markdown?: string; request?: ModuleRequest };
+      })) as { markdown?: string; item?: ModuleRequest };
 
       setMarkdown(typeof json.markdown === "string" ? json.markdown : null);
-      if (json.request) {
-        setRequest(json.request);
+      if (json.item) {
+        setRequest(json.item);
       } else {
         await load();
       }
@@ -157,6 +157,7 @@ export function ModuleRequestDetail({ id }: { id: string }) {
   }
 
   const spec = request.spec ?? {};
+  const canVote = request.status === "open" || request.status === "ready";
 
   return (
     <div className="space-y-4">
@@ -206,7 +207,7 @@ export function ModuleRequestDetail({ id }: { id: string }) {
 
           <button
             type="button"
-            disabled={saving}
+            disabled={saving || !canVote}
             onClick={() => vote()}
             className="inline-flex h-10 items-center justify-center rounded-lg border border-border px-4 text-sm hover:bg-muted disabled:opacity-60"
           >
@@ -214,7 +215,7 @@ export function ModuleRequestDetail({ id }: { id: string }) {
           </button>
           <button
             type="button"
-            disabled={saving}
+            disabled={saving || !canVote}
             onClick={() => unvote()}
             className="inline-flex h-10 items-center justify-center rounded-lg border border-border px-4 text-sm hover:bg-muted disabled:opacity-60"
           >
