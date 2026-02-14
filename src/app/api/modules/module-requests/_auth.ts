@@ -40,7 +40,7 @@ export async function requireAuth(request: NextRequest): Promise<AuthResult> {
 export async function requireHost(request: NextRequest): Promise<AuthResult> {
   const result = await requireAuthInternal(request);
   if ("error" in result) return result;
-  if (!result.roles.includes("host")) {
+  if (!result.roles.includes("host") && !result.roles.includes("admin")) {
     return { error: "Host access required.", status: 403 };
   }
   return result;
