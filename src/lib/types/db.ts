@@ -828,7 +828,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      signup_referrals_list: {
+        Args: {
+          p_limit: number
+          p_offset: number
+          p_q?: string
+          p_status?: string
+        }
+        Returns: Array<{
+          id: string
+          email: string
+          referral: string | null
+          created_at: string | null
+          has_account: boolean
+        }>
+      }
     }
     Enums: {
       [_ in never]: never
