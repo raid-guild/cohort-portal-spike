@@ -140,21 +140,13 @@ export function SignupReferrals() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, cursor, limit, status, committedQ]);
 
-  const onSearch = async () => {
+  const onSearch = () => {
     if (!token) return;
     const nextQ = q.trim();
     setCommittedQ(nextQ);
     setCursor(0);
     setSelected({});
     setMessage("");
-    setLoading(true);
-    try {
-      await loadReferrals(token, { cursor: 0, q: nextQ });
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Failed.");
-    } finally {
-      setLoading(false);
-    }
   };
 
   const toggleAll = () => {

@@ -27,7 +27,7 @@ as $$
     er.email,
     er.referral,
     er.created_at,
-    (p.user_id is not null) as has_account
+    coalesce(bool_or(p.user_id is not null), false) as has_account
   from public.email_referrals er
   left join public.profiles p
     on lower(p.email) = lower(er.email)
@@ -37,10 +37,18 @@ as $$
       or er.email ilike ('%' || p_q || '%') escape '\\'
       or er.referral ilike ('%' || p_q || '%') escape '\\'
     )
-    and (
+  group by er.id, er.email, er.referral, er.created_at
+  having
+    (
       p_status = 'all'
-      or (p_status = 'converted' and p.user_id is not null)
-      or (p_status = 'not_converted' and p.user_id is null)
+      or (
+        p_status = 'converted'
+        and coalesce(bool_or(p.user_id is not null), false)
+      )
+      or (
+        p_status = 'not_converted'
+        and not coalesce(bool_or(p.user_id is not null), false)
+      )
     )
   order by er.created_at desc nulls last, er.id desc
   offset greatest(p_offset, 0)
