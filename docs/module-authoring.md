@@ -316,6 +316,40 @@ Visibility rules:
 - `private` is returned only for the owner
 - module key can read all rows for its module
 
+## TypeScript + Supabase: keep generated DB types in sync
+
+If your module adds **Supabase RPC functions** (SQL `create function ...`) and you call them via `supabase.rpc(...)`, make sure the portal’s generated DB types include the new function under `Database["public"]["Functions"]`.
+
+Otherwise, TypeScript will infer the rpc function name parameter as `never` and you’ll get a build error like:
+
+- `Argument of type "<function_name>" is not assignable to parameter of type never`
+
+### What to do when you add an RPC
+- Add the SQL migration (e.g. `supabase/migrations/00xx_my_rpc.sql`)
+- Update the generated DB types file (currently `src/lib/types/db.ts`) so it contains:
+  - `Functions.my_rpc_name.Args`
+  - `Functions.my_rpc_name.Returns`
+
+If you’re using `supabase gen types typescript`, re-run the generator and commit the updated types.
+If you’re maintaining types manually, add a minimal function signature entry by hand.
+
+Example:
+
+```ts
+Functions: {
+  signup_referrals_list: {
+    Args: { p_limit: number; p_offset: number; p_q?: string; p_status?: string };
+    Returns: Array<{
+      id: string;
+      email: string;
+      referral: string | null;
+      created_at: string | null;
+      has_account: boolean;
+    }>;
+  };
+}
+```
+
 ## Staging validation: seeds + smoke tests (recommended)
 If your module adds new tables/migrations or depends on specific data states, add a staging seed so preview deployments can be tested reliably.
 
