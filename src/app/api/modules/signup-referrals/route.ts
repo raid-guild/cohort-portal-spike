@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
-import { supabaseAdminClient } from "@/lib/supabase/admin";
-import { supabaseServerClient } from "@/lib/supabase/server";
+import { requireHostOrAdmin } from "@/lib/auth/requireHostOrAdmin";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
@@ -15,39 +14,6 @@ function parseCursor(value: string | null) {
   const parsed = Number(value ?? "");
   if (!Number.isFinite(parsed) || parsed < 0) return 0;
   return Math.trunc(parsed);
-}
-
-async function requireHostOrAdmin(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return { ok: false as const, status: 401 as const, error: "Missing auth token." };
-  }
-
-  const token = authHeader.slice("Bearer ".length);
-  const supabase = supabaseServerClient();
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
-
-  if (userError || !userData.user) {
-    return { ok: false as const, status: 401 as const, error: "Invalid auth token." };
-  }
-
-  const admin = supabaseAdminClient();
-  const { data: roleRows, error: roleError } = await admin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userData.user.id);
-
-  if (roleError) {
-    return { ok: false as const, status: 500 as const, error: roleError.message };
-  }
-
-  const roles = roleRows?.map((row) => row.role) ?? [];
-  const allowed = roles.includes("host") || roles.includes("admin");
-  if (!allowed) {
-    return { ok: false as const, status: 403 as const, error: "Host role required." };
-  }
-
-  return { ok: true as const, admin, userId: userData.user.id };
 }
 
 function escapeLike(value: string) {

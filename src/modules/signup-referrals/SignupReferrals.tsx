@@ -110,7 +110,11 @@ export function SignupReferrals() {
     };
   }, [supabase]);
 
-  const loadReferrals = async (authToken: string, opts: { cursor: number; q: string }) => {
+  const loadReferrals = async (
+    authToken: string,
+    opts: { cursor: number; q: string },
+    signal?: AbortSignal,
+  ) => {
     const params = new URLSearchParams();
     params.set("limit", String(limit));
     params.set("cursor", String(opts.cursor));
@@ -119,6 +123,7 @@ export function SignupReferrals() {
 
     const res = await fetch(`/api/modules/signup-referrals?${params.toString()}`, {
       headers: { Authorization: `Bearer ${authToken}` },
+      signal,
     });
 
     const json = await readJsonSafe<ListResponse>(res);
@@ -132,11 +137,22 @@ export function SignupReferrals() {
 
   useEffect(() => {
     if (!token) return;
+
+    const controller = new AbortController();
+
     setMessage("");
     setLoading(true);
-    loadReferrals(token, { cursor, q: committedQ })
-      .catch((error) => setMessage(error instanceof Error ? error.message : "Failed."))
-      .finally(() => setLoading(false));
+    loadReferrals(token, { cursor, q: committedQ }, controller.signal)
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        setMessage(error instanceof Error ? error.message : "Failed.");
+      })
+      .finally(() => {
+        if (controller.signal.aborted) return;
+        setLoading(false);
+      });
+
+    return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, cursor, limit, status, committedQ]);
 
