@@ -36,10 +36,15 @@ export function toGitHubIssueMarkdown(params: {
     return `### ${heading}\n\n${text || "_No response_"}\n`;
   };
 
+  const ownerLine =
+    (typeof ownerContact === "string" ? ownerContact.trim() : "") ||
+    (typeof spec.owner === "string" ? spec.owner.trim() : "") ||
+    "_No response_";
+
   return [
     `### Module ID\n\n${moduleId}\n`,
     `### Title\n\n${title}\n`,
-    `### Owner / contact\n\n${ownerContact || spec.owner || "_No response_"}\n`,
+    `### Owner / contact\n\n${ownerLine}\n`,
     section("Problem / user value", spec.problem),
     section("Scope (what’s in / out)", spec.scope),
     section("UX / surfaces", spec.ux),
@@ -62,5 +67,6 @@ export function normalizeStatus(input: unknown): ModuleRequestStatus | null {
     "submitted_to_github",
     "archived",
   ];
-  return (allowed as string[]).includes(value) ? (value as ModuleRequestStatus) : null;
+
+  return allowed.includes(value as ModuleRequestStatus) ? (value as ModuleRequestStatus) : null;
 }

@@ -57,11 +57,15 @@ export async function GET(request: NextRequest) {
   const ids = (data ?? []).map((row) => row.id);
   let votedIds = new Set<string>();
   if (ids.length) {
-    const { data: voteRows } = await admin
+    const { data: voteRows, error: voteError } = await admin
       .from("module_request_votes")
       .select("request_id")
       .eq("user_id", auth.userId)
       .in("request_id", ids);
+
+    if (voteError) {
+      return Response.json({ error: voteError.message }, { status: 500 });
+    }
 
     votedIds = new Set((voteRows ?? []).map((row) => row.request_id));
   }
@@ -106,13 +110,17 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "module_id is required." }, { status: 400 });
   }
 
+  const ownerContact = typeof body.owner_contact === "string" ? body.owner_contact.trim() : "";
+  const spec =
+    body.spec && typeof body.spec === "object" && !Array.isArray(body.spec) ? body.spec : {};
+
   const insert: TablesInsert<"module_requests"> = {
     created_by: auth.userId,
     title,
     module_id: moduleId,
-    owner_contact: typeof body.owner_contact === "string" ? body.owner_contact.trim() : null,
+    owner_contact: ownerContact || null,
     status: "draft",
-    spec: (body.spec ?? {}) as ModuleRequestSpec,
+    spec: spec as ModuleRequestSpec,
   };
 
   const { data, error } = await auth.admin

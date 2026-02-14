@@ -2,7 +2,6 @@ import { NextRequest } from "next/server";
 import type { TablesUpdate } from "@/lib/types/db";
 import { requireAuth } from "../_auth";
 import type { ModuleRequestSpec } from "../lib";
-import type { ModuleRequestSpec } from "../lib";
 
 export async function GET(
   request: NextRequest,
@@ -32,12 +31,16 @@ export async function GET(
     return Response.json({ error: "Not found." }, { status: 404 });
   }
 
-  const { data: voteRow } = await admin
+  const { data: voteRow, error: voteError } = await admin
     .from("module_request_votes")
     .select("request_id")
     .eq("request_id", id)
     .eq("user_id", auth.userId)
     .maybeSingle();
+
+  if (voteError) {
+    return Response.json({ error: voteError.message }, { status: 500 });
+  }
 
   return Response.json({ item: { ...data, viewer_has_voted: Boolean(voteRow) } });
 }
@@ -110,7 +113,7 @@ export async function PATCH(
   } else if (typeof body.owner_contact === "string") {
     update.owner_contact = body.owner_contact.trim() || null;
   }
-  if (body.spec && typeof body.spec === "object") {
+  if (body.spec && typeof body.spec === "object" && !Array.isArray(body.spec)) {
     update.spec = body.spec as ModuleRequestSpec;
   }
 
