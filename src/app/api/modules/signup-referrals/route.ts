@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
   const safeQ = q ? escapeLike(q) : "";
   const pageSize = limit + 1;
 
-  const { data, error } = await (admin as unknown as { rpc: Function }).rpc("signup_referrals_list", {
+  const { data, error } = await admin.rpc("signup_referrals_list", {
     p_limit: pageSize,
     p_offset: cursor,
     p_q: safeQ,

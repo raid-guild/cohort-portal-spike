@@ -321,7 +321,11 @@ export function SignupReferrals() {
             <thead>
               <tr>
                 <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: 8 }}>
-                  <input type="checkbox" onChange={toggleAll} checked={items.every((row) => selected[row.id])} />
+                  <input
+                    type="checkbox"
+                    onChange={toggleAll}
+                    checked={items.length > 0 && items.every((row) => selected[row.id])}
+                  />
                 </th>
                 <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: 8 }}>Email</th>
                 <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: 8 }}>Referral</th>
