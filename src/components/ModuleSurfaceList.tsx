@@ -28,10 +28,13 @@ export function ModuleSurfaceList({
   useEffect(() => {
     let cancelled = false;
 
-    const fetchJson = async (input: RequestInfo | URL, init: RequestInit) => {
+    const fetchJson = async <T,>(
+      input: RequestInfo | URL,
+      init?: RequestInit,
+    ): Promise<T | null> => {
       const res = await fetch(input, init);
       if (!res.ok) return null;
-      return res.json();
+      return (await res.json()) as T;
     };
 
     supabase.auth
@@ -53,12 +56,12 @@ export function ModuleSurfaceList({
           setSessionExpiresAt(session.expires_at ?? null);
 
           const [rolesJson, entitlementsJson] = await Promise.all([
-            fetchJson("/api/me/roles", {
+            fetchJson<{ roles: string[] }>("/api/me/roles", {
               headers: {
                 Authorization: `Bearer ${session.access_token}`,
               },
             }),
-            fetchJson("/api/me/entitlements", {
+            fetchJson<{ entitlements: string[] }>("/api/me/entitlements", {
               headers: {
                 Authorization: `Bearer ${session.access_token}`,
               },
