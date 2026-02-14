@@ -556,6 +556,34 @@
       }
     },
     {
+      "id": "signup-referrals",
+      "title": "Signup Referrals",
+      "description": "Review email referral signups and export CSV for outreach.",
+      "lane": "hosts",
+      "type": "link",
+      "url": "/modules/signup-referrals",
+      "status": "beta",
+      "owner": {
+        "name": "Hosts",
+        "contact": "@dekanbro"
+      },
+      "requiresAuth": true,
+      "tags": [
+        "me-tools",
+        "hosts"
+      ],
+      "presentation": {
+        "mode": "dialog",
+        "trigger": "button",
+        "dialog": {
+          "size": "lg"
+        },
+        "iframe": {
+          "height": 720
+        }
+      }
+    },
+    {
       "id": "module-requests",
       "title": "Module Requests",
       "description": "Propose new portal modules and signal interest.",
