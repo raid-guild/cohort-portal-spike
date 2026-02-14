@@ -244,6 +244,8 @@ export function SignupReferrals() {
             const next = e.target.value;
             if (next === "all" || next === "converted" || next === "not_converted") {
               setStatus(next);
+              setCursor(0);
+              setSelected({});
             }
           }}
           style={{ padding: 8 }}
@@ -253,7 +255,15 @@ export function SignupReferrals() {
           <option value="not_converted">Not Converted</option>
         </select>
 
-        <select value={limit} onChange={(e) => setLimit(Number(e.target.value))} style={{ padding: 8 }}>
+        <select
+          value={limit}
+          onChange={(e) => {
+            setLimit(Number(e.target.value));
+            setCursor(0);
+            setSelected({});
+          }}
+          style={{ padding: 8 }}
+        >
           <option value={25}>25</option>
           <option value={50}>50</option>
           <option value={100}>100</option>

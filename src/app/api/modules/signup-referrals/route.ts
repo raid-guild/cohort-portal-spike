@@ -61,6 +61,12 @@ function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
+function escapeLike(value: string) {
+  // Escape LIKE/ILIKE wildcards and the escape character itself.
+  // Postgres treats '%' as multi-char wildcard and '_' as single-char wildcard.
+  return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
+}
+
 export async function GET(request: NextRequest) {
   const gate = await requireHostOrAdmin(request);
   if (!gate.ok) {
@@ -75,65 +81,104 @@ export async function GET(request: NextRequest) {
 
   const admin = gate.admin;
 
-  let query = admin
+  let baseQuery = admin
     .from("email_referrals")
     .select("id,email,referral,created_at")
     .order("created_at", { ascending: false })
     .order("id", { ascending: false });
 
   if (q) {
-    const safe = q.replaceAll("%", "\\%");
-    query = query.or(`email.ilike.%${safe}%,referral.ilike.%${safe}%`);
+    const safe = escapeLike(q);
+    baseQuery = baseQuery.or(`email.ilike.%${safe}%,referral.ilike.%${safe}%`);
   }
 
   // Note: uses offset pagination for a minimal MVP.
-  // Supabase range is inclusive, so request limit+1 to detect if there's another page.
-  query = query.range(cursor, cursor + limit);
+  // When filtering by status, we scan forward until we've filled a page so
+  // pagination stays consistent with the filter.
+  const chunkSize = limit;
+  let scanCursor = cursor;
+  let hasMore = false;
+  const mapped: Array<{
+    id: string;
+    email: string;
+    referral: string | null;
+    createdAt: string | null;
+    hasAccount: boolean;
+  }> = [];
 
-  const { data: rows, error } = await query;
-  if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
-  }
+  while (mapped.length < limit) {
+    const { data: rows, error } = await baseQuery.range(scanCursor, scanCursor + chunkSize - 1);
+    if (error) {
+      return Response.json({ error: error.message }, { status: 500 });
+    }
 
-  const rawItems = (rows ?? []) as ReferralRow[];
-  const hasMore = rawItems.length > limit;
-  const items = rawItems.slice(0, limit);
+    const batch = (rows ?? []) as ReferralRow[];
+    if (batch.length === 0) {
+      hasMore = false;
+      break;
+    }
 
-  const emails = Array.from(new Set(items.map((row) => normalizeEmail(row.email))));
+    const emails = Array.from(new Set(batch.map((row) => normalizeEmail(row.email))));
 
-  const { data: profileRows, error: profileError } = await admin
-    .from("profiles")
-    .select("email")
-    .in("email", emails);
+    let profileRows: Array<{ email: string | null }> = [];
+    if (emails.length > 0) {
+      const emailsOr = emails.map((email) => `email.ilike.${escapeLike(email)}`).join(",");
+      const { data, error: profileError } = await admin.from("profiles").select("email").or(emailsOr);
+      if (profileError) {
+        return Response.json({ error: profileError.message }, { status: 500 });
+      }
+      profileRows = (data ?? []) as Array<{ email: string | null }>;
+    }
 
-  if (profileError) {
-    return Response.json({ error: profileError.message }, { status: 500 });
-  }
+    const hasAccountByEmail = new Set(
+      profileRows
+        .map((row) => (row.email ? normalizeEmail(row.email) : null))
+        .filter((value): value is string => Boolean(value)),
+    );
 
-  const hasAccountByEmail = new Set(
-    (profileRows ?? [])
-      .map((row) => (row.email ? normalizeEmail(row.email) : null))
-      .filter((value): value is string => Boolean(value)),
-  );
-
-  const mapped = items
-    .map((row) => {
+    let processed = 0;
+    for (let i = 0; i < batch.length; i += 1) {
+      const row = batch[i];
       const hasAccount = hasAccountByEmail.has(normalizeEmail(row.email));
-      return {
+      const next = {
         id: row.id,
         email: row.email,
         referral: row.referral,
         createdAt: row.created_at,
         hasAccount,
       };
-    })
-    .filter((row) => {
-      if (status === "converted") return row.hasAccount;
-      if (status === "not_converted") return !row.hasAccount;
-      return true;
-    });
 
-  const nextCursor = hasMore ? String(cursor + limit) : null;
+      const matchesStatus =
+        status === "all" || (status === "converted" ? next.hasAccount : !next.hasAccount);
+
+      if (matchesStatus) {
+        mapped.push(next);
+        if (mapped.length >= limit) {
+          processed = i + 1;
+          break;
+        }
+      }
+
+      processed = i + 1;
+    }
+
+    scanCursor += processed;
+
+    // If we stopped early (page filled), or the batch was full-sized, there may be more data.
+    if (mapped.length >= limit) {
+      hasMore = processed < batch.length || batch.length === chunkSize;
+      break;
+    }
+
+    if (batch.length < chunkSize) {
+      hasMore = false;
+      break;
+    }
+
+    hasMore = true;
+  }
+
+  const nextCursor = hasMore ? String(scanCursor) : null;
 
   return Response.json({ items: mapped, nextCursor });
 }
