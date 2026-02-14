@@ -369,7 +369,7 @@ export default function MePage() {
     }
   };
 
-  const handleProfileSave = async (options?: { silent?: boolean }) => {
+  const handleProfileSave = useCallback(async (options?: { silent?: boolean }) => {
     if (!user) {
       if (!options?.silent) {
         setMessage("Please sign in first.");
@@ -460,7 +460,7 @@ export default function MePage() {
       window.postMessage({ type: "profile-updated" }, window.location.origin);
     }
     return !error;
-  };
+  }, [profile, profileExists, supabase, user]);
 
   useEffect(() => {
     if (!session) return;

@@ -6,11 +6,12 @@ export type AuthResult =
   | { error: string; status?: number }
   | { userId: string; roles: string[]; admin: ReturnType<typeof supabaseAdminClient> };
 
-export async function requireAuth(request: NextRequest): Promise<AuthResult> {
+async function requireAuthInternal(request: NextRequest): Promise<AuthResult> {
   const authHeader = request.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return { error: "Missing auth token.", status: 401 };
   }
+
   const token = authHeader.replace("Bearer ", "");
   const supabase = supabaseServerClient();
   const { data, error } = await supabase.auth.getUser(token);
@@ -32,8 +33,12 @@ export async function requireAuth(request: NextRequest): Promise<AuthResult> {
   return { userId: data.user.id, roles, admin };
 }
 
+export async function requireAuth(request: NextRequest): Promise<AuthResult> {
+  return requireAuthInternal(request);
+}
+
 export async function requireHost(request: NextRequest): Promise<AuthResult> {
-  const result = await requireAuth(request);
+  const result = await requireAuthInternal(request);
   if ("error" in result) return result;
   if (!result.roles.includes("host") && !result.roles.includes("admin")) {
     return { error: "Host access required.", status: 403 };

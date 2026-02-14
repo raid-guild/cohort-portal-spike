@@ -469,9 +469,15 @@
       "type": "link",
       "url": "/modules/bounty-board",
       "status": "in-progress",
-      "owner": { "name": "Hosts", "contact": "discord:@hosts" },
+      "owner": {
+        "name": "Hosts",
+        "contact": "discord:@hosts"
+      },
       "requiresAuth": true,
-      "tags": ["people-tools", "me-tools"],
+      "tags": [
+        "people-tools",
+        "me-tools"
+      ],
       "presentation": {
         "mode": "page",
         "trigger": "button"
@@ -498,7 +504,11 @@
         "contact": "@skuhlmann"
       },
       "requiresAuth": true,
-      "tags": ["people-tools", "me-tools", "home"],
+      "tags": [
+        "people-tools",
+        "me-tools",
+        "home"
+      ],
       "presentation": {
         "mode": "page",
         "trigger": "button"
@@ -543,6 +553,28 @@
         "maxItems": 3,
         "showTitle": true,
         "imageKey": "Image"
+      }
+    },
+    {
+      "id": "module-requests",
+      "title": "Module Requests",
+      "description": "Propose new portal modules and signal interest.",
+      "lane": "portal",
+      "type": "link",
+      "url": "/modules/module-requests",
+      "status": "beta",
+      "owner": {
+        "name": "Portal Core",
+        "contact": "discord:@portal"
+      },
+      "requiresAuth": true,
+      "tags": [
+        "me-tools"
+      ],
+      "presentation": {
+        "mode": "page",
+        "trigger": "button",
+        "layout": "wide"
       }
     }
   ]

@@ -334,6 +334,75 @@ export type Database = {
         }
         Relationships: []
       }
+      module_requests: {
+        Row: {
+          id: string
+          created_by: string
+          module_id: string
+          title: string
+          owner_contact: string | null
+          status: string
+          spec: Json
+          votes_count: number
+          promotion_threshold: number
+          github_issue_url: string | null
+          submitted_to_github_at: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          created_by: string
+          module_id: string
+          title: string
+          owner_contact?: string | null
+          status?: string
+          spec?: Json
+          votes_count?: number
+          promotion_threshold?: number
+          github_issue_url?: string | null
+          submitted_to_github_at?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          created_by?: string
+          module_id?: string
+          title?: string
+          owner_contact?: string | null
+          status?: string
+          spec?: Json
+          votes_count?: number
+          promotion_threshold?: number
+          github_issue_url?: string | null
+          submitted_to_github_at?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
+      module_request_votes: {
+        Row: {
+          request_id: string
+          user_id: string
+          created_at: string
+        }
+        Insert: {
+          request_id: string
+          user_id: string
+          created_at?: string
+        }
+        Update: {
+          request_id?: string
+          user_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       timeline_entries: {
         Row: {
           body: string | null
