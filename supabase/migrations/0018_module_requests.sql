@@ -58,19 +58,17 @@ declare
 begin
   target_request_id := coalesce(new.request_id, old.request_id);
 
-  select count(*)::int4 into new_count
-  from public.module_request_votes v
-  where v.request_id = target_request_id;
-
   update public.module_requests r
-    set votes_count = new_count
-  where r.id = target_request_id;
+    set votes_count = (
+      select count(*)::int4
+      from public.module_request_votes v
+      where v.request_id = target_request_id
+    )
+  where r.id = target_request_id
+  returning r.votes_count, r.promotion_threshold, r.status
+    into new_count, threshold, current_status;
 
   -- Auto-promote open requests to ready when threshold reached.
-  select r.promotion_threshold, r.status
-    into threshold, current_status
-  from public.module_requests r
-  where r.id = target_request_id;
 
   if current_status = 'open' and new_count >= threshold then
     update public.module_requests
