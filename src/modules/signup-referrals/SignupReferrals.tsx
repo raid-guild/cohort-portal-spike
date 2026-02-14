@@ -84,9 +84,9 @@ export function SignupReferrals() {
           return;
         }
 
-        const rolesJson = await rolesRes.json();
+        const rolesJson = await readJsonSafe<{ roles?: string[] }>(rolesRes);
         if (!cancelled) {
-          setRoles(rolesJson.roles ?? []);
+          setRoles(rolesJson?.roles ?? []);
           setRolesLoaded(true);
         }
       } catch {

@@ -22,35 +22,44 @@ returns table (
 language sql
 stable
 as $$
+  with base as (
+    select
+      er.id,
+      er.email,
+      er.referral,
+      er.created_at,
+      coalesce(bool_or(p.user_id is not null), false) as has_account
+    from public.email_referrals er
+    left join public.profiles p
+      on lower(p.email) = lower(er.email)
+    where
+      (
+        coalesce(p_q, '') = ''
+        or er.email ilike ('%' || p_q || '%') escape '\\'
+        or er.referral ilike ('%' || p_q || '%') escape '\\'
+      )
+    group by er.id, er.email, er.referral, er.created_at
+  )
   select
-    er.id,
-    er.email,
-    er.referral,
-    er.created_at,
-    coalesce(bool_or(p.user_id is not null), false) as has_account
-  from public.email_referrals er
-  left join public.profiles p
-    on lower(p.email) = lower(er.email)
+    base.id,
+    base.email,
+    base.referral,
+    base.created_at,
+    base.has_account
+  from base
   where
-    (
-      coalesce(p_q, '') = ''
-      or er.email ilike ('%' || p_q || '%') escape '\\'
-      or er.referral ilike ('%' || p_q || '%') escape '\\'
-    )
-  group by er.id, er.email, er.referral, er.created_at
-  having
     (
       p_status = 'all'
       or (
         p_status = 'converted'
-        and coalesce(bool_or(p.user_id is not null), false)
+        and base.has_account
       )
       or (
         p_status = 'not_converted'
-        and not coalesce(bool_or(p.user_id is not null), false)
+        and not base.has_account
       )
     )
-  order by er.created_at desc nulls last, er.id desc
+  order by base.created_at desc nulls last, base.id desc
   offset greatest(p_offset, 0)
   limit greatest(p_limit, 0);
 $$;

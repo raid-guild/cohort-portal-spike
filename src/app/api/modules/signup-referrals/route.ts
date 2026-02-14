@@ -23,7 +23,7 @@ async function requireHostOrAdmin(request: NextRequest) {
     return { ok: false as const, status: 401 as const, error: "Missing auth token." };
   }
 
-  const token = authHeader.replace("Bearer ", "");
+  const token = authHeader.slice("Bearer ".length);
   const supabase = supabaseServerClient();
   const { data: userData, error: userError } = await supabase.auth.getUser(token);
 
