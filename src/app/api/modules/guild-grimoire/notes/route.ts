@@ -18,8 +18,10 @@ const ALLOWED_AUDIO_MIME_TYPES = new Set([
 const ALLOWED_AUDIO_EXTENSIONS = new Set(["webm", "mp4", "m4a", "aac", "mp3"]);
 
 function extensionFromFilename(filename: string) {
-  const ext = filename.split(".").pop()?.toLowerCase();
-  return ext || null;
+  const dotIdx = filename.lastIndexOf(".");
+  // No extension (or dot-file like ".env")
+  if (dotIdx < 1 || dotIdx === filename.length - 1) return null;
+  return filename.slice(dotIdx + 1).toLowerCase() || null;
 }
 
 function extensionForImageMimeType(mimeType: string) {

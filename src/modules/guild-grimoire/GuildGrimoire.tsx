@@ -504,20 +504,24 @@ export function GuildGrimoire() {
             <button
               type="button"
               onClick={async () => {
-                const { data } = await supabase.auth.getSession();
-                const token = data.session?.access_token;
-                if (!token) {
-                  setError("You must be signed in.");
-                  return;
+                try {
+                  const { data } = await supabase.auth.getSession();
+                  const token = data.session?.access_token;
+                  if (!token) {
+                    setError("You must be signed in.");
+                    return;
+                  }
+                  const nextFilters: FeedFilters = {
+                    mine: filterMine,
+                    contentType: filterContentType,
+                    tagId: filterTagId,
+                    visibility: filterVisibility,
+                  };
+                  setAppliedFilters(nextFilters);
+                  await loadFeed(token, nextFilters);
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : "Failed to apply filters.");
                 }
-                const nextFilters: FeedFilters = {
-                  mine: filterMine,
-                  contentType: filterContentType,
-                  tagId: filterTagId,
-                  visibility: filterVisibility,
-                };
-                setAppliedFilters(nextFilters);
-                await loadFeed(token, nextFilters);
               }}
               className="col-span-2 inline-flex h-9 items-center justify-center rounded-lg border border-border px-3 text-sm hover:bg-muted sm:col-span-1"
             >
@@ -562,7 +566,7 @@ export function GuildGrimoire() {
                     ) : null}
                   </div>
 
-                  {filterMine ? (
+                  {appliedFilters.mine ? (
                     <button
                       type="button"
                       onClick={() => softDelete(note.id)}
