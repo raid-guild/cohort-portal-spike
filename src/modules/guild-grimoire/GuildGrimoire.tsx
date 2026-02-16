@@ -14,13 +14,17 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_AUDIO_BYTES = 3 * 1024 * 1024;
 
 const ALLOWED_IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const ALLOWED_AUDIO_MIMES = new Set([
-  "audio/webm",
-  "audio/mp4",
-  "audio/m4a",
-  "audio/aac",
-  "audio/mpeg",
-]);
+const ALLOWED_AUDIO_MIMES = new Set(["audio/webm", "audio/mp4", "audio/aac", "audio/mpeg"]);
+
+const ALLOWED_IMAGE_EXTS = new Set(["jpg", "jpeg", "png", "webp"]);
+const ALLOWED_AUDIO_EXTS = new Set(["webm", "mp4", "m4a", "aac", "mp3"]);
+
+function extensionFromFilename(filename: string) {
+  const dotIdx = filename.lastIndexOf(".");
+  // No extension (or dot-file like ".env")
+  if (dotIdx < 1 || dotIdx === filename.length - 1) return null;
+  return filename.slice(dotIdx + 1).toLowerCase() || null;
+}
 
 function truncateMiddle(value: string, max = 32) {
   if (value.length <= max) return value;
@@ -223,8 +227,16 @@ export function GuildGrimoire() {
           if (file.size > MAX_IMAGE_BYTES) {
             throw new Error("Image too large (max 5MB). ");
           }
-          if (file.type && !ALLOWED_IMAGE_MIMES.has(file.type)) {
-            throw new Error(`Unsupported image type: ${file.type}`);
+
+          if (file.type) {
+            if (!ALLOWED_IMAGE_MIMES.has(file.type)) {
+              throw new Error(`Unsupported image type: ${file.type}`);
+            }
+          } else {
+            const ext = extensionFromFilename(file.name);
+            if (!ext || !ALLOWED_IMAGE_EXTS.has(ext)) {
+              throw new Error(`Unsupported image type: ${ext ? `.${ext}` : "unknown"}`);
+            }
           }
         }
 
@@ -232,8 +244,16 @@ export function GuildGrimoire() {
           if (file.size > MAX_AUDIO_BYTES) {
             throw new Error("Audio too large (max 3MB). ");
           }
-          if (file.type && !ALLOWED_AUDIO_MIMES.has(file.type)) {
-            throw new Error(`Unsupported audio type: ${file.type}`);
+
+          if (file.type) {
+            if (!ALLOWED_AUDIO_MIMES.has(file.type)) {
+              throw new Error(`Unsupported audio type: ${file.type}`);
+            }
+          } else {
+            const ext = extensionFromFilename(file.name);
+            if (!ext || !ALLOWED_AUDIO_EXTS.has(ext)) {
+              throw new Error(`Unsupported audio type: ${ext ? `.${ext}` : "unknown"}`);
+            }
           }
         }
 

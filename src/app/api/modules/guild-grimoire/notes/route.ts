@@ -78,7 +78,10 @@ export async function POST(request: NextRequest) {
     const form = await request.formData();
     contentType = asString(form.get("content_type"));
     visibility = asString(form.get("visibility"));
-    file = form.get("file") instanceof File ? (form.get("file") as File) : null;
+    textContent = asString(form.get("text_content"));
+
+    const rawFile = form.get("file");
+    file = rawFile instanceof File ? rawFile : null;
 
     const tagFields = form.getAll("tag_ids");
     tagIds = tagFields.filter((v) => typeof v === "string") as string[];
