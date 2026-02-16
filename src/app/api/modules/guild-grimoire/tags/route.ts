@@ -29,8 +29,11 @@ export async function POST(request: NextRequest) {
 
   const body = (await request.json().catch(() => null)) as { label?: unknown } | null;
   const label = asString(body?.label)?.trim() ?? "";
-  if (!label) {
-    return jsonError("Tag label is required.", 400);
+  if (!label || label.length > 100) {
+    return jsonError(
+      !label ? "Tag label is required." : "Tag label is too long (max 100 characters).",
+      400,
+    );
   }
 
   const slug = slugifyTagLabel(label);
@@ -38,12 +41,25 @@ export async function POST(request: NextRequest) {
     return jsonError("Tag label must include at least one letter or number.", 400);
   }
 
-  // Try to find existing tag by slug or label.
-  const existing = await auth.admin
+  // Try to find existing tag by slug first (safe), then label.
+  const bySlug = await auth.admin
     .from("guild_grimoire_tags")
     .select("id,slug,label")
-    .or(`slug.eq.${slug},label.eq.${label}`)
+    .eq("slug", slug)
     .maybeSingle();
+
+  if (bySlug.error) {
+    console.error("[guild-grimoire] tag lookup error:", bySlug.error.message);
+    return jsonError("Failed to create tag.", 500);
+  }
+
+  const existing = bySlug.data
+    ? bySlug
+    : await auth.admin
+        .from("guild_grimoire_tags")
+        .select("id,slug,label")
+        .eq("label", label)
+        .maybeSingle();
 
   if (existing.error) {
     console.error("[guild-grimoire] tag lookup error:", existing.error.message);

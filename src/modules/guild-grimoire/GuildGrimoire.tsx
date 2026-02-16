@@ -57,6 +57,20 @@ export function GuildGrimoire() {
     GuildGrimoireVisibility | "all"
   >("all");
 
+  type FeedFilters = {
+    mine: boolean;
+    contentType: GuildGrimoireContentType | "all";
+    tagId: string;
+    visibility: GuildGrimoireVisibility | "all";
+  };
+
+  const [appliedFilters, setAppliedFilters] = useState<FeedFilters>({
+    mine: false,
+    contentType: "all",
+    tagId: "",
+    visibility: "all",
+  });
+
   const loadTags = useCallback(async (accessToken: string) => {
     const res = await fetch("/api/modules/guild-grimoire/tags", {
       cache: "no-store",
@@ -69,37 +83,34 @@ export function GuildGrimoire() {
     setTags(json.tags ?? []);
   }, []);
 
-  const loadFeed = useCallback(
-    async (accessToken: string) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const params = new URLSearchParams();
-        if (filterMine) params.set("mine", "true");
-        if (filterContentType !== "all") params.set("contentType", filterContentType);
-        if (filterTagId) params.set("tag", filterTagId);
-        if (filterVisibility !== "all") params.set("visibility", filterVisibility);
+  const loadFeed = useCallback(async (accessToken: string, filters: FeedFilters) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (filters.mine) params.set("mine", "true");
+      if (filters.contentType !== "all") params.set("contentType", filters.contentType);
+      if (filters.tagId) params.set("tag", filters.tagId);
+      if (filters.visibility !== "all") params.set("visibility", filters.visibility);
 
-        const res = await fetch(`/api/modules/guild-grimoire/feed?${params.toString()}`,
-          {
-            cache: "no-store",
-            headers: { Authorization: `Bearer ${accessToken}` },
-          },
-        );
-        const json = (await res.json()) as { notes?: GuildGrimoireNote[]; error?: string };
-        if (!res.ok) {
-          throw new Error(json.error || "Failed to load feed.");
-        }
-        setFeed(json.notes ?? []);
-      } catch (err) {
-        setFeed([]);
-        setError(err instanceof Error ? err.message : "Failed to load feed.");
-      } finally {
-        setLoading(false);
+      const res = await fetch(`/api/modules/guild-grimoire/feed?${params.toString()}`,
+        {
+          cache: "no-store",
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
+      );
+      const json = (await res.json()) as { notes?: GuildGrimoireNote[]; error?: string };
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to load feed.");
       }
-    },
-    [filterMine, filterContentType, filterTagId, filterVisibility],
-  );
+      setFeed(json.notes ?? []);
+    } catch (err) {
+      setFeed([]);
+      setError(err instanceof Error ? err.message : "Failed to load feed.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const bootstrap = useCallback(async () => {
     setLoading(true);
@@ -113,17 +124,18 @@ export function GuildGrimoire() {
         setTags([]);
         return;
       }
-      await Promise.all([loadTags(token), loadFeed(token)]);
+      await Promise.all([loadTags(token), loadFeed(token, appliedFilters)]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load module.");
     } finally {
       setLoading(false);
     }
-  }, [supabase, loadTags, loadFeed]);
+  }, [supabase, loadTags, loadFeed, appliedFilters]);
 
   useEffect(() => {
     bootstrap();
-  }, [bootstrap]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     // keep composer fields consistent across modes
@@ -138,31 +150,35 @@ export function GuildGrimoire() {
     const label = newTagLabel.trim();
     if (!label) return;
 
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
-    if (!token) {
-      setError("You must be signed in to create tags.");
-      return;
-    }
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) {
+        setError("You must be signed in to create tags.");
+        return;
+      }
 
-    const res = await fetch("/api/modules/guild-grimoire/tags", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ label }),
-    });
-    const json = (await res.json()) as { tag?: GuildGrimoireTag; error?: string };
-    if (!res.ok) {
-      setError(json.error || "Failed to create tag.");
-      return;
-    }
+      const res = await fetch("/api/modules/guild-grimoire/tags", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ label }),
+      });
+      const json = (await res.json()) as { tag?: GuildGrimoireTag; error?: string };
+      if (!res.ok) {
+        setError(json.error || "Failed to create tag.");
+        return;
+      }
 
-    setNewTagLabel("");
-    await loadTags(token);
-    if (json.tag?.id) {
-      setSelectedTagIds((prev) => new Set([...prev, json.tag!.id]));
+      setNewTagLabel("");
+      await loadTags(token);
+      if (json.tag?.id) {
+        setSelectedTagIds((prev) => new Set([...prev, json.tag!.id]));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create tag.");
     }
   };
 
@@ -242,7 +258,7 @@ export function GuildGrimoire() {
       setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
 
-      await Promise.all([loadFeed(token), loadTags(token)]);
+      await Promise.all([loadFeed(token, appliedFilters), loadTags(token)]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to post.");
     } finally {
@@ -252,24 +268,29 @@ export function GuildGrimoire() {
 
   const softDelete = async (noteId: string) => {
     setError(null);
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
-    if (!token) {
-      setError("You must be signed in.");
-      return;
-    }
 
-    const res = await fetch(`/api/modules/guild-grimoire/notes/${noteId}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const json = (await res.json()) as { error?: string };
-    if (!res.ok) {
-      setError(json.error || "Failed to delete note.");
-      return;
-    }
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) {
+        setError("You must be signed in.");
+        return;
+      }
 
-    await loadFeed(token);
+      const res = await fetch(`/api/modules/guild-grimoire/notes/${noteId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setError(json.error || "Failed to delete note.");
+        return;
+      }
+
+      await loadFeed(token, appliedFilters);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete note.");
+    }
   };
 
   return (
@@ -489,7 +510,14 @@ export function GuildGrimoire() {
                   setError("You must be signed in.");
                   return;
                 }
-                await loadFeed(token);
+                const nextFilters: FeedFilters = {
+                  mine: filterMine,
+                  contentType: filterContentType,
+                  tagId: filterTagId,
+                  visibility: filterVisibility,
+                };
+                setAppliedFilters(nextFilters);
+                await loadFeed(token, nextFilters);
               }}
               className="col-span-2 inline-flex h-9 items-center justify-center rounded-lg border border-border px-3 text-sm hover:bg-muted sm:col-span-1"
             >

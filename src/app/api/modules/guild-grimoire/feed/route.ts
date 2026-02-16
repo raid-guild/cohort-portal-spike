@@ -14,17 +14,19 @@ export async function GET(request: NextRequest) {
   const contentType = q.get("contentType");
   const visibility = q.get("visibility");
   const mine = q.get("mine") === "true";
-  const limit = Math.min(Number(q.get("limit") ?? DEFAULT_LIMIT) || DEFAULT_LIMIT, 100);
+  const limit = Math.max(1, Math.min(Number(q.get("limit") ?? DEFAULT_LIMIT) || DEFAULT_LIMIT, 100));
 
   if (visibility === "private" && !mine) {
     return jsonError("Private notes can only be queried with mine=true.", 400);
   }
 
+  const select = tag
+    ? "id,user_id,content_type,text_content,image_url,audio_url,audio_duration_sec,visibility,created_at,deleted_at,guild_grimoire_note_tags!inner(tag_id,guild_grimoire_tags(id,slug,label))"
+    : "id,user_id,content_type,text_content,image_url,audio_url,audio_duration_sec,visibility,created_at,deleted_at,guild_grimoire_note_tags(tag_id,guild_grimoire_tags(id,slug,label))";
+
   let query = auth.admin
     .from("guild_grimoire_notes")
-    .select(
-      "id,user_id,content_type,text_content,image_url,audio_url,audio_duration_sec,visibility,created_at,deleted_at,guild_grimoire_note_tags(tag_id,guild_grimoire_tags(id,slug,label))",
-    )
+    .select(select)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(limit);

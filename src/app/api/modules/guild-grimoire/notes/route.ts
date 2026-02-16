@@ -109,6 +109,9 @@ export async function POST(request: NextRequest) {
   let audioUrl: string | null = null;
   let audioDurationSec: number | null = null;
 
+  let uploadedImagePath: string | null = null;
+  let uploadedAudioPath: string | null = null;
+
   if (contentType === "text") {
     const trimmed = (textContent ?? "").trim();
     if (!trimmed) {
@@ -183,19 +186,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const objectPath = `guild-grimoire/${auth.userId}/${crypto.randomUUID()}.${extension}`;
+    uploadedImagePath = `guild-grimoire/${auth.userId}/${crypto.randomUUID()}.${extension}`;
     const buffer = Buffer.from(await file.arrayBuffer());
 
     const { error: uploadError } = await auth.admin.storage
       .from("modules")
-      .upload(objectPath, buffer, { upsert: false, contentType: mimeType });
+      .upload(uploadedImagePath, buffer, { upsert: false, contentType: mimeType });
 
     if (uploadError) {
       console.error("[guild-grimoire] image upload error:", uploadError.message);
       return jsonError("Failed to upload image.", 500);
     }
 
-    const { data: publicData } = auth.admin.storage.from("modules").getPublicUrl(objectPath);
+    const { data: publicData } = auth.admin.storage.from("modules").getPublicUrl(uploadedImagePath);
     imageUrl = publicData.publicUrl;
   }
 
@@ -218,7 +221,14 @@ export async function POST(request: NextRequest) {
         );
       }
       extension = ext;
-      mimeType = ext === "mp3" ? "audio/mpeg" : ext === "webm" ? "audio/webm" : "audio/mp4";
+      const extToMime: Record<string, string> = {
+        mp3: "audio/mpeg",
+        webm: "audio/webm",
+        mp4: "audio/mp4",
+        m4a: "audio/m4a",
+        aac: "audio/aac",
+      };
+      mimeType = extToMime[ext] ?? "audio/mp4";
     }
 
     if (!mimeType || !extension || !ALLOWED_AUDIO_MIME_TYPES.has(mimeType)) {
@@ -230,19 +240,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const objectPath = `guild-grimoire/${auth.userId}/${crypto.randomUUID()}.${extension}`;
+    uploadedAudioPath = `guild-grimoire/${auth.userId}/${crypto.randomUUID()}.${extension}`;
     const buffer = Buffer.from(await file.arrayBuffer());
 
     const { error: uploadError } = await auth.admin.storage
       .from("modules")
-      .upload(objectPath, buffer, { upsert: false, contentType: mimeType });
+      .upload(uploadedAudioPath, buffer, { upsert: false, contentType: mimeType });
 
     if (uploadError) {
       console.error("[guild-grimoire] audio upload error:", uploadError.message);
       return jsonError("Failed to upload audio.", 500);
     }
 
-    const { data: publicData } = auth.admin.storage.from("modules").getPublicUrl(objectPath);
+    const { data: publicData } = auth.admin.storage.from("modules").getPublicUrl(uploadedAudioPath);
     audioUrl = publicData.publicUrl;
     audioDurationSec = null;
   }
@@ -262,6 +272,21 @@ export async function POST(request: NextRequest) {
 
   if (insert.error) {
     console.error("[guild-grimoire] insert error:", insert.error.message);
+
+    const toRemove = [uploadedImagePath, uploadedAudioPath].filter(
+      (p): p is string => Boolean(p),
+    );
+    if (toRemove.length) {
+      try {
+        const { error: removeError } = await auth.admin.storage.from("modules").remove(toRemove);
+        if (removeError) {
+          console.error("[guild-grimoire] cleanup error:", removeError.message);
+        }
+      } catch {
+        // noop
+      }
+    }
+
     return jsonError("Failed to create note.", 500);
   }
 

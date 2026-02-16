@@ -59,7 +59,7 @@ values
     'audio',
     null,
     null,
-    'https://upload.wikimedia.org/wikipedia/commons/transcoded/8/8f/Test_ogg_mp3_48kbps.ogg/Test_ogg_mp3_48kbps.ogg.mp3',
+    'https://interactive-examples.mdn.mozilla.net/media/cc0-audio/t-rex-roar.mp3',
     12,
     'shared',
     now() - interval '12 hours',
