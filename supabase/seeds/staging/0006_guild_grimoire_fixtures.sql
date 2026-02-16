@@ -59,7 +59,7 @@ values
     'audio',
     null,
     null,
-    'https://interactive-examples.mdn.mozilla.net/media/cc0-audio/t-rex-roar.mp3',
+    'https://filesamples.com/samples/audio/m4a/sample1.m4a',
     12,
     'shared',
     now() - interval '12 hours',
