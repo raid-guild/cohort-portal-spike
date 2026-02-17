@@ -50,14 +50,14 @@ export async function POST(request: NextRequest) {
     return jsonError("Invalid server configuration.", 500);
   }
 
-  const headerKey = request.headers.get("x-grimoire-api-key");
-  if (!headerKey || headerKey !== API_KEY) {
-    return jsonError("Unauthorized.", 401);
-  }
-
   const ip = getClientIp(request);
   if (!rateLimitCheck(ip, RATE_MAX_REQUESTS_PER_IP, ipRateBuckets)) {
     return jsonError("Too many requests.", 429);
+  }
+
+  const headerKey = request.headers.get("x-grimoire-api-key");
+  if (!headerKey || headerKey !== API_KEY) {
+    return jsonError("Unauthorized.", 401);
   }
 
   if (!rateLimitCheck(headerKey, RATE_MAX_REQUESTS_PER_KEY, keyRateBuckets)) {
