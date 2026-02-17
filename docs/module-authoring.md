@@ -31,6 +31,7 @@ Notes:
 - `type` is `link` or `embed`.
 - Use tags like `start-here`, `people-tools`, `profile-tools-public`, `me-tools` to surface modules.
 - Surfaces: home uses `start-here`, people uses `people-tools`, profiles use `profile-tools-public`, and `/me` uses `me-tools`.
+- Add a module-level README at `src/modules/<module-id>/README.md` with purpose, key files, and notes.
 - Set `presentation.action` to `none` if you want a summary-only card.
 - Tag a module with `hosts` to make it host-only (hidden for non-hosts).
 - Host-only tags only control portal visibility. External modules must enforce their own access.

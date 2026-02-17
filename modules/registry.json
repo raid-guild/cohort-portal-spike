@@ -556,6 +556,35 @@
       }
     },
     {
+      "id": "guild-grimoire",
+      "title": "Guild Grimoire",
+      "description": "Post quick text, image, or audio notes and browse the shared stream.",
+      "lane": "portal",
+      "type": "link",
+      "url": "/modules/guild-grimoire",
+      "status": "beta",
+      "owner": {
+        "name": "@dekanbro",
+        "contact": "@dekanbro"
+      },
+      "requiresAuth": true,
+      "tags": [
+        "people-tools"
+      ],
+      "presentation": {
+        "mode": "page",
+        "trigger": "button"
+      },
+      "summary": {
+        "source": "api",
+        "title": "Guild Grimoire",
+        "endpoint": "/api/modules/guild-grimoire/summary",
+        "layout": "excerpt",
+        "maxItems": 2,
+        "showTitle": true
+      }
+    },
+    {
       "id": "signup-referrals",
       "title": "Signup Referrals",
       "description": "Review email referral signups and export CSV for outreach.",
