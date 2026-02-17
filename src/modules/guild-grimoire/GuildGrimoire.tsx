@@ -51,6 +51,13 @@ function formatDuration(ms: number) {
   return `${minutes}:${seconds}`;
 }
 
+function isAbortLikeError(err: unknown) {
+  if (err instanceof DOMException && err.name === "AbortError") return true;
+  if (!(err instanceof Error)) return false;
+  const message = err.message.toLowerCase();
+  return message.includes("signal is aborted") || message.includes("aborterror");
+}
+
 export function GuildGrimoire() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
 
@@ -136,6 +143,9 @@ export function GuildGrimoire() {
       }
       setFeed(json.notes ?? []);
     } catch (err) {
+      if (isAbortLikeError(err)) {
+        return;
+      }
       setFeed([]);
       setError(err instanceof Error ? err.message : "Failed to load feed.");
     } finally {
@@ -157,6 +167,9 @@ export function GuildGrimoire() {
       }
       await Promise.all([loadTags(token), loadFeed(token, appliedFilters)]);
     } catch (err) {
+      if (isAbortLikeError(err)) {
+        return;
+      }
       setError(err instanceof Error ? err.message : "Failed to load module.");
     } finally {
       setLoading(false);
@@ -306,6 +319,12 @@ export function GuildGrimoire() {
       setRecordingDurationMs(0);
       setIsRecording(true);
     } catch (err) {
+      if (isAbortLikeError(err)) {
+        setError("Microphone request was canceled. Please try again.");
+        setIsRecording(false);
+        stopStreamTracks();
+        return;
+      }
       setError(
         err instanceof Error
           ? err.message
@@ -354,6 +373,10 @@ export function GuildGrimoire() {
         setSelectedTagIds((prev) => new Set([...prev, json.tag!.id]));
       }
     } catch (err) {
+      if (isAbortLikeError(err)) {
+        setError("Tag request was canceled. Please try again.");
+        return;
+      }
       setError(err instanceof Error ? err.message : "Failed to create tag.");
     }
   };
@@ -454,6 +477,10 @@ export function GuildGrimoire() {
 
       await Promise.all([loadFeed(token, appliedFilters), loadTags(token)]);
     } catch (err) {
+      if (isAbortLikeError(err)) {
+        setError("Post request was canceled. Please try again.");
+        return;
+      }
       setError(err instanceof Error ? err.message : "Failed to post.");
     } finally {
       setSaving(false);
@@ -483,6 +510,10 @@ export function GuildGrimoire() {
 
       await loadFeed(token, appliedFilters);
     } catch (err) {
+      if (isAbortLikeError(err)) {
+        setError("Delete request was canceled. Please try again.");
+        return;
+      }
       setError(err instanceof Error ? err.message : "Failed to delete note.");
     }
   };
@@ -774,6 +805,10 @@ export function GuildGrimoire() {
                   setAppliedFilters(nextFilters);
                   await loadFeed(token, nextFilters);
                 } catch (err) {
+                  if (isAbortLikeError(err)) {
+                    setError("Filter request was canceled. Please try again.");
+                    return;
+                  }
                   setError(err instanceof Error ? err.message : "Failed to apply filters.");
                 }
               }}
