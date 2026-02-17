@@ -24,6 +24,10 @@ function extensionFromFilename(filename: string) {
   return filename.slice(dotIdx + 1).toLowerCase() || null;
 }
 
+function normalizeMimeType(mimeType: string) {
+  return mimeType.split(";")[0]?.trim().toLowerCase() ?? "";
+}
+
 function extensionForImageMimeType(mimeType: string) {
   switch (mimeType) {
     case "image/png":
@@ -165,7 +169,7 @@ export async function POST(request: NextRequest) {
       return jsonError("File too large. Max image size is 5MB.", 413);
     }
 
-    let mimeType = file.type;
+    let mimeType = normalizeMimeType(file.type);
     let extension = mimeType ? extensionForImageMimeType(mimeType) : null;
 
     if (!mimeType) {
@@ -212,7 +216,7 @@ export async function POST(request: NextRequest) {
       return jsonError("File too large. Max audio size is 3MB.", 413);
     }
 
-    let mimeType = file.type;
+    let mimeType = normalizeMimeType(file.type);
     let extension = mimeType ? extensionForAudioMimeType(mimeType) : null;
 
     if (!mimeType) {

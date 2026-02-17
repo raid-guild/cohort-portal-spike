@@ -10,9 +10,11 @@ Key files
 - Types: src/modules/guild-grimoire/types.ts
 - Feed API: src/app/api/modules/guild-grimoire/feed/route.ts
 - Create note API: src/app/api/modules/guild-grimoire/notes/route.ts
+- Bot ingest API: src/app/api/modules/guild-grimoire/ingest/route.ts
 - Delete note API: src/app/api/modules/guild-grimoire/notes/[id]/route.ts
 - Tags API: src/app/api/modules/guild-grimoire/tags/route.ts
 - Summary API: src/app/api/modules/guild-grimoire/summary/route.ts
+- Bot ingest docs: docs/guild-grimoire-ingest-api.md
 - Registry entry: modules/registry.json
 
 Notes
