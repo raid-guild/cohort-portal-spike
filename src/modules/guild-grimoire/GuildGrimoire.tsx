@@ -18,6 +18,7 @@ const ALLOWED_AUDIO_MIMES = new Set(["audio/webm", "audio/mp4", "audio/aac", "au
 
 const ALLOWED_IMAGE_EXTS = new Set(["jpg", "jpeg", "png", "webp"]);
 const ALLOWED_AUDIO_EXTS = new Set(["webm", "mp4", "m4a", "aac", "mp3"]);
+const AUDIO_RECORDING_MIME_CANDIDATES = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
 
 function extensionFromFilename(filename: string) {
   const dotIdx = filename.lastIndexOf(".");
@@ -33,6 +34,23 @@ function truncateMiddle(value: string, max = 32) {
   return `${head}…${tail}`;
 }
 
+function extensionFromMimeType(mimeType: string) {
+  if (mimeType.startsWith("audio/webm")) return "webm";
+  if (mimeType.startsWith("audio/mp4")) return "mp4";
+  if (mimeType.startsWith("audio/aac")) return "aac";
+  if (mimeType.startsWith("audio/mpeg")) return "mp3";
+  return "webm";
+}
+
+function formatDuration(ms: number) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
 export function GuildGrimoire() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
 
@@ -42,6 +60,15 @@ export function GuildGrimoire() {
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const recordingChunksRef = useRef<BlobPart[]>([]);
+  const recordingStartedAtRef = useRef<number | null>(null);
+  const audioPreviewUrlRef = useRef<string | null>(null);
+  const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDurationMs, setRecordingDurationMs] = useState(0);
+  const [recordingSupported, setRecordingSupported] = useState(true);
 
   const [tags, setTags] = useState<GuildGrimoireTag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
@@ -142,12 +169,157 @@ export function GuildGrimoire() {
   }, []);
 
   useEffect(() => {
+    setRecordingSupported(
+      typeof window !== "undefined" &&
+        typeof window.MediaRecorder !== "undefined" &&
+        typeof navigator !== "undefined" &&
+        Boolean(navigator.mediaDevices?.getUserMedia),
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!isRecording) return;
+    const timer = window.setInterval(() => {
+      const startedAt = recordingStartedAtRef.current;
+      if (startedAt) {
+        setRecordingDurationMs(Date.now() - startedAt);
+      }
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [isRecording]);
+
+  useEffect(() => {
+    audioPreviewUrlRef.current = audioPreviewUrl;
+  }, [audioPreviewUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (audioPreviewUrlRef.current) {
+        URL.revokeObjectURL(audioPreviewUrlRef.current);
+        audioPreviewUrlRef.current = null;
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
+
+  const stopStreamTracks = useCallback(() => {
+    if (!mediaStreamRef.current) return;
+    mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+    mediaStreamRef.current = null;
+  }, []);
+
+  const clearAudioRecording = useCallback(() => {
+    if (audioPreviewUrlRef.current) {
+      URL.revokeObjectURL(audioPreviewUrlRef.current);
+      audioPreviewUrlRef.current = null;
+    }
+    setAudioPreviewUrl(null);
+    setFile(null);
+    recordingChunksRef.current = [];
+    recordingStartedAtRef.current = null;
+    setRecordingDurationMs(0);
+  }, []);
+
+  useEffect(() => {
     // keep composer fields consistent across modes
     setError(null);
     setText("");
-    setFile(null);
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+    stopStreamTracks();
+    clearAudioRecording();
     if (fileInputRef.current) fileInputRef.current.value = "";
-  }, [mode]);
+  }, [mode, clearAudioRecording, stopStreamTracks]);
+
+  const startRecording = async () => {
+    setError(null);
+    if (!recordingSupported) {
+      setError("Audio recording is not supported in this browser.");
+      return;
+    }
+    if (isRecording) return;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+
+      const preferredMime = AUDIO_RECORDING_MIME_CANDIDATES.find((candidate) =>
+        MediaRecorder.isTypeSupported(candidate),
+      );
+      const recorder = preferredMime
+        ? new MediaRecorder(stream, { mimeType: preferredMime })
+        : new MediaRecorder(stream);
+
+      recordingChunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordingChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const mimeType = recorder.mimeType || preferredMime || "audio/webm";
+        const blob = new Blob(recordingChunksRef.current, { type: mimeType });
+        recordingChunksRef.current = [];
+        stopStreamTracks();
+        setIsRecording(false);
+
+        if (!blob.size) {
+          setError("No audio captured. Try recording again.");
+          clearAudioRecording();
+          return;
+        }
+        if (blob.size > MAX_AUDIO_BYTES) {
+          setError("Audio too large (max 3MB). Record a shorter clip.");
+          clearAudioRecording();
+          return;
+        }
+
+        const ext = extensionFromMimeType(mimeType);
+        const recordedFile = new File([blob], `guild-grimoire-${Date.now()}.${ext}`, {
+          type: mimeType,
+        });
+
+        if (audioPreviewUrlRef.current) {
+          URL.revokeObjectURL(audioPreviewUrlRef.current);
+          audioPreviewUrlRef.current = null;
+        }
+        const nextPreviewUrl = URL.createObjectURL(blob);
+        audioPreviewUrlRef.current = nextPreviewUrl;
+        setAudioPreviewUrl(nextPreviewUrl);
+        setFile(recordedFile);
+        recordingStartedAtRef.current = null;
+      };
+
+      clearAudioRecording();
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      recordingStartedAtRef.current = Date.now();
+      setRecordingDurationMs(0);
+      setIsRecording(true);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to access microphone. Check browser permissions.",
+      );
+      setIsRecording(false);
+      stopStreamTracks();
+    }
+  };
+
+  const stopRecording = () => {
+    if (!mediaRecorderRef.current || mediaRecorderRef.current.state === "inactive") return;
+    mediaRecorderRef.current.stop();
+  };
 
   const createTag = async () => {
     setError(null);
@@ -221,7 +393,9 @@ export function GuildGrimoire() {
         const json = (await res.json()) as { error?: string };
         if (!res.ok) throw new Error(json.error || "Failed to post note.");
       } else {
-        if (!file) throw new Error("Please select a file.");
+        if (!file) {
+          throw new Error(mode === "audio" ? "Please record audio first." : "Please select a file.");
+        }
 
         if (mode === "image") {
           if (file.size > MAX_IMAGE_BYTES) {
@@ -275,7 +449,7 @@ export function GuildGrimoire() {
       }
 
       setText("");
-      setFile(null);
+      clearAudioRecording();
       if (fileInputRef.current) fileInputRef.current.value = "";
 
       await Promise.all([loadFeed(token, appliedFilters), loadTags(token)]);
@@ -363,15 +537,14 @@ export function GuildGrimoire() {
                 {text.length}/{MAX_TEXT}
               </div>
             </label>
-          ) : (
+          ) : mode === "image" ? (
             <label className="grid gap-1 text-sm">
-              <span className="text-xs text-muted-foreground">
-                {mode === "image" ? "Image" : "Audio"} upload
-              </span>
+              <span className="text-xs text-muted-foreground">Image (camera or upload)</span>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept={mode === "image" ? "image/*" : "audio/*"}
+                accept="image/*"
+                capture="environment"
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               />
               {file ? (
@@ -379,7 +552,68 @@ export function GuildGrimoire() {
                   Selected: {truncateMiddle(file.name)} ({Math.round(file.size / 1024)} KB)
                 </div>
               ) : null}
+              <div className="text-xs text-muted-foreground">
+                On mobile, this will prompt for camera capture when supported.
+              </div>
             </label>
+          ) : (
+            <div className="grid gap-2 text-sm">
+              <div className="text-xs text-muted-foreground">
+                Audio recording (max 3MB)
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={startRecording}
+                  disabled={isRecording || saving || !recordingSupported}
+                  className="inline-flex h-9 items-center justify-center rounded-lg border border-border px-3 text-sm hover:bg-muted disabled:opacity-60"
+                >
+                  Start recording
+                </button>
+                <button
+                  type="button"
+                  onClick={stopRecording}
+                  disabled={!isRecording}
+                  className="inline-flex h-9 items-center justify-center rounded-lg border border-border px-3 text-sm hover:bg-muted disabled:opacity-60"
+                >
+                  Stop
+                </button>
+                <button
+                  type="button"
+                  onClick={clearAudioRecording}
+                  disabled={isRecording || !file}
+                  className="inline-flex h-9 items-center justify-center rounded-lg border border-border px-3 text-sm hover:bg-muted disabled:opacity-60"
+                >
+                  Clear
+                </button>
+              </div>
+              {!recordingSupported ? (
+                <div className="text-xs text-red-500">
+                  This browser does not support microphone recording.
+                </div>
+              ) : null}
+              {isRecording ? (
+                <div className="text-xs text-muted-foreground">
+                  Recording... {formatDuration(recordingDurationMs)}
+                </div>
+              ) : null}
+              {file ? (
+                <div className="text-xs text-muted-foreground">
+                  Recorded: {truncateMiddle(file.name)} ({Math.round(file.size / 1024)} KB)
+                </div>
+              ) : (
+                <div className="text-xs text-muted-foreground">No recording captured yet.</div>
+              )}
+              {audioPreviewUrl ? (
+                <audio controls src={audioPreviewUrl} className="w-full" />
+              ) : null}
+              <div className="text-xs text-muted-foreground">
+                Browser will ask for microphone permission the first time.
+              </div>
+              <span className="text-xs text-muted-foreground">
+                Audio file upload is disabled for this module.
+              </span>
+            </div>
           )}
 
           <div className="grid gap-2">
