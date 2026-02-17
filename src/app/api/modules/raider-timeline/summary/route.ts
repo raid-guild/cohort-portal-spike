@@ -26,7 +26,13 @@ async function getViewerIdFromAuthHeader(
 export async function GET(request: NextRequest) {
   const viewerId = await getViewerIdFromAuthHeader(request);
   if (!viewerId) {
-    return Response.json({ error: "Missing auth token." }, { status: 401 });
+    return Response.json({
+      title: "Timeline",
+      items: [
+        { label: "Entries", value: "0" },
+        { label: "Latest", value: "—" },
+      ],
+    });
   }
 
   const supabase = supabaseAdminClient();

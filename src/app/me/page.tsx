@@ -6,6 +6,7 @@ import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { ModuleSurfaceList } from "@/components/ModuleSurfaceList";
 import { ModuleViewsEditor } from "@/components/ModuleViewsEditor";
 import { RolePicker } from "@/components/RolePicker";
+import { AvatarEditorModal } from "@/components/profile/AvatarEditorModal";
 import type { ModuleEntry } from "@/lib/types";
 import type { ModuleViewsConfig } from "@/lib/module-views";
 import { PaidStar } from "@/components/PaidStar";
@@ -39,13 +40,19 @@ export default function MePage() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [authAction, setAuthAction] = useState<"email" | "ethereum" | "solana" | null>(
+    null,
+  );
+  const [isMobile, setIsMobile] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState("");
   const [profile, setProfile] = useState<ProfileForm>(emptyProfile);
   const [profileExists, setProfileExists] = useState(false);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarEditorOpen, setAvatarEditorOpen] = useState(false);
+  const [avatarImageVersion, setAvatarImageVersion] = useState<number>(0);
   const [availableSkills, setAvailableSkills] = useState<string[]>([]);
   const [linking, setLinking] = useState(false);
   const [meTools, setMeTools] = useState<ModuleEntry[]>([]);
@@ -54,6 +61,8 @@ export default function MePage() {
   const [paidSource, setPaidSource] = useState<string | null>(null);
   const [wizardStep, setWizardStep] = useState(0);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [wizardAutoOpened, setWizardAutoOpened] = useState(false);
+  const [profileReady, setProfileReady] = useState(false);
   const [showModuleCustomize, setShowModuleCustomize] = useState(false);
   const [moduleViewConfig, setModuleViewConfig] = useState<ModuleViewsConfig | null>(
     null,
@@ -65,12 +74,14 @@ export default function MePage() {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setUser(data.session?.user ?? null);
+      setAuthReady(true);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
         setSession(newSession);
         setUser(newSession?.user ?? null);
+        setAuthReady(true);
       },
     );
 
@@ -78,6 +89,11 @@ export default function MePage() {
       listener.subscription.unsubscribe();
     };
   }, [supabase]);
+
+  useEffect(() => {
+    setIsMobile(isMobileBrowser());
+    setCurrentUrl(window.location.href);
+  }, []);
 
   useEffect(() => {
     fetch("/api/modules")
@@ -171,10 +187,12 @@ export default function MePage() {
   }, [supabase, user]);
 
   const loadProfile = useCallback(async () => {
+    setProfileReady(false);
     if (!user) {
       setProfile(emptyProfile);
       setProfileExists(false);
       setPortalRoles([]);
+      setProfileReady(true);
       return;
     }
 
@@ -193,6 +211,7 @@ export default function MePage() {
         email: user.email ?? "",
       });
       setProfileExists(false);
+      setProfileReady(true);
       return;
     }
     setProfile({
@@ -207,11 +226,13 @@ export default function MePage() {
       avatarUrl: data.avatar_url ?? "",
     });
     setProfileExists(true);
+    setProfileReady(true);
   }, [supabase, user]);
 
   useEffect(() => {
+    if (!authReady) return;
     loadProfile();
-  }, [loadProfile]);
+  }, [authReady, loadProfile]);
 
   useEffect(() => {
     if (!user) return;
@@ -285,18 +306,6 @@ export default function MePage() {
       });
   }, [supabase]);
 
-  useEffect(() => {
-    if (!avatarFile) {
-      setAvatarPreview(null);
-      return;
-    }
-    const url = URL.createObjectURL(avatarFile);
-    setAvatarPreview(url);
-    return () => {
-      URL.revokeObjectURL(url);
-    };
-  }, [avatarFile]);
-
   const rolesLimit = 2;
   const isProfileComplete =
     Boolean(profile.handle.trim()) &&
@@ -330,43 +339,90 @@ export default function MePage() {
   const roleSuggestions = inferRoleSuggestions(profile.skills, RAID_GUILD_ROLES);
 
   useEffect(() => {
+    if (!authReady) return;
     if (!session) {
       setWizardOpen(false);
+      setWizardAutoOpened(false);
       return;
     }
+    if (!profileReady) return;
     if (!profileExists || !isProfileComplete) {
-      setWizardOpen(true);
+      if (!wizardOpen) {
+        setWizardOpen(true);
+        setWizardAutoOpened(true);
+      }
       return;
     }
-    setWizardOpen(false);
-  }, [isProfileComplete, profileExists, session]);
+    if (wizardAutoOpened) {
+      setWizardOpen(false);
+      setWizardStep(0);
+      setWizardAutoOpened(false);
+    }
+  }, [
+    authReady,
+    isProfileComplete,
+    profileExists,
+    profileReady,
+    session,
+    wizardAutoOpened,
+    wizardOpen,
+  ]);
 
   const handleEmailSignIn = async () => {
+    const nextEmail = email.trim();
+    if (!nextEmail) {
+      setMessage("Enter an email address to continue.");
+      return;
+    }
+    setAuthAction("email");
     setLoading(true);
     setMessage("");
     const redirectTo = `${window.location.origin}/me`;
     const { error } = await supabase.auth.signInWithOtp({
-      email,
+      email: nextEmail,
       options: { emailRedirectTo: redirectTo },
     });
+    setAuthAction(null);
     setLoading(false);
     setMessage(
-      error ? error.message : "Check your email for the magic link.",
+      error
+        ? error.message
+        : `Magic link sent to ${nextEmail}. Check your inbox (and spam) to finish sign-in.`,
     );
   };
 
   const handleWeb3SignIn = async (chain: "ethereum" | "solana") => {
+    const action = chain === "ethereum" ? "ethereum" : "solana";
+    setAuthAction(action);
     setLoading(true);
     setMessage("");
+    const wallet = chain === "ethereum" ? resolveEthereumWallet() : null;
+    if (chain === "ethereum" && !wallet) {
+      setLoading(false);
+      setAuthAction(null);
+      setMessage(
+        isMobileBrowser()
+          ? "No Ethereum wallet was detected in this browser. Open this page in your wallet app browser (MetaMask/Coinbase Wallet) and try again."
+          : "No Ethereum wallet was detected. Install or unlock MetaMask/Coinbase Wallet and try again.",
+      );
+      return;
+    }
     // @ts-ignore – supabase types are out of date
     const { error } = await supabase.auth.signInWithWeb3({
       chain,
       statement: "I accept the RaidGuild Cohort Portal terms of service.",
+      options: {
+        url: window.location.href,
+      },
+      ...(wallet ? { wallet } : {}),
     });
+    setAuthAction(null);
     setLoading(false);
     if (error) {
       setMessage(error.message);
+      return;
     }
+    setMessage("Wallet request opened. Approve it in your wallet to continue.");
   };
 
   const handleProfileSave = useCallback(async (options?: { silent?: boolean }) => {
@@ -454,8 +510,10 @@ export default function MePage() {
     }
     if (!error) {
       setProfileExists(true);
-      setWizardOpen(false);
-      setWizardStep(0);
+      if (!options?.silent) {
+        setWizardOpen(false);
+        setWizardStep(0);
+      }
       window.localStorage.setItem("profile-updated", new Date().toISOString());
       window.postMessage({ type: "profile-updated" }, window.location.origin);
     }
@@ -482,6 +540,20 @@ export default function MePage() {
     await supabase.auth.signOut();
   };
 
+  const handleAvatarEditorClose = useCallback(() => {
+    setAvatarEditorOpen(false);
+  }, []);
+
+  const handleAvatarSaved = useCallback((avatarUrl: string, version: number) => {
+    setProfile((prev) => ({ ...prev, avatarUrl }));
+    setAvatarImageVersion(version);
+    setMessage("Avatar saved.");
+  }, []);
+
+  const handleAvatarError = useCallback((nextMessage: string) => {
+    setMessage(nextMessage);
+  }, []);
+
   const handleLinkEmail = async (emailValue: string) => {
     if (!emailValue.trim()) {
       setMessage("Enter an email address to link.");
@@ -498,55 +570,8 @@ export default function MePage() {
     );
   };
 
-  const handleAvatarUpload = async () => {
-    if (!user) {
-      setMessage("Please sign in first.");
-      return;
-    }
-    if (!avatarFile) {
-      setMessage("Choose an avatar image to upload.");
-      return;
-    }
-    setLoading(true);
-    setMessage("");
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session) {
-      setLoading(false);
-      setMessage("Please sign in again.");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("file", avatarFile);
-    const res = await fetch("/api/avatars", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${sessionData.session.access_token}`,
-      },
-      body: formData,
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      setLoading(false);
-      setMessage(json.error || "Avatar upload failed.");
-      return;
-    }
-
-    const publicUrl = json.url as string;
-    setProfile((prev) => ({ ...prev, avatarUrl: publicUrl }));
-
-    if (profileExists) {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ avatar_url: publicUrl })
-        .eq("user_id", user.id);
-      if (error) {
-        setMessage(error.message);
-      } else {
-        setMessage("Avatar uploaded.");
-      }
-    }
-    setLoading(false);
+  const openAvatarEditor = () => {
+    setAvatarEditorOpen(true);
   };
 
   return (
@@ -742,6 +767,15 @@ export default function MePage() {
           </div>
         </div>
       ) : null}
+      <AvatarEditorModal
+        open={avatarEditorOpen}
+        user={user}
+        profileExists={profileExists}
+        supabase={supabase}
+        onClose={handleAvatarEditorClose}
+        onSaved={handleAvatarSaved}
+        onError={handleAvatarError}
+      />
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-3xl font-semibold">Your Profile</h1>
@@ -770,10 +804,10 @@ export default function MePage() {
             <button
               type="button"
               onClick={handleEmailSignIn}
-              className="rounded-lg border border-border bg-muted px-3 py-2 text-sm hover:bg-muted/70"
+              className="rounded-lg border border-border bg-muted px-3 py-2 text-sm transition-all duration-150 hover:border-foreground/30 hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               disabled={loading || !email}
             >
-              Send magic link
+              {authAction === "email" ? "Sending..." : "Send magic link"}
             </button>
           </div>
 
@@ -783,21 +817,58 @@ export default function MePage() {
               <button
                 type="button"
                 onClick={() => handleWeb3SignIn("ethereum")}
-                className="rounded-lg border border-border bg-muted px-3 py-2 text-sm hover:bg-muted/70"
+                className="rounded-lg border border-border bg-muted px-3 py-2 text-sm transition-all duration-150 hover:border-foreground/30 hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={loading}
               >
-                Sign in with Ethereum
+                {authAction === "ethereum" ? "Opening wallet..." : "Sign in with Ethereum"}
               </button>
               <button
                 type="button"
                 onClick={() => handleWeb3SignIn("solana")}
-                className="rounded-lg border border-border bg-muted px-3 py-2 text-sm hover:bg-muted/70"
+                className="rounded-lg border border-border bg-muted px-3 py-2 text-sm transition-all duration-150 hover:border-foreground/30 hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={loading}
               >
-                Sign in with Solana
+                {authAction === "solana" ? "Opening wallet..." : "Sign in with Solana"}
               </button>
             </div>
+            {isMobile ? (
+              <div className="text-xs text-muted-foreground">
+                Ethereum mobile sign-in works best inside a wallet browser:
+                {" "}
+                {currentUrl ? (
+                  <>
+                    <a
+                      href={buildMetaMaskDappLink(currentUrl)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline underline-offset-2 hover:text-foreground"
+                    >
+                      Open in MetaMask
+                    </a>
+                    {" · "}
+                    <a
+                      href={buildCoinbaseDappLink(currentUrl)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline underline-offset-2 hover:text-foreground"
+                    >
+                      Open in Coinbase Wallet
+                    </a>
+                  </>
+                ) : null}
+              </div>
+            ) : null}
           </div>
+
+          {message ? (
+            <div
+              role="status"
+              aria-live="polite"
+              className="rounded-lg border border-border bg-background px-3 py-2 text-xs text-muted-foreground"
+            >
+              {message}
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="space-y-4 rounded-xl border border-border bg-card p-6">
@@ -819,7 +890,10 @@ export default function MePage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setWizardOpen(true)}
+                    onClick={() => {
+                      setWizardAutoOpened(false);
+                      setWizardOpen(true);
+                    }}
                     className="rounded-lg border border-border px-3 py-1 text-xs hover:bg-muted"
                   >
                     Open profile wizard
@@ -874,32 +948,26 @@ export default function MePage() {
             <div className="md:col-span-2">
               <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-background p-4">
                 <div className="h-20 w-20 overflow-hidden rounded-full border border-border bg-muted">
-                  {avatarPreview || profile.avatarUrl ? (
+                  {profile.avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={avatarPreview ?? profile.avatarUrl}
-                      alt="Profile avatar preview"
+                      src={withCacheBuster(profile.avatarUrl, avatarImageVersion)}
+                      alt="Profile avatar"
                       className="h-full w-full object-cover"
                     />
                   ) : null}
                 </div>
                 <div className="space-y-2 text-sm">
                   <div className="font-semibold">Profile avatar</div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) =>
-                      setAvatarFile(event.target.files?.[0] ?? null)
-                    }
-                    className="text-xs"
-                  />
+                  <p className="text-xs text-muted-foreground">
+                    Edit in a modal, crop to square, then confirm save.
+                  </p>
                   <button
                     type="button"
-                    onClick={handleAvatarUpload}
+                    onClick={openAvatarEditor}
                     className="rounded-lg border border-border px-3 py-2 text-xs hover:bg-muted"
-                    disabled={loading}
                   >
-                    Upload avatar
+                    Edit avatar
                   </button>
                 </div>
               </div>
@@ -1091,6 +1159,55 @@ function getWalletFromUser(user: User | null) {
     if (data?.custom_claims?.address) return data.custom_claims.address;
   }
   return null;
+}
+
+type Eip1193Provider = {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+  providers?: Eip1193Provider[];
+  isMetaMask?: boolean;
+  isCoinbaseWallet?: boolean;
+};
+
+function resolveEthereumWallet() {
+  if (typeof window === "undefined") return null;
+  const injected = (window as Window & { ethereum?: Eip1193Provider }).ethereum;
+  if (!injected) return null;
+
+  const providers = Array.isArray(injected.providers)
+    ? injected.providers
+    : [injected];
+  const provider =
+    providers.find((item) => typeof item?.request === "function" && item.isMetaMask) ??
+    providers.find(
+      (item) => typeof item?.request === "function" && item.isCoinbaseWallet,
+    ) ??
+    providers.find((item) => typeof item?.request === "function") ??
+    null;
+
+  return provider;
+}
+
+function isMobileBrowser() {
+  if (typeof navigator === "undefined") return false;
+  return /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+
+function buildMetaMaskDappLink(url: string) {
+  if (!url) return "https://metamask.app.link/";
+  const stripped = url.replace(/^https?:\/\//, "");
+  return `https://metamask.app.link/dapp/${stripped}`;
+}
+
+function buildCoinbaseDappLink(url: string) {
+  if (!url) return "https://go.cb-w.com/";
+  return `https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(url)}`;
+}
+
+function withCacheBuster(url: string, version?: number) {
+  if (!url) return url;
+  if (!version) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}v=${version}`;
 }
 
 function inferRoleSuggestions(

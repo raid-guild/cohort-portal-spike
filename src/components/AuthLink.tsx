@@ -9,6 +9,7 @@ export function AuthLink() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
   const [signedIn, setSignedIn] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarVersion, setAvatarVersion] = useState<number>(0);
   const [initials, setInitials] = useState<string>("RG");
   const [isPaid, setIsPaid] = useState(false);
 
@@ -20,6 +21,7 @@ export function AuthLink() {
         .eq("user_id", userId)
         .maybeSingle();
       setAvatarUrl(data?.avatar_url ?? null);
+      setAvatarVersion(Date.now());
       const nameSource = data?.display_name || data?.handle || "";
       setInitials(getInitials(nameSource));
     },
@@ -108,7 +110,11 @@ export function AuthLink() {
           <span className="relative inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-[10px] font-semibold text-muted-foreground">
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+              <img
+                src={withCacheBuster(avatarUrl, avatarVersion)}
+                alt=""
+                className="h-full w-full object-cover"
+              />
             ) : (
               initials
             )}
@@ -126,4 +132,11 @@ function getInitials(value: string) {
   if (!trimmed) return "RG";
   const parts = trimmed.split(/\s+/).slice(0, 2);
   return parts.map((part) => part[0]?.toUpperCase()).join("");
+}
+
+function withCacheBuster(url: string, version?: number) {
+  if (!url) return url;
+  if (!version) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}v=${version}`;
 }
