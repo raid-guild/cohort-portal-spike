@@ -248,7 +248,14 @@ export function AvatarEditorModal({
         return;
       }
 
-      const publicUrl = json.url as string;
+      const publicUrl =
+        typeof json?.url === "string" && json.url.trim() ? json.url : null;
+      if (!publicUrl) {
+        const errorMessage = "Avatar upload response was missing a valid URL.";
+        setStatusMessage(errorMessage);
+        onError(errorMessage);
+        return;
+      }
       if (profileExists) {
         const { error } = await supabase
           .from("profiles")

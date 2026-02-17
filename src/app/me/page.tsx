@@ -540,6 +540,20 @@ export default function MePage() {
     await supabase.auth.signOut();
   };
 
+  const handleAvatarEditorClose = useCallback(() => {
+    setAvatarEditorOpen(false);
+  }, []);
+
+  const handleAvatarSaved = useCallback((avatarUrl: string, version: number) => {
+    setProfile((prev) => ({ ...prev, avatarUrl }));
+    setAvatarImageVersion(version);
+    setMessage("Avatar saved.");
+  }, []);
+
+  const handleAvatarError = useCallback((nextMessage: string) => {
+    setMessage(nextMessage);
+  }, []);
+
   const handleLinkEmail = async (emailValue: string) => {
     if (!emailValue.trim()) {
       setMessage("Enter an email address to link.");
@@ -758,13 +772,9 @@ export default function MePage() {
         user={user}
         profileExists={profileExists}
         supabase={supabase}
-        onClose={() => setAvatarEditorOpen(false)}
-        onSaved={(avatarUrl, version) => {
-          setProfile((prev) => ({ ...prev, avatarUrl }));
-          setAvatarImageVersion(version);
-          setMessage("Avatar saved.");
-        }}
-        onError={(nextMessage) => setMessage(nextMessage)}
+        onClose={handleAvatarEditorClose}
+        onSaved={handleAvatarSaved}
+        onError={handleAvatarError}
       />
       <div>
         <div className="flex flex-wrap items-center gap-2">
