@@ -482,52 +482,56 @@ async function createCroppedAvatarBlob({
   panY: number;
 }) {
   const objectUrl = URL.createObjectURL(file);
-  const img = document.createElement("img");
-  img.decoding = "async";
-  img.src = objectUrl;
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve();
-    img.onerror = () => reject(new Error("Image failed to load."));
-  });
 
-  const placement = computeAvatarPlacement({
-    imageSize,
-    frameSize,
-    zoom,
-    panX,
-    panY,
-  });
-  const sourceX = (0 - placement.left) / placement.renderScale;
-  const sourceY = (0 - placement.top) / placement.renderScale;
-  const sourceSize = frameSize / placement.renderScale;
+  try {
+    const img = document.createElement("img");
+    img.decoding = "async";
+    img.src = objectUrl;
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("Image failed to load."));
+    });
 
-  const canvas = document.createElement("canvas");
-  canvas.width = frameSize;
-  canvas.height = frameSize;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
+    const placement = computeAvatarPlacement({
+      imageSize,
+      frameSize,
+      zoom,
+      panX,
+      panY,
+    });
+    const sourceX = (0 - placement.left) / placement.renderScale;
+    const sourceY = (0 - placement.top) / placement.renderScale;
+    const sourceSize = frameSize / placement.renderScale;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = frameSize;
+    canvas.height = frameSize;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("Canvas unavailable.");
+    }
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(
+      img,
+      sourceX,
+      sourceY,
+      sourceSize,
+      sourceSize,
+      0,
+      0,
+      frameSize,
+      frameSize,
+    );
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((nextBlob) => resolve(nextBlob), "image/jpeg", 0.92);
+    });
+    if (!blob) {
+      throw new Error("Unable to create avatar image.");
+    }
+    return blob;
+  } finally {
     URL.revokeObjectURL(objectUrl);
-    throw new Error("Canvas unavailable.");
   }
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(
-    img,
-    sourceX,
-    sourceY,
-    sourceSize,
-    sourceSize,
-    0,
-    0,
-    frameSize,
-    frameSize,
-  );
-  URL.revokeObjectURL(objectUrl);
-  const blob = await new Promise<Blob | null>((resolve) => {
-    canvas.toBlob((nextBlob) => resolve(nextBlob), "image/jpeg", 0.92);
-  });
-  if (!blob) {
-    throw new Error("Unable to create avatar image.");
-  }
-  return blob;
 }
