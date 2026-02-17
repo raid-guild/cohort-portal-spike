@@ -221,6 +221,108 @@ export type Database = {
         }
         Relationships: []
       }
+      guild_grimoire_notes: {
+        Row: {
+          id: string
+          user_id: string
+          content_type: string
+          text_content: string | null
+          image_url: string | null
+          audio_url: string | null
+          audio_duration_sec: number | null
+          visibility: string
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          content_type: string
+          text_content?: string | null
+          image_url?: string | null
+          audio_url?: string | null
+          audio_duration_sec?: number | null
+          visibility?: string
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          content_type?: string
+          text_content?: string | null
+          image_url?: string | null
+          audio_url?: string | null
+          audio_duration_sec?: number | null
+          visibility?: string
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
+      guild_grimoire_tags: {
+        Row: {
+          id: string
+          slug: string
+          label: string
+          created_by: string
+          created_at: string
+          is_active: boolean
+        }
+        Insert: {
+          id?: string
+          slug: string
+          label: string
+          created_by: string
+          created_at?: string
+          is_active?: boolean
+        }
+        Update: {
+          id?: string
+          slug?: string
+          label?: string
+          created_by?: string
+          created_at?: string
+          is_active?: boolean
+        }
+        Relationships: []
+      }
+      guild_grimoire_note_tags: {
+        Row: {
+          note_id: string
+          tag_id: string
+          created_at: string
+        }
+        Insert: {
+          note_id: string
+          tag_id: string
+          created_at?: string
+        }
+        Update: {
+          note_id?: string
+          tag_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guild_grimoire_note_tags_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "guild_grimoire_notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guild_grimoire_note_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "guild_grimoire_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       badge_definitions: {
         Row: {
           created_at: string | null
