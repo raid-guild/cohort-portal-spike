@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/integrations/sendgrid/process",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}
+

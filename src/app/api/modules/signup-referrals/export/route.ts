@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
-import { supabaseAdminClient } from "@/lib/supabase/admin";
-import { supabaseServerClient } from "@/lib/supabase/server";
+import { requireHost } from "../_auth";
 
 type ReferralRow = {
   id: string;
@@ -13,39 +12,6 @@ function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
-async function requireHostOrAdmin(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return { ok: false as const, status: 401 as const, error: "Missing auth token." };
-  }
-
-  const token = authHeader.replace("Bearer ", "");
-  const supabase = supabaseServerClient();
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
-
-  if (userError || !userData.user) {
-    return { ok: false as const, status: 401 as const, error: "Invalid auth token." };
-  }
-
-  const admin = supabaseAdminClient();
-  const { data: roleRows, error: roleError } = await admin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userData.user.id);
-
-  if (roleError) {
-    return { ok: false as const, status: 500 as const, error: roleError.message };
-  }
-
-  const roles = roleRows?.map((row) => row.role) ?? [];
-  const allowed = roles.includes("host") || roles.includes("admin");
-  if (!allowed) {
-    return { ok: false as const, status: 403 as const, error: "Host role required." };
-  }
-
-  return { ok: true as const, admin };
-}
-
 function csvEscape(value: string) {
   if (value.includes("\n") || value.includes("\r") || value.includes(",") || value.includes('"')) {
     return `"${value.replaceAll('"', '""')}"`;
@@ -54,9 +20,9 @@ function csvEscape(value: string) {
 }
 
 export async function POST(request: NextRequest) {
-  const gate = await requireHostOrAdmin(request);
-  if (!gate.ok) {
-    return Response.json({ error: gate.error }, { status: gate.status });
+  const gate = await requireHost(request);
+  if ("error" in gate) {
+    return Response.json({ error: gate.error }, { status: gate.status ?? 500 });
   }
 
   let body: { ids?: unknown };
