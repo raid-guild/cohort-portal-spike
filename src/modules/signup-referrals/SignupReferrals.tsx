@@ -34,6 +34,20 @@ type OutboxListResponse = {
   error?: string;
 };
 
+type ProcessOutboxResponse = {
+  ok?: boolean;
+  processed?: number;
+  sent?: number;
+  failed?: number;
+  error?: string;
+};
+
+type BackfillOutboxResponse = {
+  ok?: boolean;
+  queuedCount?: number;
+  error?: string;
+};
+
 async function readJsonSafe<T>(res: Response): Promise<T | null> {
   try {
     return (await res.json()) as T;
@@ -294,6 +308,65 @@ export function SignupReferrals() {
     }
   };
 
+  const runOutboxNow = async () => {
+    if (!token) return;
+    setOutboxLoading(true);
+    setOutboxMessage("");
+
+    try {
+      const res = await fetch("/api/modules/signup-referrals/outbox/process", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ limit: 100 }),
+      });
+
+      const json = await readJsonSafe<ProcessOutboxResponse>(res);
+      if (!res.ok) {
+        throw new Error(json?.error || `Failed to run processor (HTTP ${res.status}).`);
+      }
+
+      setOutboxMessage(
+        `Processed ${json?.processed ?? 0} event(s): sent ${json?.sent ?? 0}, failed ${json?.failed ?? 0}.`,
+      );
+      await loadOutboxFailures(token);
+    } catch (error) {
+      setOutboxMessage(error instanceof Error ? error.message : "Failed to run processor.");
+    } finally {
+      setOutboxLoading(false);
+    }
+  };
+
+  const backfillOutbox = async () => {
+    if (!token) return;
+    setOutboxLoading(true);
+    setOutboxMessage("");
+
+    try {
+      const res = await fetch("/api/modules/signup-referrals/outbox/backfill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ limit: 1000 }),
+      });
+
+      const json = await readJsonSafe<BackfillOutboxResponse>(res);
+      if (!res.ok) {
+        throw new Error(json?.error || `Failed to backfill outbox (HTTP ${res.status}).`);
+      }
+
+      setOutboxMessage(`Backfill queued ${json?.queuedCount ?? 0} event(s).`);
+    } catch (error) {
+      setOutboxMessage(error instanceof Error ? error.message : "Failed to backfill outbox.");
+    } finally {
+      setOutboxLoading(false);
+    }
+  };
+
   if (!token) {
     return (
       <div style={{ padding: 16 }}>
@@ -483,6 +556,20 @@ export function SignupReferrals() {
       </div>
 
       <div style={{ display: "flex", gap: 8, marginTop: 12, marginBottom: 12 }}>
+        <button
+          onClick={backfillOutbox}
+          disabled={outboxLoading}
+          style={{ padding: "8px 12px" }}
+        >
+          Backfill existing referrals
+        </button>
+        <button
+          onClick={runOutboxNow}
+          disabled={outboxLoading}
+          style={{ padding: "8px 12px" }}
+        >
+          Run processor now
+        </button>
         <button
           onClick={() => {
             if (!token) return;

@@ -969,6 +969,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      backfill_email_referral_outbox: {
+        Args: {
+          p_limit?: number
+        }
+        Returns: number
+      }
       signup_referrals_list: {
         Args: {
           p_limit: number
