@@ -88,7 +88,21 @@ export async function GET(request: NextRequest) {
           await handleEmailReferralCreated(row.payload);
           break;
         default:
-          throw new Error(`Unsupported event_type: ${row.event_type}`);
+          const { error: unsupportedError } = await admin
+            .from("integration_outbox")
+            .update({
+              status: "failed",
+              last_error: `Unsupported event_type: ${row.event_type}`,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", row.id);
+
+          if (unsupportedError) {
+            throw new Error(unsupportedError.message);
+          }
+
+          failed += 1;
+          continue;
       }
 
       const { error } = await admin
