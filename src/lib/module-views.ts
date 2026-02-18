@@ -34,7 +34,9 @@ export function getSurfaceViewConfig(
 
   if (!hasStoredSurface) {
     const defaultVisible = DEFAULT_VISIBLE_MODULES_BY_SURFACE[surface] ?? moduleIds;
-    const defaultVisibleSet = new Set(defaultVisible.filter((id) => knownIds.has(id)));
+    const intersection = defaultVisible.filter((id) => knownIds.has(id));
+    // If defaults drift from registry/moduleIds, avoid hiding every module.
+    const defaultVisibleSet = new Set(intersection.length > 0 ? intersection : moduleIds);
     normalizedHidden = moduleIds.filter((id) => !defaultVisibleSet.has(id));
   }
 
