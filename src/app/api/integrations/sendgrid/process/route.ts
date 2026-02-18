@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 const BATCH_SIZE = 50;
 const MAX_ATTEMPTS = 8;
 const MAX_BACKOFF_SECONDS = 60 * 60;
+const PROCESSING_GRACE_MS = 10 * 60 * 1000;
 
 type OutboxRow = {
   id: number;
@@ -46,6 +47,22 @@ export async function GET(request: NextRequest) {
 
   const admin = supabaseAdminClient();
   const nowIso = new Date().toISOString();
+  const staleProcessingThresholdIso = new Date(
+    Date.now() - PROCESSING_GRACE_MS,
+  ).toISOString();
+
+  const { error: recoverError } = await admin
+    .from("integration_outbox")
+    .update({
+      status: "pending",
+      updated_at: nowIso,
+    })
+    .eq("status", "processing")
+    .lt("updated_at", staleProcessingThresholdIso);
+
+  if (recoverError) {
+    return Response.json({ error: recoverError.message }, { status: 500 });
+  }
 
   const { data: pendingRows, error: pendingError } = await admin
     .from("integration_outbox")
