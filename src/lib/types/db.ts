@@ -191,6 +191,45 @@ export type Database = {
         }
         Relationships: []
       }
+      integration_outbox: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          event_type: string
+          id: number
+          last_error: string | null
+          next_attempt_at: string
+          payload: Json
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          event_type: string
+          id?: never
+          last_error?: string | null
+          next_attempt_at?: string
+          payload?: Json
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          event_type?: string
+          id?: never
+          last_error?: string | null
+          next_attempt_at?: string
+          payload?: Json
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       entitlements: {
         Row: {
           created_at: string | null
@@ -930,6 +969,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      backfill_email_referral_outbox: {
+        Args: {
+          p_limit?: number
+        }
+        Returns: number
+      }
       signup_referrals_list: {
         Args: {
           p_limit: number
@@ -1077,4 +1122,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

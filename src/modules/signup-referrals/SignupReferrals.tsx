@@ -17,6 +17,37 @@ type ListResponse = {
   error?: string;
 };
 
+type OutboxItem = {
+  id: number;
+  eventType: string;
+  status: string;
+  attemptCount: number;
+  lastError: string | null;
+  nextAttemptAt: string | null;
+  createdAt: string | null;
+  email: string;
+  emailReferralId: string | null;
+};
+
+type OutboxListResponse = {
+  items: OutboxItem[];
+  error?: string;
+};
+
+type ProcessOutboxResponse = {
+  ok?: boolean;
+  processed?: number;
+  sent?: number;
+  failed?: number;
+  error?: string;
+};
+
+type BackfillOutboxResponse = {
+  ok?: boolean;
+  queuedCount?: number;
+  error?: string;
+};
+
 async function readJsonSafe<T>(res: Response): Promise<T | null> {
   try {
     return (await res.json()) as T;
@@ -52,6 +83,10 @@ export function SignupReferrals() {
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string>("");
+  const [outboxItems, setOutboxItems] = useState<OutboxItem[]>([]);
+  const [outboxSelected, setOutboxSelected] = useState<Record<number, boolean>>({});
+  const [outboxLoading, setOutboxLoading] = useState(false);
+  const [outboxMessage, setOutboxMessage] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -102,6 +137,7 @@ export function SignupReferrals() {
       load();
       setCursor(0);
       setSelected({});
+      setOutboxSelected({});
     });
 
     return () => {
@@ -139,6 +175,28 @@ export function SignupReferrals() {
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, cursor, limit, status, committedQ]);
+
+  const loadOutboxFailures = async (authToken: string) => {
+    const res = await fetch("/api/modules/signup-referrals/outbox?limit=100", {
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
+    const json = await readJsonSafe<OutboxListResponse>(res);
+    if (!res.ok) {
+      throw new Error(json?.error || `Failed to load outbox failures (HTTP ${res.status}).`);
+    }
+    setOutboxItems(json?.items ?? []);
+  };
+
+  useEffect(() => {
+    if (!token || !isHost) return;
+    setOutboxMessage("");
+    setOutboxLoading(true);
+    loadOutboxFailures(token)
+      .catch((error) =>
+        setOutboxMessage(error instanceof Error ? error.message : "Failed to load outbox failures."),
+      )
+      .finally(() => setOutboxLoading(false));
+  }, [token, isHost]);
 
   const onSearch = () => {
     if (!token) return;
@@ -200,6 +258,112 @@ export function SignupReferrals() {
       setMessage(error instanceof Error ? error.message : "Export failed.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const selectedOutboxIds = Object.entries(outboxSelected)
+    .filter(([, value]) => value)
+    .map(([id]) => Number(id))
+    .filter((id) => Number.isInteger(id) && id > 0);
+
+  const toggleAllOutbox = () => {
+    const allSelected = outboxItems.length > 0 && outboxItems.every((row) => outboxSelected[row.id]);
+    if (allSelected) {
+      setOutboxSelected({});
+      return;
+    }
+
+    const next: Record<number, boolean> = {};
+    for (const row of outboxItems) next[row.id] = true;
+    setOutboxSelected(next);
+  };
+
+  const requeueOutbox = async () => {
+    if (!token || selectedOutboxIds.length === 0) return;
+    setOutboxLoading(true);
+    setOutboxMessage("");
+
+    try {
+      const res = await fetch("/api/modules/signup-referrals/outbox", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ids: selectedOutboxIds }),
+      });
+
+      const json = await readJsonSafe<{ error?: string; updatedCount?: number }>(res);
+      if (!res.ok) {
+        throw new Error(json?.error || `Failed to requeue events (HTTP ${res.status}).`);
+      }
+
+      setOutboxMessage(`Requeued ${json?.updatedCount ?? 0} event(s).`);
+      setOutboxSelected({});
+      await loadOutboxFailures(token);
+    } catch (error) {
+      setOutboxMessage(error instanceof Error ? error.message : "Failed to requeue events.");
+    } finally {
+      setOutboxLoading(false);
+    }
+  };
+
+  const runOutboxNow = async () => {
+    if (!token) return;
+    setOutboxLoading(true);
+    setOutboxMessage("");
+
+    try {
+      const res = await fetch("/api/modules/signup-referrals/outbox/process", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ limit: 100 }),
+      });
+
+      const json = await readJsonSafe<ProcessOutboxResponse>(res);
+      if (!res.ok) {
+        throw new Error(json?.error || `Failed to run processor (HTTP ${res.status}).`);
+      }
+
+      setOutboxMessage(
+        `Processed ${json?.processed ?? 0} event(s): sent ${json?.sent ?? 0}, failed ${json?.failed ?? 0}.`,
+      );
+      await loadOutboxFailures(token);
+    } catch (error) {
+      setOutboxMessage(error instanceof Error ? error.message : "Failed to run processor.");
+    } finally {
+      setOutboxLoading(false);
+    }
+  };
+
+  const backfillOutbox = async () => {
+    if (!token) return;
+    setOutboxLoading(true);
+    setOutboxMessage("");
+
+    try {
+      const res = await fetch("/api/modules/signup-referrals/outbox/backfill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ limit: 1000 }),
+      });
+
+      const json = await readJsonSafe<BackfillOutboxResponse>(res);
+      if (!res.ok) {
+        throw new Error(json?.error || `Failed to backfill outbox (HTTP ${res.status}).`);
+      }
+
+      setOutboxMessage(`Backfill queued ${json?.queuedCount ?? 0} event(s).`);
+    } catch (error) {
+      setOutboxMessage(error instanceof Error ? error.message : "Failed to backfill outbox.");
+    } finally {
+      setOutboxLoading(false);
     }
   };
 
@@ -383,6 +547,119 @@ export function SignupReferrals() {
         </button>
         <span style={{ fontSize: 12, opacity: 0.75 }}>Offset: {cursor}</span>
       </div>
+
+      <hr style={{ margin: "24px 0", border: 0, borderTop: "1px solid #e5e7eb" }} />
+
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+        <h2 style={{ fontSize: 16, fontWeight: 600 }}>SendGrid Failures</h2>
+        <div style={{ fontSize: 12, opacity: 0.75 }}>Selected: {selectedOutboxIds.length}</div>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginTop: 12, marginBottom: 12 }}>
+        <button
+          onClick={backfillOutbox}
+          disabled={outboxLoading}
+          style={{ padding: "8px 12px" }}
+        >
+          Backfill existing referrals
+        </button>
+        <button
+          onClick={runOutboxNow}
+          disabled={outboxLoading}
+          style={{ padding: "8px 12px" }}
+        >
+          Run processor now
+        </button>
+        <button
+          onClick={() => {
+            if (!token) return;
+            setOutboxLoading(true);
+            setOutboxMessage("");
+            loadOutboxFailures(token)
+              .catch((error) =>
+                setOutboxMessage(
+                  error instanceof Error ? error.message : "Failed to load outbox failures.",
+                ),
+              )
+              .finally(() => setOutboxLoading(false));
+          }}
+          disabled={outboxLoading}
+          style={{ padding: "8px 12px" }}
+        >
+          Refresh failures
+        </button>
+        <button
+          onClick={requeueOutbox}
+          disabled={outboxLoading || selectedOutboxIds.length === 0}
+          style={{ padding: "8px 12px" }}
+        >
+          Requeue selected
+        </button>
+      </div>
+
+      {outboxMessage ? (
+        <div
+          style={{
+            marginBottom: 12,
+            color: outboxMessage.toLowerCase().includes("failed") ? "#b91c1c" : "#065f46",
+          }}
+        >
+          {outboxMessage}
+        </div>
+      ) : null}
+
+      {outboxLoading ? <div style={{ marginBottom: 12 }}>Loading failures…</div> : null}
+
+      {!outboxLoading && outboxItems.length === 0 ? (
+        <div style={{ fontSize: 14, opacity: 0.8 }}>No failed SendGrid events.</div>
+      ) : null}
+
+      {outboxItems.length > 0 ? (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: 8 }}>
+                  <input
+                    type="checkbox"
+                    onChange={toggleAllOutbox}
+                    checked={outboxItems.length > 0 && outboxItems.every((row) => outboxSelected[row.id])}
+                  />
+                </th>
+                <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: 8 }}>Email</th>
+                <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: 8 }}>Attempts</th>
+                <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: 8 }}>Error</th>
+                <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: 8 }}>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {outboxItems.map((row) => (
+                <tr key={row.id}>
+                  <td style={{ borderBottom: "1px solid #f3f4f6", padding: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(outboxSelected[row.id])}
+                      onChange={(e) =>
+                        setOutboxSelected((prev) => ({ ...prev, [row.id]: e.target.checked }))
+                      }
+                    />
+                  </td>
+                  <td style={{ borderBottom: "1px solid #f3f4f6", padding: 8 }}>{row.email || "(missing)"}</td>
+                  <td style={{ borderBottom: "1px solid #f3f4f6", padding: 8 }}>{row.attemptCount}</td>
+                  <td style={{ borderBottom: "1px solid #f3f4f6", padding: 8, maxWidth: 420 }}>
+                    <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                      {row.lastError ?? ""}
+                    </div>
+                  </td>
+                  <td style={{ borderBottom: "1px solid #f3f4f6", padding: 8 }}>
+                    {formatDate(row.createdAt)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
     </div>
   );
 }
