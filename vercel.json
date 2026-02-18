@@ -3,8 +3,7 @@
   "crons": [
     {
       "path": "/api/integrations/sendgrid/process",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 14 * * *"
     }
   ]
 }
-
