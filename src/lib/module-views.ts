@@ -8,12 +8,18 @@ export type ModuleViewsConfig = {
   surfaces?: Record<string, ModuleViewSurfaceConfig>;
 };
 
+const DEFAULT_VISIBLE_MODULES_BY_SURFACE: Record<string, string[]> = {
+  // Keep first-time /me focused; users can enable more via Customize.
+  me: ["profile-completion", "cohort-application"],
+};
+
 export function getSurfaceViewConfig(
   config: ModuleViewsConfig | null | undefined,
   surface: string,
   moduleIds: string[],
 ) {
   const stored = config?.surfaces?.[surface];
+  const hasStoredSurface = Boolean(stored);
   const knownIds = new Set(moduleIds);
   const order = Array.isArray(stored?.order) ? stored.order : [];
   const normalizedOrder = order.filter((id) => knownIds.has(id));
@@ -24,7 +30,13 @@ export function getSurfaceViewConfig(
   });
 
   const hidden = Array.isArray(stored?.hidden) ? stored.hidden : [];
-  const normalizedHidden = hidden.filter((id) => knownIds.has(id));
+  let normalizedHidden = hidden.filter((id) => knownIds.has(id));
+
+  if (!hasStoredSurface) {
+    const defaultVisible = DEFAULT_VISIBLE_MODULES_BY_SURFACE[surface] ?? moduleIds;
+    const defaultVisibleSet = new Set(defaultVisible.filter((id) => knownIds.has(id)));
+    normalizedHidden = moduleIds.filter((id) => !defaultVisibleSet.has(id));
+  }
 
   return {
     order: normalizedOrder,
