@@ -212,7 +212,17 @@ export function DailyBrief() {
       // Running outside portal broker: navigate directly.
     }
 
-    window.location.assign(`/modules/guild-grimoire?${params.toString()}`);
+    const href = `/modules/guild-grimoire?${params.toString()}`;
+    // If Daily Brief is running inside a module dialog iframe, break out to the top app.
+    try {
+      if (window.top && window.top !== window) {
+        window.top.location.assign(href);
+        return;
+      }
+    } catch {
+      // Cross-origin top access can throw; fall back to current window navigation.
+    }
+    window.location.assign(href);
   };
 
   return (
