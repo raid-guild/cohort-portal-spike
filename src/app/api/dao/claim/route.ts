@@ -216,10 +216,13 @@ export async function POST(request: NextRequest) {
   }
 
   if (claimedProfileHandle) {
-    await admin
+    const { error: profileHandleError } = await admin
       .from("dao_memberships")
       .update({ profile_handle: claimedProfileHandle })
       .eq("id", membership.id);
+    if (profileHandleError) {
+      return Response.json({ error: profileHandleError.message }, { status: 500 });
+    }
   }
 
   const entitlementMetadata = {

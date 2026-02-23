@@ -510,17 +510,45 @@ async function seedClaimableProfiles({
   }));
 
   const handles = rows.map((row) => row.handle);
-  const { data: existingRows, error: existingError } = await supabase
-    .from("profiles")
-    .select("handle")
-    .in("handle", handles);
+  const wallets = rows.map((row) => row.wallet_address);
+  const existingHandles = new Set();
+  const existingWallets = new Set();
 
-  if (existingError) {
-    throw new Error(`Failed checking existing profiles: ${existingError.message}`);
+  for (const chunk of chunkArray(handles, 500)) {
+    const { data: existingRows, error: existingError } = await supabase
+      .from("profiles")
+      .select("handle")
+      .in("handle", chunk);
+
+    if (existingError) {
+      throw new Error(`Failed checking existing profile handles: ${existingError.message}`);
+    }
+
+    for (const row of existingRows ?? []) {
+      if (row.handle) existingHandles.add(row.handle);
+    }
   }
 
-  const existing = new Set((existingRows ?? []).map((row) => row.handle));
-  const missing = rows.filter((row) => !existing.has(row.handle));
+  for (const chunk of chunkArray(wallets, 500)) {
+    const { data: existingRows, error: existingError } = await supabase
+      .from("profiles")
+      .select("wallet_address")
+      .in("wallet_address", chunk);
+
+    if (existingError) {
+      throw new Error(`Failed checking existing profile wallets: ${existingError.message}`);
+    }
+
+    for (const row of existingRows ?? []) {
+      if (row.wallet_address) existingWallets.add(row.wallet_address.toLowerCase());
+    }
+  }
+
+  const missing = rows.filter(
+    (row) =>
+      !existingHandles.has(row.handle) &&
+      !existingWallets.has(row.wallet_address.toLowerCase()),
+  );
   if (!missing.length) {
     console.log("No missing claimable profiles to insert.");
     return;

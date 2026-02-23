@@ -32,8 +32,9 @@ export function getWalletFromUser(user: User | null) {
 export function normalizeWalletAddress(value?: string | null) {
   if (!value || typeof value !== "string") return null;
   const trimmed = value.trim();
-  if (!/^0x[a-fA-F0-9]{40}$/.test(trimmed)) return null;
-  return trimmed.toLowerCase();
+  if (/^0x[a-fA-F0-9]{40}$/.test(trimmed)) return trimmed.toLowerCase();
+  if (isLikelySolanaAddress(trimmed)) return trimmed;
+  return null;
 }
 
 function extractWalletFromIdentity(
@@ -54,4 +55,8 @@ function extractWalletFromIdentity(
     return normalizeWalletAddress(value.custom_claims.address);
   }
   return null;
+}
+
+function isLikelySolanaAddress(value: string) {
+  return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value);
 }
