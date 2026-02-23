@@ -79,6 +79,24 @@ type PortalRpcResponse = {
 - `ui.toast`
 - `module.open`
 
+### Cross-module navigation pattern
+Prefer cross-module navigation over direct cross-module table writes.
+
+- Keep each module authoritative for its own write APIs and tables.
+- From the source module, call `module.open` with the destination module ID.
+- Pass lightweight intent in `payload.params` (for example `mode=audio&source=daily-brief`) so the destination module can preselect UI state.
+- Add `capabilities.portalRpc.allowedActions` for `module.open` on the source module in `modules/registry.json`.
+
+Example:
+```ts
+const portalRpc = createPortalRpcClient("daily-brief");
+await portalRpc.call("module.open", {
+  moduleId: "guild-grimoire",
+  surface: "page",
+  params: { mode: "audio", source: "daily-brief" },
+});
+```
+
 ### Capabilities + origins
 Add `capabilities.portalRpc.allowedActions` and `allowedOrigins` in the registry entry.
 The portal broker enforces both.

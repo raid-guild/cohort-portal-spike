@@ -40,6 +40,13 @@
         "layout": "excerpt",
         "maxItems": 1,
         "showTitle": true
+      },
+      "capabilities": {
+        "portalRpc": {
+          "allowedActions": [
+            "module.open"
+          ]
+        }
       }
     },
     {

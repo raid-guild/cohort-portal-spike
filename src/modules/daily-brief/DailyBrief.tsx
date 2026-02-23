@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
+import { createPortalRpcClient } from "@/modules/_shared/portalRpc";
 
 type ViewerPayload = {
   handle?: string | null;
@@ -10,6 +11,9 @@ type ViewerPayload = {
 
 export function DailyBrief() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
+  const portalRpcRef = useRef<null | ((action: string, payload?: unknown) => Promise<unknown>)>(
+    null,
+  );
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [viewer, setViewer] = useState<ViewerPayload | null>(null);
   const [loading, setLoading] = useState(false);
@@ -23,6 +27,15 @@ export function DailyBrief() {
   const [markdownLoading, setMarkdownLoading] = useState(false);
   const [markdownError, setMarkdownError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const client = createPortalRpcClient("daily-brief");
+    portalRpcRef.current = client.call;
+    return () => {
+      portalRpcRef.current = null;
+      client.dispose();
+    };
+  }, []);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -176,6 +189,32 @@ export function DailyBrief() {
     }
   };
 
+  const handleRecordCheckIn = async () => {
+    if (!authToken) {
+      setMessage("Sign in to unlock your daily brief.");
+      return;
+    }
+
+    const params = new URLSearchParams({
+      mode: "audio",
+      source: "daily-brief",
+      tag: "daily-check-in",
+    });
+
+    try {
+      await portalRpcRef.current?.("module.open", {
+        moduleId: "guild-grimoire",
+        surface: "page",
+        params: Object.fromEntries(params.entries()),
+      });
+      return;
+    } catch {
+      // Running outside portal broker: navigate directly.
+    }
+
+    window.location.assign(`/modules/guild-grimoire?${params.toString()}`);
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -276,6 +315,7 @@ export function DailyBrief() {
             ) : null}
             <button
               type="button"
+              onClick={handleRecordCheckIn}
               className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted"
             >
               Record my check in

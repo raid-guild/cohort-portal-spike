@@ -94,6 +94,8 @@ export function GuildGrimoire() {
   const [filterVisibility, setFilterVisibility] = useState<
     GuildGrimoireVisibility | "all"
   >("all");
+  const [prefillTagLabel, setPrefillTagLabel] = useState<string | null>(null);
+  const prefillTagHandledRef = useRef(false);
 
   type FeedFilters = {
     mine: boolean;
@@ -109,6 +111,18 @@ export function GuildGrimoire() {
     visibility: "all",
   });
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedMode = params.get("mode");
+    const requestedTag = params.get("tag");
+    if (requestedMode === "text" || requestedMode === "image" || requestedMode === "audio") {
+      setMode(requestedMode);
+    }
+    if (requestedTag?.trim()) {
+      setPrefillTagLabel(requestedTag.trim());
+    }
+  }, []);
+
   const loadTags = useCallback(async (accessToken: string) => {
     const res = await fetch("/api/modules/guild-grimoire/tags", {
       cache: "no-store",
@@ -120,6 +134,64 @@ export function GuildGrimoire() {
     }
     setTags(json.tags ?? []);
   }, []);
+
+  useEffect(() => {
+    if (prefillTagHandledRef.current) return;
+    if (!prefillTagLabel) return;
+    if (!tags.length) return;
+
+    const normalized = prefillTagLabel.toLowerCase();
+    const existing = tags.find(
+      (tag) => tag.label.toLowerCase() === normalized || tag.slug.toLowerCase() === normalized,
+    );
+
+    if (existing) {
+      setSelectedTagIds((prev) => {
+        const next = new Set(prev);
+        next.add(existing.id);
+        return next;
+      });
+      prefillTagHandledRef.current = true;
+      return;
+    }
+
+    let cancelled = false;
+    const createPrefillTag = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) return;
+
+        const res = await fetch("/api/modules/guild-grimoire/tags", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ label: prefillTagLabel }),
+        });
+        const json = (await res.json()) as { tag?: GuildGrimoireTag; error?: string };
+        if (!res.ok || !json.tag || cancelled) return;
+
+        setSelectedTagIds((prev) => {
+          const next = new Set(prev);
+          next.add(json.tag!.id);
+          return next;
+        });
+        await loadTags(token);
+        if (!cancelled) {
+          prefillTagHandledRef.current = true;
+        }
+      } catch {
+        // Keep the composer usable if tag prefill fails.
+      }
+    };
+
+    void createPrefillTag();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadTags, prefillTagLabel, supabase, tags]);
 
   const loadFeed = useCallback(async (accessToken: string, filters: FeedFilters) => {
     setLoading(true);
