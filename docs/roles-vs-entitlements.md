@@ -25,6 +25,7 @@ Use entitlements for cohort participation, paid access, and approvals.
 Examples:
 - `cohort-approved` lets a user see the Billing module.
 - `cohort-access` unlocks paid modules and cohort tools.
+- `dao-member` can unlock DAO-member modules and is synced from DAO membership.
 
 Note:
 - `cohort-approved` is the pre-payment gate (application approved).

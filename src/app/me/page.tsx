@@ -9,6 +9,7 @@ import { RolePicker } from "@/components/RolePicker";
 import { AvatarEditorModal } from "@/components/profile/AvatarEditorModal";
 import type { ModuleEntry } from "@/lib/types";
 import type { ModuleViewsConfig } from "@/lib/module-views";
+import { getWalletFromUser } from "@/lib/wallet-address";
 import { PaidStar } from "@/components/PaidStar";
 import { RAID_GUILD_ROLES } from "@/lib/raidguild-roles";
 
@@ -1126,39 +1127,6 @@ export default function MePage() {
       )}
     </div>
   );
-}
-
-function getWalletFromUser(user: User | null) {
-  if (!user) return null;
-  const meta = user.user_metadata as
-    | {
-        wallet_address?: string;
-        address?: string;
-        walletAddress?: string;
-        custom_claims?: { address?: string };
-      }
-    | undefined;
-  if (meta?.wallet_address) return meta.wallet_address;
-  if (meta?.walletAddress) return meta.walletAddress;
-  if (meta?.address) return meta.address;
-  if (meta?.custom_claims?.address) return meta.custom_claims.address;
-
-  const identities = user.identities ?? [];
-  for (const identity of identities) {
-    const data = identity?.identity_data as
-      | {
-          wallet_address?: string;
-          address?: string;
-          walletAddress?: string;
-          custom_claims?: { address?: string };
-        }
-      | undefined;
-    if (data?.wallet_address) return data.wallet_address;
-    if (data?.walletAddress) return data.walletAddress;
-    if (data?.address) return data.address;
-    if (data?.custom_claims?.address) return data.custom_claims.address;
-  }
-  return null;
 }
 
 type Eip1193Provider = {

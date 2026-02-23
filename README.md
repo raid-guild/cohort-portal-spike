@@ -53,6 +53,30 @@ npm run dev
 - `npm run lint` lint
 - `npm run sync:modules` sync registry into `public.modules` (Supabase)
 - `npm run module:key` create a module key + hash (Supabase)
+- `npm run snapshot:dao-members -- --dao <0xdao> --graph <graphql-endpoint>` write a DAO member snapshot JSON
+- `npm run sync:dao-members -- --dao <0xdao> --chain <chain-id> --graph <graphql-endpoint>` sync `public.dao_memberships` + `dao-member` entitlements
+
+### DAO snapshot script
+Create a point-in-time membership snapshot before claim rollout:
+
+```bash
+npm run snapshot:dao-members -- \
+  --dao 0xYourDaoAddress \
+  --graph https://your-subgraph.example.com/subgraphs/name/dao
+```
+
+Env/flags:
+- `DAO_ID` / `--dao`: DAO contract address (required).
+- `DAO_GRAPH_URL` / `--graph`: GraphQL endpoint (required).
+- `DAO_CHAIN_ID` / `--chain`: chain id (optional metadata).
+- `DAO_PAGE_SIZE` / `--pageSize`: pagination batch size (default `500`).
+- `DAO_GRAPH_API_KEY` / `--graphApiKey`: bearer token for protected graph endpoints.
+- `DAO_INCLUDE_ZERO_POWER` / `--includeZeroPower`: include members with `shares + loot = 0` (default false).
+- `DAO_SNAPSHOT_OUTPUT` / `--output`: output path (default `snapshots/dao-members-<dao>-<timestamp>.json`).
+- `DAO_SEED_PROFILES` / `--seedProfiles`: if `true`, inserts missing claimable rows into `public.profiles` (requires `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`).
+- `DAO_UPSERT_MEMBERSHIPS` / `--upsertMemberships`: if `true`, upserts `public.dao_memberships` (requires `--chain` + Supabase service-role envs).
+- `DAO_SYNC_ENTITLEMENTS` / `--syncEntitlements`: if `true`, upserts `dao-member` entitlements for claimed rows.
+- `DAO_DEACTIVATE_MISSING` / `--deactivateMissing`: if `true`, marks previously-active memberships inactive when missing from latest snapshot.
 
 ## Configuration
 The portal expects Supabase for profile data, auth, and module data APIs.

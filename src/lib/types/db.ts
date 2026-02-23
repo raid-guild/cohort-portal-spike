@@ -170,6 +170,77 @@ export type Database = {
         }
         Relationships: []
       }
+      dao_memberships: {
+        Row: {
+          chain_id: string
+          claimed_at: string | null
+          created_at: string
+          dao_id: string
+          first_seen_at: string
+          id: string
+          last_synced_at: string
+          loot: string
+          profile_handle: string | null
+          raw: Json | null
+          shares: string
+          source: Json
+          status: string
+          updated_at: string
+          user_id: string | null
+          verification: Json
+          voting_power: string
+          wallet_address: string
+        }
+        Insert: {
+          chain_id: string
+          claimed_at?: string | null
+          created_at?: string
+          dao_id: string
+          first_seen_at?: string
+          id?: string
+          last_synced_at?: string
+          loot?: string
+          profile_handle?: string | null
+          raw?: Json | null
+          shares?: string
+          source?: Json
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+          verification?: Json
+          voting_power?: string
+          wallet_address: string
+        }
+        Update: {
+          chain_id?: string
+          claimed_at?: string | null
+          created_at?: string
+          dao_id?: string
+          first_seen_at?: string
+          id?: string
+          last_synced_at?: string
+          loot?: string
+          profile_handle?: string | null
+          raw?: Json | null
+          shares?: string
+          source?: Json
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+          verification?: Json
+          voting_power?: string
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dao_memberships_profile_handle_fkey"
+            columns: ["profile_handle"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["handle"]
+          },
+        ]
+      }
       email_referrals: {
         Row: {
           created_at: string | null

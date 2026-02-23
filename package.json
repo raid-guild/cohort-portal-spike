@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "sync:modules": "node scripts/sync-registry.js",
-    "module:key": "node scripts/create-module-key.js"
+    "module:key": "node scripts/create-module-key.js",
+    "snapshot:dao-members": "node scripts/dao-membership-snapshot.js",
+    "sync:dao-members": "node scripts/dao-membership-snapshot.js --upsertMemberships --syncEntitlements"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
