@@ -1,5 +1,5 @@
 import { supabaseAdminClient } from "@/lib/supabase/admin";
-import { upsertMarketingContact } from "@/lib/sendgrid";
+import { sendOnboardingEmail } from "@/lib/sendgrid";
 
 const DEFAULT_BATCH_SIZE = 50;
 const MAX_BATCH_SIZE = 200;
@@ -31,10 +31,11 @@ function normalizeBatchSize(batchSize?: number) {
 
 async function handleEmailReferralCreated(payload: Record<string, unknown> | null) {
   const email = typeof payload?.email === "string" ? payload.email.trim() : "";
+  const referral = typeof payload?.referral === "string" ? payload.referral : null;
   if (!email) {
     throw new Error("Missing payload.email for email_referral.created");
   }
-  await upsertMarketingContact(email);
+  await sendOnboardingEmail(email, referral);
 }
 
 export async function processSendGridOutboxBatch(batchSize?: number) {
