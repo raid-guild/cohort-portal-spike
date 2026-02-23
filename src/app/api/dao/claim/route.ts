@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
   const { data: profiles, error: profileError } = await admin
     .from("profiles")
     .select("handle, display_name, user_id, wallet_address, created_at")
-    .ilike("wallet_address", auth.wallet)
+    .eq("wallet_address", auth.wallet)
     .order("created_at", { ascending: true });
 
   if (profileError) {
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
   const { data: matchingProfiles, error: profileLookupError } = await admin
     .from("profiles")
     .select("handle, user_id, wallet_address, display_name, created_at")
-    .ilike("wallet_address", auth.wallet)
+    .eq("wallet_address", auth.wallet)
     .order("created_at", { ascending: true });
 
   if (profileLookupError) {
