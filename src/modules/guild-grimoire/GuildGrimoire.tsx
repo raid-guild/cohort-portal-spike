@@ -14,7 +14,13 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_AUDIO_BYTES = 3 * 1024 * 1024;
 
 const ALLOWED_IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const ALLOWED_AUDIO_MIMES = new Set(["audio/webm", "audio/mp4", "audio/aac", "audio/mpeg"]);
+const ALLOWED_AUDIO_MIMES = new Set([
+  "audio/webm",
+  "audio/mp4",
+  "audio/m4a",
+  "audio/aac",
+  "audio/mpeg",
+]);
 
 const ALLOWED_IMAGE_EXTS = new Set(["jpg", "jpeg", "png", "webp"]);
 const ALLOWED_AUDIO_EXTS = new Set(["webm", "mp4", "m4a", "aac", "mp3"]);
@@ -25,6 +31,10 @@ function extensionFromFilename(filename: string) {
   // No extension (or dot-file like ".env")
   if (dotIdx < 1 || dotIdx === filename.length - 1) return null;
   return filename.slice(dotIdx + 1).toLowerCase() || null;
+}
+
+function normalizeMimeType(mimeType: string) {
+  return mimeType.split(";")[0]?.trim().toLowerCase() ?? "";
 }
 
 function truncateMiddle(value: string, max = 32) {
@@ -497,8 +507,9 @@ export function GuildGrimoire() {
             throw new Error("Image too large (max 5MB). ");
           }
 
-          if (file.type) {
-            if (!ALLOWED_IMAGE_MIMES.has(file.type)) {
+          const normalizedMimeType = normalizeMimeType(file.type);
+          if (normalizedMimeType) {
+            if (!ALLOWED_IMAGE_MIMES.has(normalizedMimeType)) {
               throw new Error(`Unsupported image type: ${file.type}`);
             }
           } else {
@@ -514,8 +525,9 @@ export function GuildGrimoire() {
             throw new Error("Audio too large (max 3MB). ");
           }
 
-          if (file.type) {
-            if (!ALLOWED_AUDIO_MIMES.has(file.type)) {
+          const normalizedMimeType = normalizeMimeType(file.type);
+          if (normalizedMimeType) {
+            if (!ALLOWED_AUDIO_MIMES.has(normalizedMimeType)) {
               throw new Error(`Unsupported audio type: ${file.type}`);
             }
           } else {
