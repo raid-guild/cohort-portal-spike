@@ -31,6 +31,14 @@ Notes:
 - `type` is `link` or `embed`.
 - Use tags like `start-here`, `people-tools`, `profile-tools-public`, `me-tools` to surface modules.
 - Surfaces: home uses `start-here`, people uses `people-tools`, profiles use `profile-tools-public`, and `/me` uses `me-tools`.
+- Additional role/entitlement surfaces:
+  - `/host` uses `host-tools` and is intended for host-only operational views.
+  - `/member` uses `member-tools` and is intended for DAO-member views.
+  - Keep real authorization in `tags: ["hosts"]` and/or `access.entitlement`; surface tags are for placement.
+- Pattern for gated experiences:
+  - Put onboarding/claim flows in broadly available surfaces like `/me` (example: DAO claim).
+  - Put ongoing privileged workflows and dashboards in gated surfaces (example: `/member`).
+  - Do not rely on surface placement alone; enforce role/entitlement in module APIs.
 - Add a module-level README at `src/modules/<module-id>/README.md` with purpose, key files, and notes.
 - Set `presentation.action` to `none` if you want a summary-only card.
 - Tag a module with `hosts` to make it host-only (hidden for non-hosts).

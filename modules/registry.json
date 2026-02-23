@@ -295,6 +295,39 @@
       }
     },
     {
+      "id": "dao-member-dashboard",
+      "title": "DAO Member Dashboard",
+      "description": "View DAO member stats including shares, loot, and voting power.",
+      "lane": "cohort",
+      "type": "link",
+      "status": "beta",
+      "owner": {
+        "name": "Ops Lane",
+        "contact": "discord:@ops"
+      },
+      "requiresAuth": true,
+      "access": {
+        "requiresAuth": true,
+        "entitlement": "dao-member"
+      },
+      "tags": [
+        "member-tools"
+      ],
+      "url": "/modules/dao-member-dashboard",
+      "presentation": {
+        "mode": "page",
+        "trigger": "button"
+      },
+      "summary": {
+        "source": "api",
+        "title": "DAO Member",
+        "endpoint": "/api/modules/dao-member-dashboard/summary",
+        "layout": "list",
+        "maxItems": 4,
+        "showTitle": true
+      }
+    },
+    {
       "id": "cohort-review",
       "title": "Cohort Applications",
       "description": "Review and approve cohort applicants.",
@@ -308,7 +341,8 @@
       "requiresAuth": true,
       "tags": [
         "start-here",
-        "hosts"
+        "hosts",
+        "host-tools"
       ],
       "url": "/modules/cohort-application",
       "presentation": {
@@ -628,7 +662,8 @@
       "requiresAuth": true,
       "tags": [
         "me-tools",
-        "hosts"
+        "hosts",
+        "host-tools"
       ],
       "presentation": {
         "mode": "dialog",
