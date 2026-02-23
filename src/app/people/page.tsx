@@ -10,6 +10,7 @@ export default async function PeoplePage() {
   const people = await loadPeople();
   const userIds = people.map((person) => person.userId).filter(Boolean) as string[];
   const paidUserIds = await loadActiveEntitledUserIds("cohort-access", userIds);
+  const daoMemberUserIds = await loadActiveEntitledUserIds("dao-member", userIds);
   const registry = loadRegistry();
   const peopleTools = registry.modules.filter((mod) =>
     mod.tags?.includes("people-tools"),
@@ -31,7 +32,11 @@ export default async function PeoplePage() {
           <ModuleSurfaceList modules={peopleTools} surface="people" />
         </section>
       ) : null}
-      <PeopleDirectory people={people} paidUserIds={paidUserIds} />
+      <PeopleDirectory
+        people={people}
+        paidUserIds={paidUserIds}
+        daoMemberUserIds={daoMemberUserIds}
+      />
     </div>
   );
 }

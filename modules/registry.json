@@ -266,6 +266,35 @@
       }
     },
     {
+      "id": "dao-membership",
+      "title": "DAO Membership",
+      "description": "Claim your imported DAO profile and sync wallet-based membership access.",
+      "lane": "cohort",
+      "type": "link",
+      "status": "beta",
+      "owner": {
+        "name": "Ops Lane",
+        "contact": "discord:@ops"
+      },
+      "requiresAuth": true,
+      "tags": [
+        "me-tools"
+      ],
+      "url": "/modules/dao-membership",
+      "presentation": {
+        "mode": "page",
+        "trigger": "button"
+      },
+      "summary": {
+        "source": "api",
+        "title": "DAO membership",
+        "endpoint": "/api/modules/dao-membership/summary",
+        "layout": "list",
+        "maxItems": 4,
+        "showTitle": true
+      }
+    },
+    {
       "id": "cohort-review",
       "title": "Cohort Applications",
       "description": "Review and approve cohort applicants.",

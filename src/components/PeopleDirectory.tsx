@@ -10,13 +10,16 @@ import { PaidStar } from "./PaidStar";
 export function PeopleDirectory({
   people,
   paidUserIds = [],
+  daoMemberUserIds = [],
 }: {
   people: Profile[];
   paidUserIds?: string[];
+  daoMemberUserIds?: string[];
 }) {
   const [query, setQuery] = useState("");
   const [skill, setSkill] = useState("all");
   const paidSet = useMemo(() => new Set(paidUserIds), [paidUserIds]);
+  const daoMemberSet = useMemo(() => new Set(daoMemberUserIds), [daoMemberUserIds]);
 
   const skills = useMemo(() => {
     const set = new Set<string>();
@@ -80,6 +83,9 @@ export function PeopleDirectory({
                     <span>{person.displayName}</span>
                     {person.userId && paidSet.has(person.userId) ? (
                       <PaidStar className="h-4 w-4" />
+                    ) : null}
+                    {person.userId && daoMemberSet.has(person.userId) ? (
+                      <BadgePill>DAO</BadgePill>
                     ) : null}
                   </div>
                   <div className="text-sm text-muted-foreground">@{person.handle}</div>
