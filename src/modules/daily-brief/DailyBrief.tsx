@@ -202,12 +202,14 @@ export function DailyBrief() {
     });
 
     try {
-      await portalRpcRef.current?.("module.open", {
-        moduleId: "guild-grimoire",
-        surface: "page",
-        params: Object.fromEntries(params.entries()),
-      });
-      return;
+      if (portalRpcRef.current) {
+        await portalRpcRef.current("module.open", {
+          moduleId: "guild-grimoire",
+          surface: "page",
+          params: Object.fromEntries(params.entries()),
+        });
+        return;
+      }
     } catch {
       // Running outside portal broker: navigate directly.
     }
