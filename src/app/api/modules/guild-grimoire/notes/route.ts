@@ -19,6 +19,7 @@ const ALLOWED_AUDIO_EXTENSIONS = new Set(["webm", "mp4", "m4a", "aac", "mp3"]);
 const VENICE_BASE_URL = process.env.VENICE_API_BASE_URL ?? "https://api.venice.ai/api/v1";
 const VENICE_API_KEY = process.env.VENICE_API_KEY ?? "";
 const VENICE_TRANSCRIPTION_MODEL = process.env.VENICE_TRANSCRIPTION_MODEL ?? "openai/whisper-large-v3";
+const VENICE_TRANSCRIPTION_TIMEOUT_MS = 30_000;
 
 function extensionFromFilename(filename: string) {
   const dotIdx = filename.lastIndexOf(".");
@@ -83,11 +84,13 @@ async function transcribeAudioWithVenice(file: File) {
     const form = new FormData();
     form.set("file", file, file.name || `guild-grimoire-audio-${Date.now()}.webm`);
     form.set("model", VENICE_TRANSCRIPTION_MODEL);
+    const signal = AbortSignal.timeout(VENICE_TRANSCRIPTION_TIMEOUT_MS);
 
     const response = await fetch(`${VENICE_BASE_URL}/audio/transcriptions`, {
       method: "POST",
       headers: { Authorization: `Bearer ${VENICE_API_KEY}` },
       body: form,
+      signal,
     });
 
     if (!response.ok) {
