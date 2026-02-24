@@ -29,13 +29,23 @@ export async function POST(request: NextRequest) {
     return jsonError("Only audio notes can be enqueued.", 400);
   }
 
-  const parsed = new URL(existing.data.audio_url);
+  let parsed: URL;
+  try {
+    parsed = new URL(existing.data.audio_url);
+  } catch {
+    return jsonError("Unsupported audio URL format.", 400);
+  }
   const marker = "/storage/v1/object/public/modules/";
   const markerIndex = parsed.pathname.indexOf(marker);
   if (markerIndex < 0) {
     return jsonError("Unsupported audio URL format.", 400);
   }
-  const audioPath = decodeURIComponent(parsed.pathname.slice(markerIndex + marker.length));
+  let audioPath: string;
+  try {
+    audioPath = decodeURIComponent(parsed.pathname.slice(markerIndex + marker.length));
+  } catch {
+    return jsonError("Unsupported audio URL format.", 400);
+  }
   const callbackUrl = `${new URL(request.url).origin}/api/modules/guild-grimoire/transcription/callback`;
 
   const enqueue = await enqueueTranscriptionJob({
