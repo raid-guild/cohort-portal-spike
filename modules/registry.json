@@ -655,6 +655,35 @@
       }
     },
     {
+      "id": "member-forum",
+      "title": "Member Forum",
+      "description": "Space-based discussions with public, member, and cohort access tiers.",
+      "lane": "portal",
+      "type": "link",
+      "url": "/modules/member-forum",
+      "status": "beta",
+      "owner": {
+        "name": "@dekanbro",
+        "contact": "@dekanbro"
+      },
+      "requiresAuth": false,
+      "tags": [
+        "people-tools"
+      ],
+      "presentation": {
+        "mode": "page",
+        "trigger": "button"
+      },
+      "summary": {
+        "source": "api",
+        "title": "Member Forum",
+        "endpoint": "/api/modules/member-forum/summary",
+        "layout": "list",
+        "maxItems": 3,
+        "showTitle": true
+      }
+    },
+    {
       "id": "signup-referrals",
       "title": "Signup Referrals",
       "description": "Review email referral signups and export CSV for outreach.",
