@@ -16,6 +16,10 @@ function asString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
 export async function GET(request: NextRequest) {
   try {
     const viewer = await getViewer(request);
@@ -23,6 +27,13 @@ export async function GET(request: NextRequest) {
     const spaceSlug = params.get("space")?.trim();
     const cursor = params.get("cursor")?.trim();
     const [cursorCreatedAt, cursorId] = cursor?.split("|") ?? [];
+    if (cursor) {
+      const cursorDateValid = !!cursorCreatedAt && !Number.isNaN(Date.parse(cursorCreatedAt));
+      const cursorIdValid = !!cursorId && isUuid(cursorId);
+      if (!cursorDateValid || !cursorIdValid) {
+        return jsonError("Invalid cursor.", 400);
+      }
+    }
     const sort = params.get("sort")?.trim() || "new";
     const parsedLimit = Number(params.get("limit") ?? DEFAULT_LIMIT);
     const limit = Number.isFinite(parsedLimit)
