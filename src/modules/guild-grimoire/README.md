@@ -21,4 +21,6 @@ Notes
 - Module requires auth for posting and feed access.
 - Data is backed by `guild_grimoire_notes`, `guild_grimoire_tags`, and `guild_grimoire_note_tags`.
 - Supports text, image, or audio per note (single content mode per post).
-- Audio notes attempt best-effort Venice transcription and store results in `audio_transcript`.
+- Audio recordings are capped at 90 seconds.
+- Audio notes enqueue async transcription jobs to n8n/worker webhook and store results in `audio_transcript`.
+- Audio transcription progress is tracked in `audio_transcription_status` (`pending|completed|failed`).

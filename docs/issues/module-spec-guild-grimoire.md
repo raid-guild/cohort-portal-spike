@@ -98,7 +98,7 @@ Constraints:
 
 Recommended limits (reasonable defaults):
 - Image: max 5 MB; `image/jpeg`, `image/png`, `image/webp`
-- Audio: max 60 seconds, max 3 MB; `audio/webm`, `audio/mp4`, `audio/m4a`
+- Audio: max 90 seconds, max 3 MB; `audio/webm`, `audio/mp4`, `audio/m4a`
 
 Storage:
 - Supabase public storage bucket for module media (e.g. `guild-grimoire-media`)

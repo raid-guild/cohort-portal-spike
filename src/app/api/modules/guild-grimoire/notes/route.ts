@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server";
 import { requireAuth, asString, asStringArray, jsonError } from "@/app/api/modules/guild-grimoire/lib";
+import { canEnqueueTranscription, enqueueTranscriptionJob } from "@/app/api/modules/guild-grimoire/transcription";
 
 const MAX_TEXT = 256;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_AUDIO_BYTES = 3 * 1024 * 1024;
+const MAX_AUDIO_SECONDS = 90;
 
 const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const ALLOWED_IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp"]);
@@ -16,10 +18,6 @@ const ALLOWED_AUDIO_MIME_TYPES = new Set([
   "audio/mpeg",
 ]);
 const ALLOWED_AUDIO_EXTENSIONS = new Set(["webm", "mp4", "m4a", "aac", "mp3"]);
-const VENICE_BASE_URL = process.env.VENICE_API_BASE_URL ?? "https://api.venice.ai/api/v1";
-const VENICE_API_KEY = process.env.VENICE_API_KEY ?? "";
-const VENICE_TRANSCRIPTION_MODEL = process.env.VENICE_TRANSCRIPTION_MODEL ?? "openai/whisper-large-v3";
-const VENICE_TRANSCRIPTION_TIMEOUT_MS = 30_000;
 
 function extensionFromFilename(filename: string) {
   const dotIdx = filename.lastIndexOf(".");
@@ -68,43 +66,11 @@ function sanitizeVisibility(raw: string | null) {
   return null;
 }
 
-function parseTranscriptionText(json: unknown) {
-  if (!json || typeof json !== "object") return null;
-  const record = json as Record<string, unknown>;
-  const direct = typeof record.text === "string" ? record.text : null;
-  if (direct?.trim()) return direct.trim();
-  const transcript = typeof record.transcript === "string" ? record.transcript : null;
-  if (transcript?.trim()) return transcript.trim();
-  return null;
-}
-
-async function transcribeAudioWithVenice(file: File) {
-  if (!VENICE_API_KEY) return null;
-  try {
-    const form = new FormData();
-    form.set("file", file, file.name || `guild-grimoire-audio-${Date.now()}.webm`);
-    form.set("model", VENICE_TRANSCRIPTION_MODEL);
-    const signal = AbortSignal.timeout(VENICE_TRANSCRIPTION_TIMEOUT_MS);
-
-    const response = await fetch(`${VENICE_BASE_URL}/audio/transcriptions`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${VENICE_API_KEY}` },
-      body: form,
-      signal,
-    });
-
-    if (!response.ok) {
-      const body = await response.text().catch(() => "");
-      console.error("[guild-grimoire] venice transcription error:", response.status, body);
-      return null;
-    }
-
-    const json = (await response.json().catch(() => null)) as unknown;
-    return parseTranscriptionText(json);
-  } catch (error) {
-    console.error("[guild-grimoire] venice transcription request failed:", error);
-    return null;
-  }
+function parseDurationSeconds(raw: string | null) {
+  if (!raw) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.round(n);
 }
 
 export async function POST(request: NextRequest) {
@@ -120,6 +86,7 @@ export async function POST(request: NextRequest) {
   let textContent: string | null = null;
   let tagIds: string[] = [];
   let file: File | null = null;
+  let audioDurationRaw: string | null = null;
 
   if (contentHeader.includes("multipart/form-data")) {
     const form = await request.formData();
@@ -129,6 +96,7 @@ export async function POST(request: NextRequest) {
 
     const rawFile = form.get("file");
     file = rawFile instanceof File ? rawFile : null;
+    audioDurationRaw = asString(form.get("audio_duration_sec"));
 
     const tagFields = form.getAll("tag_ids");
     tagIds = tagFields.filter((v) => typeof v === "string") as string[];
@@ -139,6 +107,7 @@ export async function POST(request: NextRequest) {
           visibility?: unknown;
           text_content?: unknown;
           tag_ids?: unknown;
+          audio_duration_sec?: unknown;
         }
       | null;
 
@@ -146,6 +115,7 @@ export async function POST(request: NextRequest) {
     visibility = asString(body?.visibility);
     textContent = asString(body?.text_content);
     tagIds = asStringArray(body?.tag_ids);
+    audioDurationRaw = asString(body?.audio_duration_sec);
   }
 
   if (!contentType || !["text", "image", "audio"].includes(contentType)) {
@@ -159,8 +129,9 @@ export async function POST(request: NextRequest) {
 
   let imageUrl: string | null = null;
   let audioUrl: string | null = null;
-  let audioDurationSec: number | null = null;
-  let audioTranscript: string | null = null;
+  const audioDurationSec: number | null = parseDurationSeconds(audioDurationRaw);
+  const audioTranscript: string | null = null;
+  let audioTranscriptionStatus: string | null = null;
 
   let uploadedImagePath: string | null = null;
   let uploadedAudioPath: string | null = null;
@@ -259,6 +230,9 @@ export async function POST(request: NextRequest) {
     if (file.size > MAX_AUDIO_BYTES) {
       return jsonError("File too large. Max audio size is 3MB.", 413);
     }
+    if (audioDurationSec !== null && audioDurationSec > MAX_AUDIO_SECONDS) {
+      return jsonError(`Audio clip too long. Max duration is ${MAX_AUDIO_SECONDS} seconds.`, 400);
+    }
 
     let mimeType = normalizeMimeType(file.type);
     let extension = mimeType ? extensionForAudioMimeType(mimeType) : null;
@@ -307,8 +281,7 @@ export async function POST(request: NextRequest) {
 
     const { data: publicData } = auth.admin.storage.from("modules").getPublicUrl(uploadedAudioPath);
     audioUrl = publicData.publicUrl;
-    audioDurationSec = null;
-    audioTranscript = await transcribeAudioWithVenice(file);
+    audioTranscriptionStatus = canEnqueueTranscription() ? "pending" : "failed";
   }
 
   const insert = await auth.admin
@@ -320,6 +293,7 @@ export async function POST(request: NextRequest) {
       audio_url: audioUrl,
       audio_duration_sec: audioDurationSec,
       audio_transcript: audioTranscript,
+      audio_transcription_status: audioTranscriptionStatus,
       visibility,
     })
     .select("id")
@@ -352,6 +326,27 @@ export async function POST(request: NextRequest) {
     const linkRes = await auth.admin.from("guild_grimoire_note_tags").insert(rows);
     if (linkRes.error) {
       console.error("[guild-grimoire] link tags error:", linkRes.error.message);
+    }
+  }
+
+  if (contentType === "audio" && audioUrl && uploadedAudioPath) {
+    const callbackUrl = `${new URL(request.url).origin}/api/modules/guild-grimoire/transcription/callback`;
+    const enqueue = await enqueueTranscriptionJob({
+      noteId,
+      userId: auth.userId,
+      audioUrl,
+      audioPath: uploadedAudioPath,
+      callbackUrl,
+    });
+    if (!enqueue.ok) {
+      console.error("[guild-grimoire] transcription enqueue error:", enqueue.reason);
+      const { error: updateError } = await auth.admin
+        .from("guild_grimoire_notes")
+        .update({ audio_transcription_status: "failed" })
+        .eq("id", noteId);
+      if (updateError) {
+        console.error("[guild-grimoire] transcription status update error:", updateError.message);
+      }
     }
   }
 

@@ -1,5 +1,6 @@
 export type GuildGrimoireContentType = "text" | "image" | "audio";
 export type GuildGrimoireVisibility = "private" | "shared" | "cohort" | "public";
+export type GuildGrimoireTranscriptionStatus = "pending" | "completed" | "failed" | null;
 
 export type GuildGrimoireTag = {
   id: string;
@@ -16,6 +17,7 @@ export type GuildGrimoireNote = {
   audio_url: string | null;
   audio_duration_sec: number | null;
   audio_transcript: string | null;
+  audio_transcription_status: GuildGrimoireTranscriptionStatus;
   visibility: GuildGrimoireVisibility;
   created_at: string;
   deleted_at: string | null;
