@@ -12,6 +12,8 @@ import type {
 const MAX_TEXT = 256;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_AUDIO_BYTES = 3 * 1024 * 1024;
+const MAX_AUDIO_SECONDS = 90;
+const MAX_AUDIO_DURATION_MS = MAX_AUDIO_SECONDS * 1000;
 
 const ALLOWED_IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const ALLOWED_AUDIO_MIMES = new Set([
@@ -24,7 +26,7 @@ const ALLOWED_AUDIO_MIMES = new Set([
 
 const ALLOWED_IMAGE_EXTS = new Set(["jpg", "jpeg", "png", "webp"]);
 const ALLOWED_AUDIO_EXTS = new Set(["webm", "mp4", "m4a", "aac", "mp3"]);
-const AUDIO_RECORDING_MIME_CANDIDATES = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
+const AUDIO_RECORDING_MIME_CANDIDATES = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"];
 
 function extensionFromFilename(filename: string) {
   const dotIdx = filename.lastIndexOf(".");
@@ -85,6 +87,7 @@ export function GuildGrimoire() {
   const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDurationMs, setRecordingDurationMs] = useState(0);
+  const [recordedAudioDurationSec, setRecordedAudioDurationSec] = useState<number | null>(null);
   const [recordingSupported, setRecordingSupported] = useState(true);
 
   const [tags, setTags] = useState<GuildGrimoireTag[]>([]);
@@ -277,7 +280,14 @@ export function GuildGrimoire() {
     const timer = window.setInterval(() => {
       const startedAt = recordingStartedAtRef.current;
       if (startedAt) {
-        setRecordingDurationMs(Date.now() - startedAt);
+        const elapsed = Date.now() - startedAt;
+        setRecordingDurationMs(elapsed);
+        if (elapsed >= MAX_AUDIO_DURATION_MS) {
+          if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+            mediaRecorderRef.current.stop();
+          }
+          setError(`Recording stopped at ${MAX_AUDIO_SECONDS} seconds max.`);
+        }
       }
     }, 250);
     return () => window.clearInterval(timer);
@@ -318,6 +328,7 @@ export function GuildGrimoire() {
     recordingChunksRef.current = [];
     recordingStartedAtRef.current = null;
     setRecordingDurationMs(0);
+    setRecordedAudioDurationSec(null);
   }, []);
 
   useEffect(() => {
@@ -361,6 +372,9 @@ export function GuildGrimoire() {
       };
 
       recorder.onstop = () => {
+        const startedAt = recordingStartedAtRef.current;
+        const durationMs = startedAt ? Date.now() - startedAt : recordingDurationMs;
+        const durationSec = Math.max(1, Math.round(durationMs / 1000));
         const mimeType = recorder.mimeType || preferredMime || "audio/webm";
         const blob = new Blob(recordingChunksRef.current, { type: mimeType });
         recordingChunksRef.current = [];
@@ -369,6 +383,11 @@ export function GuildGrimoire() {
 
         if (!blob.size) {
           setError("No audio captured. Try recording again.");
+          clearAudioRecording();
+          return;
+        }
+        if (durationMs > MAX_AUDIO_DURATION_MS + 1000) {
+          setError(`Audio too long (max ${MAX_AUDIO_SECONDS}s).`);
           clearAudioRecording();
           return;
         }
@@ -391,6 +410,7 @@ export function GuildGrimoire() {
         audioPreviewUrlRef.current = nextPreviewUrl;
         setAudioPreviewUrl(nextPreviewUrl);
         setFile(recordedFile);
+        setRecordedAudioDurationSec(durationSec);
         recordingStartedAtRef.current = null;
       };
 
@@ -524,6 +544,9 @@ export function GuildGrimoire() {
           if (file.size > MAX_AUDIO_BYTES) {
             throw new Error("Audio too large (max 3MB). ");
           }
+          if (recordedAudioDurationSec && recordedAudioDurationSec > MAX_AUDIO_SECONDS) {
+            throw new Error(`Audio too long (max ${MAX_AUDIO_SECONDS}s).`);
+          }
 
           const normalizedMimeType = normalizeMimeType(file.type);
           if (normalizedMimeType) {
@@ -542,6 +565,9 @@ export function GuildGrimoire() {
         form.set("content_type", mode);
         form.set("visibility", visibility);
         form.set("file", file);
+        if (mode === "audio" && recordedAudioDurationSec) {
+          form.set("audio_duration_sec", String(recordedAudioDurationSec));
+        }
         for (const id of selectedTagIds) {
           form.append("tag_ids", id);
         }
@@ -709,12 +735,13 @@ export function GuildGrimoire() {
               ) : null}
               {isRecording ? (
                 <div className="text-xs text-muted-foreground">
-                  Recording... {formatDuration(recordingDurationMs)}
+                  Recording... {formatDuration(recordingDurationMs)} / {formatDuration(MAX_AUDIO_DURATION_MS)}
                 </div>
               ) : null}
               {file ? (
                 <div className="text-xs text-muted-foreground">
                   Recorded: {truncateMiddle(file.name)} ({Math.round(file.size / 1024)} KB)
+                  {recordedAudioDurationSec ? ` · ${recordedAudioDurationSec}s` : ""}
                 </div>
               ) : (
                 <div className="text-xs text-muted-foreground">No recording captured yet.</div>
@@ -725,9 +752,6 @@ export function GuildGrimoire() {
               <div className="text-xs text-muted-foreground">
                 Browser will ask for microphone permission the first time.
               </div>
-              <span className="text-xs text-muted-foreground">
-                Audio file upload is disabled for this module.
-              </span>
             </div>
           )}
 
@@ -964,6 +988,12 @@ export function GuildGrimoire() {
                 {note.content_type === "audio" && note.audio_url ? (
                   <div className="mt-2">
                     <audio controls src={note.audio_url} className="w-full" />
+                    {note.audio_transcription_status === "pending" ? (
+                      <div className="mt-2 text-xs text-muted-foreground">Transcript: pending</div>
+                    ) : null}
+                    {note.audio_transcription_status === "failed" ? (
+                      <div className="mt-2 text-xs text-red-500">Transcript: failed</div>
+                    ) : null}
                     {note.audio_transcript ? (
                       <div className="mt-2 rounded-md bg-muted/50 p-2 text-sm whitespace-pre-wrap">
                         {note.audio_transcript}
