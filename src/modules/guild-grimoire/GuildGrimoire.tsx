@@ -964,6 +964,11 @@ export function GuildGrimoire() {
                 {note.content_type === "audio" && note.audio_url ? (
                   <div className="mt-2">
                     <audio controls src={note.audio_url} className="w-full" />
+                    {note.audio_transcript ? (
+                      <div className="mt-2 rounded-md bg-muted/50 p-2 text-sm whitespace-pre-wrap">
+                        {note.audio_transcript}
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>

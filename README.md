@@ -89,6 +89,7 @@ Env vars:
 - `VENICE_API_KEY` (profile generators)
 - `VENICE_MODEL` (profile generators, text)
 - `VENICE_IMAGE_MODEL` (profile generators, image)
+- `VENICE_TRANSCRIPTION_MODEL` (optional; Guild Grimoire audio transcription, default `openai/whisper-large-v3`)
 - `VENICE_API_BASE_URL` (optional; defaults to `https://api.venice.ai/api/v1`)
 - `STRIPE_SECRET_KEY` (billing)
 - `STRIPE_WEBHOOK_SECRET` (billing)

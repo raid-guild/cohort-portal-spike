@@ -15,6 +15,7 @@ export type GuildGrimoireNote = {
   image_url: string | null;
   audio_url: string | null;
   audio_duration_sec: number | null;
+  audio_transcript: string | null;
   visibility: GuildGrimoireVisibility;
   created_at: string;
   deleted_at: string | null;

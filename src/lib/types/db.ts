@@ -340,6 +340,7 @@ export type Database = {
           image_url: string | null
           audio_url: string | null
           audio_duration_sec: number | null
+          audio_transcript: string | null
           visibility: string
           created_at: string
           updated_at: string
@@ -353,6 +354,7 @@ export type Database = {
           image_url?: string | null
           audio_url?: string | null
           audio_duration_sec?: number | null
+          audio_transcript?: string | null
           visibility?: string
           created_at?: string
           updated_at?: string
@@ -366,6 +368,7 @@ export type Database = {
           image_url?: string | null
           audio_url?: string | null
           audio_duration_sec?: number | null
+          audio_transcript?: string | null
           visibility?: string
           created_at?: string
           updated_at?: string
