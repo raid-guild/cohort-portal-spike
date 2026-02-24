@@ -40,8 +40,8 @@ export function Nav() {
           }),
         ]);
         const [rolesJson, entitlementsJson] = await Promise.all([
-          rolesRes.json().catch(() => null),
-          entitlementsRes.json().catch(() => null),
+          rolesRes.ok ? rolesRes.json().catch(() => null) : null,
+          entitlementsRes.ok ? entitlementsRes.json().catch(() => null) : null,
         ]);
 
         if (cancelled) return;

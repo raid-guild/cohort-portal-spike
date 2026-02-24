@@ -18,6 +18,8 @@ export function EntitlementOnly({
 
   useEffect(() => {
     let cancelled = false;
+    setChecked(false);
+    setAllowed(false);
 
     const load = async (accessToken?: string | null) => {
       const session =

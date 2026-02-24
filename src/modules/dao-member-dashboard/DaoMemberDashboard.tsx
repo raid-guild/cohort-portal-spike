@@ -40,12 +40,14 @@ export function DaoMemberDashboard() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionChecked, setSessionChecked] = useState(false);
   const [overview, setOverview] = useState<DaoMemberOverview | null>(null);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setToken(data.session?.access_token ?? null);
+      setSessionChecked(true);
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setToken(session?.access_token ?? null);
@@ -56,6 +58,7 @@ export function DaoMemberDashboard() {
   }, [supabase]);
 
   useEffect(() => {
+    if (!sessionChecked) return;
     let cancelled = false;
     const load = async () => {
       if (!token) {
@@ -109,7 +112,7 @@ export function DaoMemberDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, sessionChecked]);
 
   if (loading) {
     return <p className="text-sm text-muted-foreground">Loading member dashboard...</p>;
