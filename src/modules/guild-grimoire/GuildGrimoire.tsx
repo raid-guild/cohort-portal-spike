@@ -345,8 +345,9 @@ export function GuildGrimoire() {
     }
     analyserRef.current = null;
     if (audioContextRef.current) {
-      void audioContextRef.current.close();
+      const context = audioContextRef.current;
       audioContextRef.current = null;
+      void context.close().catch(() => {});
     }
     const canvas = visualizerCanvasRef.current;
     if (canvas) {
