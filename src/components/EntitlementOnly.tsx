@@ -19,9 +19,11 @@ export function EntitlementOnly({
   useEffect(() => {
     let cancelled = false;
 
-    const load = async () => {
-      const { data } = await supabase.auth.getSession();
-      const session = data.session;
+    const load = async (accessToken?: string | null) => {
+      const session =
+        accessToken === undefined
+          ? (await supabase.auth.getSession()).data.session
+          : { access_token: accessToken };
       if (!session) {
         if (cancelled) return;
         setAllowed(false);
@@ -51,8 +53,15 @@ export function EntitlementOnly({
     };
 
     void load();
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (cancelled) return;
+      setChecked(false);
+      void load(session?.access_token);
+    });
+
     return () => {
       cancelled = true;
+      listener.subscription.unsubscribe();
     };
   }, [entitlement, supabase]);
 

@@ -30,7 +30,10 @@ function formatDate(value: string | null) {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
+  return date.toLocaleString("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 }
 
 export function DaoMemberDashboard() {
@@ -76,6 +79,13 @@ export function DaoMemberDashboard() {
           if (!cancelled) {
             setOverview(null);
             setMessage(json?.error ?? "Unable to load DAO member dashboard.");
+          }
+          return;
+        }
+        if (!json) {
+          if (!cancelled) {
+            setOverview(null);
+            setMessage("Unable to load DAO member dashboard.");
           }
           return;
         }

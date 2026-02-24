@@ -59,9 +59,20 @@ export async function requireDaoMember(request: NextRequest): Promise<AuthState>
   return { userId: userData.user.id };
 }
 
-function sumDecimals(values: string[]) {
-  const total = values.reduce((acc, value) => acc + Number.parseFloat(value || "0"), 0);
-  return Number.isFinite(total) ? total.toFixed(4) : "0.0000";
+function sumWholeNumbers(values: string[]) {
+  let total = BigInt(0);
+  for (const value of values) {
+    const normalized = (value ?? "").trim();
+    if (!normalized) continue;
+    const integerPart = normalized.split(".")[0] ?? "0";
+    const parsed = integerPart === "" || integerPart === "-" ? "0" : integerPart;
+    try {
+      total += BigInt(parsed);
+    } catch {
+      continue;
+    }
+  }
+  return total.toString();
 }
 
 export async function loadDaoMemberOverview(userId: string): Promise<DaoMemberOverview> {
@@ -82,9 +93,9 @@ export async function loadDaoMemberOverview(userId: string): Promise<DaoMemberOv
     memberships,
     totals: {
       activeMemberships: memberships.length,
-      shares: sumDecimals(memberships.map((item) => item.shares)),
-      loot: sumDecimals(memberships.map((item) => item.loot)),
-      votingPower: sumDecimals(memberships.map((item) => item.voting_power)),
+      shares: sumWholeNumbers(memberships.map((item) => item.shares)),
+      loot: sumWholeNumbers(memberships.map((item) => item.loot)),
+      votingPower: sumWholeNumbers(memberships.map((item) => item.voting_power)),
     },
     lastSyncedAt: memberships[0]?.last_synced_at ?? null,
   };
