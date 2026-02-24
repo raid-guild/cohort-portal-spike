@@ -46,7 +46,25 @@ export async function POST(request: NextRequest) {
   } catch {
     return jsonError("Unsupported audio URL format.", 400);
   }
-  const callbackUrl = `${new URL(request.url).origin}/api/modules/guild-grimoire/transcription/callback`;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!appUrl) {
+    return jsonError("Server misconfigured.", 500);
+  }
+  let callbackOrigin: string;
+  try {
+    callbackOrigin = new URL(appUrl).origin;
+  } catch {
+    return jsonError("Server misconfigured.", 500);
+  }
+  const callbackUrl = `${callbackOrigin}/api/modules/guild-grimoire/transcription/callback`;
+
+  const { error: updateError } = await auth.admin
+    .from("guild_grimoire_notes")
+    .update({ audio_transcription_status: "pending" })
+    .eq("id", noteId);
+  if (updateError) {
+    return jsonError("Failed to mark note pending.", 500);
+  }
 
   const enqueue = await enqueueTranscriptionJob({
     noteId,
@@ -56,15 +74,11 @@ export async function POST(request: NextRequest) {
     callbackUrl,
   });
   if (!enqueue.ok) {
+    await auth.admin
+      .from("guild_grimoire_notes")
+      .update({ audio_transcription_status: "failed" })
+      .eq("id", noteId);
     return jsonError(`Failed to enqueue transcription: ${enqueue.reason}`, 502);
-  }
-
-  const { error: updateError } = await auth.admin
-    .from("guild_grimoire_notes")
-    .update({ audio_transcription_status: "pending" })
-    .eq("id", noteId);
-  if (updateError) {
-    return jsonError("Failed to mark note pending.", 500);
   }
 
   return Response.json({ ok: true });
