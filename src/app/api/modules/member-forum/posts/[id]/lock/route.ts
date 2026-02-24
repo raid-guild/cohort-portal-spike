@@ -23,7 +23,10 @@ export async function POST(
       .maybeSingle();
     const post = postRes.data as { id: string; is_locked: boolean; is_deleted: boolean } | null;
 
-    if (postRes.error || !post || post.is_deleted) {
+    if (postRes.error) {
+      return jsonError(postRes.error.message, 500);
+    }
+    if (!post || post.is_deleted) {
       return jsonError("Post not found.", 404);
     }
 

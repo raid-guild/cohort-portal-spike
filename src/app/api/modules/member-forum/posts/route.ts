@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
     const params = new URL(request.url).searchParams;
     const spaceSlug = params.get("space")?.trim();
     const cursor = params.get("cursor")?.trim();
+    const [cursorCreatedAt, cursorId] = cursor?.split("|") ?? [];
     const sort = params.get("sort")?.trim() || "new";
     const parsedLimit = Number(params.get("limit") ?? DEFAULT_LIMIT);
     const limit = Number.isFinite(parsedLimit)
@@ -41,13 +42,18 @@ export async function GET(request: NextRequest) {
       .eq("is_deleted", false)
       .in("space_id", visibleSpaceIds)
       .order("created_at", { ascending: sort === "old" })
+      .order("id", { ascending: sort === "old" })
       .limit(limit + 1);
 
-    if (cursor) {
+    if (cursorCreatedAt && cursorId) {
       if (sort === "old") {
-        query.gt("created_at", cursor);
+        query.or(
+          `created_at.gt.${cursorCreatedAt},and(created_at.eq.${cursorCreatedAt},id.gt.${cursorId})`,
+        );
       } else {
-        query.lt("created_at", cursor);
+        query.or(
+          `created_at.lt.${cursorCreatedAt},and(created_at.eq.${cursorCreatedAt},id.lt.${cursorId})`,
+        );
       }
     }
 
@@ -67,7 +73,10 @@ export async function GET(request: NextRequest) {
         ...sanitizePostForResponse(post),
         space: spaceById.get(post.space_id) ?? null,
       })),
-      next_cursor: hasMore ? items[items.length - 1]?.created_at ?? null : null,
+      next_cursor:
+        hasMore && items.length
+          ? `${items[items.length - 1].created_at}|${items[items.length - 1].id}`
+          : null,
     });
   } catch (err) {
     console.error("[member-forum] posts list error:", err);
@@ -92,11 +101,12 @@ export async function POST(request: NextRequest) {
 
     const spaceSlug = asString(body?.space_slug);
     const title = asString(body?.title);
-    const bodyMd = asString(body?.body_md);
+    const rawBodyMd = typeof body?.body_md === "string" ? body.body_md : "";
+    const bodyMdTrimmed = rawBodyMd.trim();
 
     if (!spaceSlug) return jsonError("space_slug is required.");
     if (!title) return jsonError("title is required.");
-    if (!bodyMd) return jsonError("body_md is required.");
+    if (!bodyMdTrimmed) return jsonError("body_md is required.");
 
     const visibleSpaces = await getVisibleSpaces(viewer, spaceSlug);
     const space = visibleSpaces[0];
@@ -114,7 +124,7 @@ export async function POST(request: NextRequest) {
         space_id: space.id,
         author_id: viewer.userId,
         title,
-        body_md: bodyMd,
+        body_md: rawBodyMd,
       })
       .select("id,space_id,author_id,title,body_md,is_locked,is_deleted,created_at,updated_at")
       .single();

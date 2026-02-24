@@ -21,7 +21,10 @@ async function loadPostContext(request: NextRequest, id: string) {
     .eq("id", id)
     .maybeSingle();
 
-  if (postRes.error || !postRes.data) {
+  if (postRes.error) {
+    return { viewer, error: jsonError(postRes.error.message, 500) };
+  }
+  if (!postRes.data) {
     return { viewer, error: jsonError("Post not found.", 404) };
   }
 
@@ -36,7 +39,10 @@ async function loadPostContext(request: NextRequest, id: string) {
     .eq("id", post.space_id)
     .maybeSingle();
 
-  if (spaceRes.error || !spaceRes.data) {
+  if (spaceRes.error) {
+    return { viewer, error: jsonError(spaceRes.error.message, 500) };
+  }
+  if (!spaceRes.data) {
     return { viewer, error: jsonError("Space not found.", 404) };
   }
 

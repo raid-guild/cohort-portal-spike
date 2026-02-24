@@ -50,6 +50,7 @@ type QueryResult = { data: unknown; error: { message: string } | null; count?: n
 type UntypedQuery = {
   select: (...args: unknown[]) => UntypedQuery;
   order: (...args: unknown[]) => UntypedQuery;
+  or: (...args: unknown[]) => UntypedQuery;
   eq: (...args: unknown[]) => UntypedQuery;
   in: (...args: unknown[]) => UntypedQuery;
   gt: (...args: unknown[]) => UntypedQuery;
@@ -114,6 +115,7 @@ export function isHost(viewer: ViewerContext) {
 export function canReadSpace(space: ForumSpace, viewer: ViewerContext) {
   if (space.read_level === "public") return true;
   if (!viewer.userId) return false;
+  if (isHost(viewer)) return true;
   if (space.read_level === "member") {
     return viewer.entitlements.includes("dao-member");
   }
@@ -122,6 +124,7 @@ export function canReadSpace(space: ForumSpace, viewer: ViewerContext) {
 
 export function canWriteSpace(space: ForumSpace, viewer: ViewerContext) {
   if (!viewer.userId) return false;
+  if (isHost(viewer)) return true;
   if (space.write_level === "member") {
     return viewer.entitlements.includes("dao-member");
   }

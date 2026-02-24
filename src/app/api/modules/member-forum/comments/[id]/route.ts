@@ -20,7 +20,10 @@ export async function DELETE(
       .maybeSingle();
     const comment = commentRes.data as { id: string; author_id: string; is_deleted: boolean } | null;
 
-    if (commentRes.error || !comment || comment.is_deleted) {
+    if (commentRes.error) {
+      return jsonError(commentRes.error.message, 500);
+    }
+    if (!comment || comment.is_deleted) {
       return jsonError("Comment not found.", 404);
     }
 
