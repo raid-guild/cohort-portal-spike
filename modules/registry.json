@@ -713,6 +713,55 @@
       }
     },
     {
+      "id": "cohort-dm-guide",
+      "title": "Cohort DM Guide",
+      "description": "Open facilitation docs, templates, and escalation playbooks in one place.",
+      "lane": "hosts",
+      "type": "link",
+      "url": "https://cohort-dm-guide.vercel.app",
+      "status": "live",
+      "owner": {
+        "name": "@dekanbro",
+        "contact": "@dekanbro"
+      },
+      "requiresAuth": true,
+      "tags": [
+        "hosts",
+        "host-tools"
+      ],
+      "presentation": {
+        "mode": "dialog",
+        "trigger": "button",
+        "dialog": {
+          "size": "lg"
+        },
+        "iframe": {
+          "height": 820
+        }
+      },
+      "summary": {
+        "source": "static",
+        "title": "Cohort DM Guide",
+        "items": [
+          {
+            "label": "Facilitation checklists",
+            "value": "Run each session with a consistent host playbook."
+          },
+          {
+            "label": "Session templates",
+            "value": "Reuse ready-made templates for cohort operations."
+          },
+          {
+            "label": "Escalation playbooks",
+            "value": "Reference next steps for blockers and support paths."
+          }
+        ],
+        "layout": "list",
+        "maxItems": 3,
+        "showTitle": true
+      }
+    },
+    {
       "id": "module-requests",
       "title": "Module Requests",
       "description": "Propose new portal modules and signal interest.",
