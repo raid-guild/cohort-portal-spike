@@ -81,6 +81,10 @@ export function GuildGrimoire() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
+  const visualizerCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const visualizerRafRef = useRef<number | null>(null);
   const recordingChunksRef = useRef<BlobPart[]>([]);
   const recordingStartedAtRef = useRef<number | null>(null);
   const audioPreviewUrlRef = useRef<string | null>(null);
@@ -267,6 +271,28 @@ export function GuildGrimoire() {
   }, []);
 
   useEffect(() => {
+    const hasPendingTranscription = feed.some(
+      (note) => note.content_type === "audio" && note.audio_transcription_status === "pending",
+    );
+    if (!hasPendingTranscription) return;
+
+    const timer = window.setInterval(() => {
+      void (async () => {
+        try {
+          const { data } = await supabase.auth.getSession();
+          const token = data.session?.access_token;
+          if (!token) return;
+          await loadFeed(token, appliedFilters);
+        } catch {
+          // keep polling resilient; feed errors already handled in loadFeed
+        }
+      })();
+    }, 4000);
+
+    return () => window.clearInterval(timer);
+  }, [feed, supabase, loadFeed, appliedFilters]);
+
+  useEffect(() => {
     setRecordingSupported(
       typeof window !== "undefined" &&
         typeof window.MediaRecorder !== "undefined" &&
@@ -313,6 +339,23 @@ export function GuildGrimoire() {
   }, []);
 
   const stopStreamTracks = useCallback(() => {
+    if (visualizerRafRef.current !== null) {
+      window.cancelAnimationFrame(visualizerRafRef.current);
+      visualizerRafRef.current = null;
+    }
+    analyserRef.current = null;
+    if (audioContextRef.current) {
+      const context = audioContextRef.current;
+      audioContextRef.current = null;
+      void context.close().catch(() => {});
+    }
+    const canvas = visualizerCanvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
     if (!mediaStreamRef.current) return;
     mediaStreamRef.current.getTracks().forEach((track) => track.stop());
     mediaStreamRef.current = null;
@@ -355,6 +398,52 @@ export function GuildGrimoire() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
+      const context = new AudioContext();
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.85;
+      context.createMediaStreamSource(stream).connect(analyser);
+      audioContextRef.current = context;
+      analyserRef.current = analyser;
+
+      const draw = () => {
+        const canvas = visualizerCanvasRef.current;
+        const activeAnalyser = analyserRef.current;
+        if (!canvas || !activeAnalyser) return;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+
+        const width = canvas.clientWidth || 600;
+        const height = canvas.clientHeight || 72;
+        const dpr = window.devicePixelRatio || 1;
+        const targetWidth = Math.floor(width * dpr);
+        const targetHeight = Math.floor(height * dpr);
+        if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+        }
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, width, height);
+
+        const bins = 36;
+        const data = new Uint8Array(activeAnalyser.frequencyBinCount);
+        activeAnalyser.getByteFrequencyData(data);
+        const gap = 3;
+        const barWidth = (width - gap * (bins - 1)) / bins;
+        for (let i = 0; i < bins; i += 1) {
+          const idx = Math.floor((i / bins) * data.length);
+          const normalized = data[idx] / 255;
+          const barHeight = Math.max(3, normalized * (height - 6));
+          const x = i * (barWidth + gap);
+          const y = height - barHeight;
+          ctx.fillStyle = "hsl(167 80% 42%)";
+          ctx.fillRect(x, y, barWidth, barHeight);
+        }
+
+        visualizerRafRef.current = window.requestAnimationFrame(draw);
+      };
+      visualizerRafRef.current = window.requestAnimationFrame(draw);
 
       const preferredMime = AUDIO_RECORDING_MIME_CANDIDATES.find((candidate) =>
         MediaRecorder.isTypeSupported(candidate),
@@ -738,6 +827,13 @@ export function GuildGrimoire() {
                   Recording... {formatDuration(recordingDurationMs)} / {formatDuration(MAX_AUDIO_DURATION_MS)}
                 </div>
               ) : null}
+              <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
+                <canvas
+                  ref={visualizerCanvasRef}
+                  className={`h-[72px] w-full ${isRecording ? "opacity-100" : "opacity-40"}`}
+                  aria-label="Live audio level visualizer"
+                />
+              </div>
               {file ? (
                 <div className="text-xs text-muted-foreground">
                   Recorded: {truncateMiddle(file.name)} ({Math.round(file.size / 1024)} KB)
