@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
   }
 
   const select = tag
-    ? "id,user_id,content_type,text_content,image_url,audio_url,audio_duration_sec,visibility,created_at,deleted_at,guild_grimoire_note_tags!inner(tag_id,guild_grimoire_tags(id,slug,label))"
-    : "id,user_id,content_type,text_content,image_url,audio_url,audio_duration_sec,visibility,created_at,deleted_at,guild_grimoire_note_tags(tag_id,guild_grimoire_tags(id,slug,label))";
+    ? "id,user_id,content_type,text_content,image_url,audio_url,audio_duration_sec,audio_transcript,visibility,created_at,deleted_at,guild_grimoire_note_tags!inner(tag_id,guild_grimoire_tags(id,slug,label))"
+    : "id,user_id,content_type,text_content,image_url,audio_url,audio_duration_sec,audio_transcript,visibility,created_at,deleted_at,guild_grimoire_note_tags(tag_id,guild_grimoire_tags(id,slug,label))";
 
   let query = auth.admin
     .from("guild_grimoire_notes")
@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
     image_url: string | null;
     audio_url: string | null;
     audio_duration_sec: number | null;
+    audio_transcript: string | null;
     visibility: string;
     created_at: string;
     deleted_at: string | null;
@@ -94,6 +95,7 @@ export async function GET(request: NextRequest) {
       image_url: row.image_url,
       audio_url: row.audio_url,
       audio_duration_sec: row.audio_duration_sec,
+      audio_transcript: row.audio_transcript,
       visibility: row.visibility,
       created_at: row.created_at,
       deleted_at: row.deleted_at,
