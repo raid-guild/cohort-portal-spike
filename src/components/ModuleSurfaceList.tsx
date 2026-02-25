@@ -137,9 +137,12 @@ export function ModuleSurfaceList({
     });
   }
 
-  const compact = ordered.filter((module) => getCardLayout(module) === "compact");
-  const nonCompact = ordered.filter((module) => getCardLayout(module) !== "compact");
-  const arranged = [...compact, ...nonCompact];
+  const arranged = surfaceView?.order?.length
+    ? ordered
+    : [
+        ...ordered.filter((module) => getCardLayout(module) === "compact"),
+        ...ordered.filter((module) => getCardLayout(module) !== "compact"),
+      ];
 
   return (
     <>

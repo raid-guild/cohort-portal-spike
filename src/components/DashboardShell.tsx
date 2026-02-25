@@ -50,7 +50,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         const roles = (rolesJson?.roles ?? []) as string[];
         const entitlements = (entitlementsJson?.entitlements ?? []) as string[];
-        setIsHost(roles.includes("host"));
+        setIsHost(roles.includes("host") || roles.includes("admin"));
         setIsDaoMember(entitlements.includes("dao-member"));
       } catch {
         if (cancelled) return;

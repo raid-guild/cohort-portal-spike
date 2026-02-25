@@ -71,6 +71,9 @@ export default function MePage() {
   );
   const [moduleViewMessage, setModuleViewMessage] = useState("");
   const autosaveTimer = useRef<number | null>(null);
+  const profileEditorDialogRef = useRef<HTMLDivElement | null>(null);
+  const profileEditorTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusedElementRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -307,6 +310,71 @@ export default function MePage() {
         setAvailableSkills(data.map((row) => row.skill));
       });
   }, [supabase]);
+
+  useEffect(() => {
+    if (!profileEditorOpen) return;
+    const dialog = profileEditorDialogRef.current;
+    if (!dialog) return;
+    const triggerElement = profileEditorTriggerRef.current;
+
+    previousFocusedElementRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    const getFocusableElements = () =>
+      Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => !element.hasAttribute("disabled"));
+
+    const focusInitial = () => {
+      const [firstFocusable] = getFocusableElements();
+      (firstFocusable ?? dialog).focus();
+    };
+    const frame = window.requestAnimationFrame(focusInitial);
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setProfileEditorOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const focusable = getFocusableElements();
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const activeElement =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+      if (event.shiftKey) {
+        if (activeElement === first || (activeElement && !dialog.contains(activeElement))) {
+          event.preventDefault();
+          last.focus();
+        }
+        return;
+      }
+
+      if (activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", onKeyDown);
+      const restoreTarget = triggerElement ?? previousFocusedElementRef.current;
+      restoreTarget?.focus();
+    };
+  }, [profileEditorOpen]);
 
   const rolesLimit = 2;
   const isProfileComplete =
@@ -720,7 +788,13 @@ export default function MePage() {
             </div>
 
             <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
-              <div>{message ? <div className={statusClass}>{message}</div> : null}</div>
+              <div>
+                {message ? (
+                  <div role="status" aria-live="polite" className={statusClass}>
+                    {message}
+                  </div>
+                ) : null}
+              </div>
               <div className="flex flex-wrap items-center gap-2">
                 {wizardStep > 0 ? (
                   <button
@@ -954,6 +1028,7 @@ export default function MePage() {
                 <button
                   type="button"
                   onClick={() => setProfileEditorOpen(true)}
+                  ref={profileEditorTriggerRef}
                   className={secondaryButtonClass}
                 >
                   Edit profile
@@ -1063,14 +1138,31 @@ export default function MePage() {
           ) : null}
 
           {profileEditorOpen ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-              <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-xl">
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+              role="presentation"
+              onClick={(event) => {
+                if (event.target === event.currentTarget) {
+                  setProfileEditorOpen(false);
+                }
+              }}
+            >
+              <div
+                ref={profileEditorDialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="profile-editor-title"
+                tabIndex={-1}
+                className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-xl"
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <div className="text-xs uppercase tracking-wide text-muted-foreground">
                       Profile editor
                     </div>
-                    <h2 className="text-xl font-semibold">Edit profile details</h2>
+                    <h2 id="profile-editor-title" className="text-xl font-semibold">
+                      Edit profile details
+                    </h2>
                   </div>
                   <button
                     type="button"
