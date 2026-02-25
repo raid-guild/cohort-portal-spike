@@ -143,7 +143,13 @@ function buildGraphForTier(
 
 export async function GET(request: Request) {
   const tier = await resolveTier(request);
-  const peopleRaw = await loadPeople();
+  let peopleRaw: Awaited<ReturnType<typeof loadPeople>>;
+  try {
+    peopleRaw = await loadPeople();
+  } catch (error) {
+    console.error("Failed to load people for skills summary widget", error);
+    return Response.json({ error: "Service unavailable" }, { status: 503 });
+  }
   const people = peopleRaw.map((person) => ({
     handle: person.handle,
     displayName: person.displayName,
