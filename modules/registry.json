@@ -50,6 +50,120 @@
       }
     },
     {
+      "id": "mock-cohort-readiness",
+      "title": "Cohort Readiness",
+      "description": "Mock compact card for dashboard IA testing.",
+      "lane": "portal",
+      "type": "link",
+      "status": "planned",
+      "owner": {
+        "name": "Portal Core",
+        "contact": "discord:@portal"
+      },
+      "requiresAuth": false,
+      "tags": [
+        "start-here",
+        "mock"
+      ],
+      "presentation": {
+        "layout": "compact",
+        "action": "none"
+      },
+      "summary": {
+        "source": "static",
+        "title": "Readiness",
+        "layout": "compact",
+        "showTitle": false,
+        "items": [
+          {
+            "label": "Profile",
+            "value": "84%"
+          },
+          {
+            "label": "Onboarding",
+            "value": "12 / 15"
+          }
+        ],
+        "maxItems": 2
+      }
+    },
+    {
+      "id": "mock-active-raiders",
+      "title": "Active Raiders",
+      "description": "Mock compact card for dashboard IA testing.",
+      "lane": "profiles",
+      "type": "link",
+      "status": "planned",
+      "owner": {
+        "name": "Profiles Lane",
+        "contact": "discord:@profiles"
+      },
+      "requiresAuth": false,
+      "tags": [
+        "start-here",
+        "mock"
+      ],
+      "presentation": {
+        "layout": "compact",
+        "action": "none"
+      },
+      "summary": {
+        "source": "static",
+        "title": "People",
+        "layout": "compact",
+        "showTitle": false,
+        "items": [
+          {
+            "label": "Online Today",
+            "value": "37"
+          },
+          {
+            "label": "New Intros",
+            "value": "5"
+          }
+        ],
+        "maxItems": 2
+      }
+    },
+    {
+      "id": "mock-open-opportunities",
+      "title": "Open Opportunities",
+      "description": "Mock compact card for dashboard IA testing.",
+      "lane": "hosts",
+      "type": "link",
+      "status": "planned",
+      "owner": {
+        "name": "Host Lane",
+        "contact": "discord:@hosts"
+      },
+      "requiresAuth": false,
+      "tags": [
+        "start-here",
+        "mock"
+      ],
+      "presentation": {
+        "layout": "compact",
+        "action": "none"
+      },
+      "summary": {
+        "source": "static",
+        "title": "Opportunities",
+        "layout": "compact",
+        "showTitle": false,
+        "items": [
+          {
+            "label": "Open Bounties",
+            "value": "14"
+          },
+          {
+            "label": "Unclaimed",
+            "value": "6"
+          }
+        ],
+        "maxItems": 2
+      }
+    },
+    {
       "id": "profile-completion",
       "title": "Profile Completion",
       "description": "Track and complete your profile checklist.",
@@ -66,7 +180,8 @@
         "me-tools"
       ],
       "presentation": {
-        "action": "none"
+        "action": "none",
+        "layout": "default"
       },
       "summaryBySurface": {
         "profile": {
@@ -111,7 +226,8 @@
         },
         "iframe": {
           "height": 640
-        }
+        },
+        "layout": "default"
       },
       "summary": {
         "source": "api",
@@ -166,7 +282,8 @@
         },
         "iframe": {
           "height": 720
-        }
+        },
+        "layout": "default"
       },
       "summaryBySurface": {
         "profile": {
@@ -219,7 +336,8 @@
       "presentation": {
         "mode": "page",
         "trigger": "button",
-        "actionLabel": "Start My Cohort Commitment"
+        "actionLabel": "Start My Cohort Commitment",
+        "layout": "default"
       },
       "summary": {
         "source": "static",
@@ -261,7 +379,8 @@
       "url": "/modules/cohort-application",
       "presentation": {
         "mode": "page",
-        "trigger": "button"
+        "trigger": "button",
+        "layout": "default"
       },
       "summary": {
         "source": "api",
@@ -290,7 +409,8 @@
       "url": "/modules/dao-membership",
       "presentation": {
         "mode": "page",
-        "trigger": "button"
+        "trigger": "button",
+        "layout": "default"
       },
       "summary": {
         "source": "api",
@@ -323,7 +443,8 @@
       "url": "/modules/dao-member-dashboard",
       "presentation": {
         "mode": "page",
-        "trigger": "button"
+        "trigger": "button",
+        "layout": "default"
       },
       "summary": {
         "source": "api",
@@ -355,7 +476,8 @@
       "presentation": {
         "mode": "page",
         "trigger": "button",
-        "actionLabel": "Review applications"
+        "actionLabel": "Review applications",
+        "layout": "default"
       },
       "summary": {
         "source": "api",
@@ -389,7 +511,8 @@
       "presentation": {
         "mode": "page",
         "trigger": "button",
-        "actionLabel": "Open Cohort Hub"
+        "actionLabel": "Open Cohort Hub",
+        "layout": "default"
       },
       "summary": {
         "source": "static",
@@ -435,7 +558,8 @@
       ],
       "presentation": {
         "mode": "page",
-        "trigger": "button"
+        "trigger": "button",
+        "layout": "default"
       },
       "access": {
         "requiresAuth": true,
@@ -471,7 +595,10 @@
       "tags": [
         "badges",
         "profile-tools-public"
-      ]
+      ],
+      "presentation": {
+        "layout": "default"
+      }
     },
     {
       "id": "payments",
@@ -489,7 +616,10 @@
       "tags": [
         "payments",
         "finance"
-      ]
+      ],
+      "presentation": {
+        "layout": "default"
+      }
     },
     {
       "id": "announcements",
@@ -550,7 +680,8 @@
       ],
       "presentation": {
         "mode": "page",
-        "trigger": "button"
+        "trigger": "button",
+        "layout": "default"
       },
       "summary": {
         "source": "api",
@@ -581,7 +712,8 @@
       ],
       "presentation": {
         "mode": "page",
-        "trigger": "button"
+        "trigger": "button",
+        "layout": "default"
       },
       "summary": {
         "source": "api",
@@ -643,7 +775,8 @@
       ],
       "presentation": {
         "mode": "page",
-        "trigger": "button"
+        "trigger": "button",
+        "layout": "default"
       },
       "summary": {
         "source": "api",
@@ -672,7 +805,8 @@
       ],
       "presentation": {
         "mode": "page",
-        "trigger": "button"
+        "trigger": "button",
+        "layout": "default"
       },
       "summary": {
         "source": "api",
@@ -709,7 +843,8 @@
         },
         "iframe": {
           "height": 720
-        }
+        },
+        "layout": "default"
       }
     },
     {

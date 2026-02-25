@@ -25,9 +25,7 @@ export default function HomePage() {
             View all modules
           </Link>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <ModuleSurfaceList modules={startHere} surface="home" />
-        </div>
+        <ModuleSurfaceList modules={startHere} surface="home" />
       </section>
 
     </div>

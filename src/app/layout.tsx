@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { NavShell } from "@/components/NavShell";
+import { DashboardShell } from "@/components/DashboardShell";
 import { PortalToastHost } from "@/components/PortalToastHost";
 import { ebGaramond, maziusDisplay, ubuntuMono } from "@/lib/fonts";
 import { ThemeProvider } from "@/lib/theme-context";
@@ -24,10 +24,9 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <Suspense fallback={null}>
-            <NavShell />
+            <DashboardShell>{children}</DashboardShell>
           </Suspense>
           <PortalToastHost />
-          <main className="container-custom py-8">{children}</main>
         </ThemeProvider>
       </body>
     </html>

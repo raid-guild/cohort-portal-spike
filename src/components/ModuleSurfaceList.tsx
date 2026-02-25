@@ -8,6 +8,24 @@ import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { ModuleCard } from "./ModuleCard";
 import { PortalRpcBroker } from "./PortalRpcBroker";
 
+type CardLayout = "compact" | "default" | "wide";
+
+function getCardLayout(module: ModuleEntry): CardLayout {
+  const layout = module.presentation?.layout;
+  if (layout === "compact" || layout === "wide") return layout;
+  return "default";
+}
+
+function getCardSpanClass(layout: CardLayout) {
+  if (layout === "compact") {
+    return "sm:col-span-1 lg:col-span-3 xl:col-span-2";
+  }
+  if (layout === "wide") {
+    return "lg:col-span-12";
+  }
+  return "sm:col-span-1 lg:col-span-6 xl:col-span-4";
+}
+
 export function ModuleSurfaceList({
   modules,
   surface,
@@ -119,6 +137,13 @@ export function ModuleSurfaceList({
     });
   }
 
+  const arranged = surfaceView?.order?.length
+    ? ordered
+    : [
+        ...ordered.filter((module) => getCardLayout(module) === "compact"),
+        ...ordered.filter((module) => getCardLayout(module) !== "compact"),
+      ];
+
   return (
     <>
       <PortalRpcBroker
@@ -128,12 +153,9 @@ export function ModuleSurfaceList({
         roles={roles}
         entitlements={entitlements}
       />
-      <div className="grid gap-4 md:grid-cols-2">
-        {ordered.map((module) => (
-          <div
-            key={module.id}
-            className={module.presentation?.layout === "wide" ? "md:col-span-2" : ""}
-          >
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12">
+        {arranged.map((module) => (
+          <div key={module.id} className={getCardSpanClass(getCardLayout(module))}>
             <ModuleCard
               module={module}
               surface={surface}
