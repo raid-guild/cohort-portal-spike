@@ -63,6 +63,7 @@ export default function MePage() {
   const [wizardStep, setWizardStep] = useState(0);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardAutoOpened, setWizardAutoOpened] = useState(false);
+  const [profileEditorOpen, setProfileEditorOpen] = useState(false);
   const [profileReady, setProfileReady] = useState(false);
   const [showModuleCustomize, setShowModuleCustomize] = useState(false);
   const [moduleViewConfig, setModuleViewConfig] = useState<ModuleViewsConfig | null>(
@@ -880,48 +881,146 @@ export default function MePage() {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
-            <div>
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Account</div>
-              <div className="text-sm text-foreground">{user?.email ?? user?.id}</div>
+          <div className="space-y-4 rounded-xl border border-border bg-card p-4 md:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0 space-y-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="h-16 w-16 overflow-hidden rounded-full border border-border bg-muted">
+                    {profile.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={withCacheBuster(profile.avatarUrl, avatarImageVersion)}
+                        alt="Profile avatar"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+                        RG
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Profile
+                    </div>
+                    <div className="truncate text-base font-semibold text-foreground">
+                      {profile.displayName || profile.handle || "Set your profile details"}
+                    </div>
+                    <div className="truncate text-sm text-muted-foreground">
+                      {profile.handle ? `@${profile.handle}` : "No handle set"}
+                    </div>
+                  </div>
+                </div>
+                {profile.bio ? (
+                  <p className="max-w-3xl text-sm text-muted-foreground">{profile.bio}</p>
+                ) : (
+                  <p className="max-w-3xl text-sm text-muted-foreground">
+                    Add a short bio so others can quickly understand how you contribute.
+                  </p>
+                )}
+                <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+                  <div className="rounded-lg border border-border bg-background px-3 py-2">
+                    <span className="font-semibold text-foreground">Location:</span>{" "}
+                    {profile.location || "Not set"}
+                  </div>
+                  <div className="rounded-lg border border-border bg-background px-3 py-2">
+                    <span className="font-semibold text-foreground">Email:</span>{" "}
+                    {user?.email || profile.email || "Not set"}
+                  </div>
+                  <div className="rounded-lg border border-border bg-background px-3 py-2 sm:col-span-2">
+                    <span className="font-semibold text-foreground">Wallet:</span>{" "}
+                    {profile.walletAddress || "Not set"}
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWizardAutoOpened(false);
+                    setWizardOpen(true);
+                  }}
+                  className={secondaryButtonClass}
+                >
+                  Open profile wizard
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowModuleCustomize((value) => !value)}
+                  className={secondaryButtonClass}
+                >
+                  {showModuleCustomize ? "Hide customization" : "Customize"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProfileEditorOpen(true)}
+                  className={secondaryButtonClass}
+                >
+                  Edit profile
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className={secondaryButtonClass}
+                >
+                  Sign out
+                </button>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className={secondaryButtonClass}
-            >
-              Sign out
-            </button>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Roles
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {profile.roles.length ? (
+                    profile.roles.map((role) => (
+                      <span
+                        key={role}
+                        className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground"
+                      >
+                        {role}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-muted-foreground">No roles selected yet.</span>
+                  )}
+                </div>
+              </div>
+              <div>
+                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Skills
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {profile.skills.length ? (
+                    profile.skills.slice(0, 8).map((skill) => (
+                      <span
+                        key={skill}
+                        className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground"
+                      >
+                        {skill}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-muted-foreground">No skills selected yet.</span>
+                  )}
+                </div>
+              </div>
+            </div>
+            {message ? (
+              <div role="status" aria-live="polite" className={statusClass}>
+                {message}
+              </div>
+            ) : null}
           </div>
 
           {meTools.length ? (
             <div className="rounded-xl border border-border bg-card p-4 md:p-5">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <div className="text-sm font-semibold">Profile Tools</div>
-                  <p className="text-xs text-muted-foreground">
-                    Modules tailored to your profile and onboarding progress.
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setWizardAutoOpened(false);
-                      setWizardOpen(true);
-                    }}
-                    className={secondaryButtonClass}
-                  >
-                    Open profile wizard
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowModuleCustomize((value) => !value)}
-                    className={secondaryButtonClass}
-                  >
-                    {showModuleCustomize ? "Hide customization" : "Customize"}
-                  </button>
-                </div>
+              <div>
+                <div className="text-sm font-semibold">Profile Tools</div>
+                <p className="text-xs text-muted-foreground">
+                  Modules tailored to your profile and onboarding progress.
+                </p>
               </div>
               {showModuleCustomize ? (
                 <div className="mt-3">
@@ -963,193 +1062,209 @@ export default function MePage() {
             </div>
           ) : null}
 
-          <div className="space-y-4 rounded-xl border border-border bg-card p-4 md:p-6">
-            <div>
-              <div className="text-sm font-semibold">Profile details</div>
-              <p className="text-xs text-muted-foreground">
-                Keep your profile current so members can discover your work.
-              </p>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-            <div className="md:col-span-2">
-              <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-background p-4">
-                <div className="h-20 w-20 overflow-hidden rounded-full border border-border bg-muted">
-                  {profile.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={withCacheBuster(profile.avatarUrl, avatarImageVersion)}
-                      alt="Profile avatar"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : null}
-                </div>
-                <div className="space-y-2 text-sm">
-                  <div className="font-semibold">Profile avatar</div>
-                  <p className="text-xs text-muted-foreground">
-                    Edit in a modal, crop to square, then confirm save.
-                  </p>
+          {profileEditorOpen ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+              <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-xl">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Profile editor
+                    </div>
+                    <h2 className="text-xl font-semibold">Edit profile details</h2>
+                  </div>
                   <button
                     type="button"
-                    onClick={openAvatarEditor}
+                    onClick={() => setProfileEditorOpen(false)}
                     className={secondaryButtonClass}
                   >
-                    Edit avatar
+                    Close
                   </button>
                 </div>
-              </div>
-            </div>
-              <label className="space-y-2 text-sm">
-              <span className="font-semibold">Handle</span>
-              <input
-                value={profile.handle}
-                onChange={(event) =>
-                  setProfile((prev) => ({
-                    ...prev,
-                    handle: event.target.value,
-                  }))
-                }
-                placeholder="your-handle"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2"
-              />
-            </label>
-              <label className="space-y-2 text-sm">
-              <span className="font-semibold">Display name</span>
-              <input
-                value={profile.displayName}
-                onChange={(event) =>
-                  setProfile((prev) => ({
-                    ...prev,
-                    displayName: event.target.value,
-                  }))
-                }
-                placeholder="Your name"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2"
-              />
-            </label>
-              <label className="space-y-2 text-sm md:col-span-2">
-              <span className="font-semibold">Bio</span>
-              <textarea
-                value={profile.bio}
-                onChange={(event) =>
-                  setProfile((prev) => ({
-                    ...prev,
-                    bio: event.target.value,
-                  }))
-                }
-                placeholder="Tell the cohort about you."
-                className="min-h-[120px] w-full rounded-lg border border-border bg-background px-3 py-2"
-              />
-            </label>
-              <label className="space-y-2 text-sm">
-              <span className="font-semibold">Location</span>
-              <input
-                value={profile.location}
-                onChange={(event) =>
-                  setProfile((prev) => ({
-                    ...prev,
-                    location: event.target.value,
-                  }))
-                }
-                placeholder="City, Country"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2"
-              />
-            </label>
-              <label className="space-y-2 text-sm">
-              <span className="font-semibold">Wallet address</span>
-              <input
-                value={profile.walletAddress}
-                readOnly
-                placeholder="0x..."
-                className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-muted-foreground"
-              />
-              <div className="text-xs text-muted-foreground">
-                Wallet addresses are linked by signing a message.
-              </div>
-            </label>
-              <div className="space-y-2 text-sm">
-              <span className="font-semibold">Email to link</span>
-              <div className="flex flex-wrap gap-2">
-                <input
-                  value={profile.email}
-                  onChange={(event) =>
-                    setProfile((prev) => ({
-                      ...prev,
-                      email: event.target.value,
-                    }))
-                  }
-                  placeholder="you@example.com"
-                  className="w-full flex-1 rounded-lg border border-border bg-background px-3 py-2"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleLinkEmail(profile.email)}
-                  className={secondaryButtonClass}
-                  disabled={linking}
-                >
-                  Link email
-                </button>
-              </div>
-              {user?.email ? (
-                <div className="text-xs text-muted-foreground">
-                  Linked email: {user.email}
-                </div>
-              ) : null}
-            </div>
-            </div>
 
-            <div className="rounded-xl border border-border bg-background p-4">
-              <div className="space-y-4">
-                <div>
-                  <div className="text-sm font-semibold">Skills</div>
-                  <p className="text-xs text-muted-foreground">
-                    Select the skills you actively work with.
-                  </p>
-                </div>
-                <MultiSelect
-                  options={availableSkills}
-                  value={profile.skills}
-                  onChange={(skills) =>
-                    setProfile((prev) => ({ ...prev, skills }))
-                  }
-                  emptyLabel="No skills available yet."
-                />
-              </div>
-              <div className="mt-4 space-y-4">
-                <div>
-                  <div className="text-sm font-semibold">Roles</div>
-                  <p className="text-xs text-muted-foreground">
-                    Select the roles that match how you contribute. Choose up to two.
-                  </p>
-                </div>
-                <RolePicker
-                  roles={RAID_GUILD_ROLES}
-                  value={profile.roles}
-                  onChange={(roles) =>
-                    setProfile((prev) => ({ ...prev, roles }))
-                  }
-                  maxSelected={rolesLimit}
-                />
-              </div>
-            </div>
+                <div className="mt-4 space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="md:col-span-2">
+                      <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-background p-4">
+                        <div className="h-20 w-20 overflow-hidden rounded-full border border-border bg-muted">
+                          {profile.avatarUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={withCacheBuster(profile.avatarUrl, avatarImageVersion)}
+                              alt="Profile avatar"
+                              className="h-full w-full object-cover"
+                            />
+                          ) : null}
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          <div className="font-semibold">Profile avatar</div>
+                          <p className="text-xs text-muted-foreground">
+                            Edit in a modal, crop to square, then confirm save.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={openAvatarEditor}
+                            className={secondaryButtonClass}
+                          >
+                            Edit avatar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <label className="space-y-2 text-sm">
+                      <span className="font-semibold">Handle</span>
+                      <input
+                        value={profile.handle}
+                        onChange={(event) =>
+                          setProfile((prev) => ({
+                            ...prev,
+                            handle: event.target.value,
+                          }))
+                        }
+                        placeholder="your-handle"
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2"
+                      />
+                    </label>
+                    <label className="space-y-2 text-sm">
+                      <span className="font-semibold">Display name</span>
+                      <input
+                        value={profile.displayName}
+                        onChange={(event) =>
+                          setProfile((prev) => ({
+                            ...prev,
+                            displayName: event.target.value,
+                          }))
+                        }
+                        placeholder="Your name"
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2"
+                      />
+                    </label>
+                    <label className="space-y-2 text-sm md:col-span-2">
+                      <span className="font-semibold">Bio</span>
+                      <textarea
+                        value={profile.bio}
+                        onChange={(event) =>
+                          setProfile((prev) => ({
+                            ...prev,
+                            bio: event.target.value,
+                          }))
+                        }
+                        placeholder="Tell the cohort about you."
+                        className="min-h-[120px] w-full rounded-lg border border-border bg-background px-3 py-2"
+                      />
+                    </label>
+                    <label className="space-y-2 text-sm">
+                      <span className="font-semibold">Location</span>
+                      <input
+                        value={profile.location}
+                        onChange={(event) =>
+                          setProfile((prev) => ({
+                            ...prev,
+                            location: event.target.value,
+                          }))
+                        }
+                        placeholder="City, Country"
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2"
+                      />
+                    </label>
+                    <label className="space-y-2 text-sm">
+                      <span className="font-semibold">Wallet address</span>
+                      <input
+                        value={profile.walletAddress}
+                        readOnly
+                        placeholder="0x..."
+                        className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-muted-foreground"
+                      />
+                      <div className="text-xs text-muted-foreground">
+                        Wallet addresses are linked by signing a message.
+                      </div>
+                    </label>
+                    <div className="space-y-2 text-sm">
+                      <span className="font-semibold">Email to link</span>
+                      <div className="flex flex-wrap gap-2">
+                        <input
+                          value={profile.email}
+                          onChange={(event) =>
+                            setProfile((prev) => ({
+                              ...prev,
+                              email: event.target.value,
+                            }))
+                          }
+                          placeholder="you@example.com"
+                          className="w-full flex-1 rounded-lg border border-border bg-background px-3 py-2"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleLinkEmail(profile.email)}
+                          className={secondaryButtonClass}
+                          disabled={linking}
+                        >
+                          Link email
+                        </button>
+                      </div>
+                      {user?.email ? (
+                        <div className="text-xs text-muted-foreground">
+                          Linked email: {user.email}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  void handleProfileSave();
-                }}
-                className={primaryButtonClass}
-                disabled={loading}
-              >
-                {profileExists ? "Update profile" : "Create profile"}
-              </button>
-              {message ? (
-                <div role="status" aria-live="polite" className={statusClass}>
-                  {message}
+                  <div className="rounded-xl border border-border bg-background p-4">
+                    <div className="space-y-4">
+                      <div>
+                        <div className="text-sm font-semibold">Skills</div>
+                        <p className="text-xs text-muted-foreground">
+                          Select the skills you actively work with.
+                        </p>
+                      </div>
+                      <MultiSelect
+                        options={availableSkills}
+                        value={profile.skills}
+                        onChange={(skills) =>
+                          setProfile((prev) => ({ ...prev, skills }))
+                        }
+                        emptyLabel="No skills available yet."
+                      />
+                    </div>
+                    <div className="mt-4 space-y-4">
+                      <div>
+                        <div className="text-sm font-semibold">Roles</div>
+                        <p className="text-xs text-muted-foreground">
+                          Select the roles that match how you contribute. Choose up to two.
+                        </p>
+                      </div>
+                      <RolePicker
+                        roles={RAID_GUILD_ROLES}
+                        value={profile.roles}
+                        onChange={(roles) =>
+                          setProfile((prev) => ({ ...prev, roles }))
+                        }
+                        maxSelected={rolesLimit}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleProfileSave();
+                      }}
+                      className={primaryButtonClass}
+                      disabled={loading}
+                    >
+                      {profileExists ? "Update profile" : "Create profile"}
+                    </button>
+                    {message ? (
+                      <div role="status" aria-live="polite" className={statusClass}>
+                        {message}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
-              ) : null}
+              </div>
             </div>
-          </div>
+          ) : null}
 
         </div>
       )}
