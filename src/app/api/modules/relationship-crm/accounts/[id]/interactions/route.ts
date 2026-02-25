@@ -4,8 +4,8 @@ import {
   accountExists,
   asNullableTimestamp,
   asString,
-  asUntypedAdmin,
   includesValue,
+  isUuid,
   jsonError,
   requireCrmAccess,
 } from "@/app/api/modules/relationship-crm/lib";
@@ -20,6 +20,9 @@ export async function POST(
   }
 
   const { id: accountId } = await context.params;
+  if (!isUuid(accountId)) {
+    return jsonError("Invalid account id.", 400);
+  }
   const payload = (await request.json().catch(() => null)) as Record<string, unknown> | null;
 
   const summary = asString(payload?.summary);
@@ -33,13 +36,37 @@ export async function POST(
   if (!includesValue(interactionType, INTERACTION_TYPES)) {
     return jsonError("interactionType is invalid.", 400);
   }
+  if (contactId && !isUuid(contactId)) {
+    return jsonError("contactId is invalid.", 400);
+  }
 
-  const exists = await accountExists(viewer.admin, accountId);
+  let exists = false;
+  try {
+    exists = await accountExists(viewer.admin, accountId);
+  } catch {
+    return jsonError("Account not found.", 404);
+  }
   if (!exists) {
     return jsonError("Account not found.", 404);
   }
 
-  const admin = asUntypedAdmin(viewer.admin);
+  const admin = viewer.admin;
+  if (contactId) {
+    const { data: contact, error: contactError } = await admin
+      .from("relationship_crm_contacts")
+      .select("id")
+      .eq("id", contactId)
+      .eq("account_id", accountId)
+      .maybeSingle();
+
+    if (contactError) {
+      return jsonError(`Failed to validate contact: ${contactError.message}`, 500);
+    }
+    if (!contact) {
+      return jsonError("contactId does not belong to this account.", 400);
+    }
+  }
+
   const { data, error } = await admin
     .from("relationship_crm_interactions")
     .insert({

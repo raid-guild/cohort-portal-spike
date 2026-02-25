@@ -123,14 +123,30 @@ using (
   and deleted_at is null
 );
 
-create policy "CRM accounts writable by host or dao-member"
+create policy "CRM accounts insertable by host or dao-member"
 on public.relationship_crm_accounts
-for all
+for insert
+with check (
+  auth.uid() is not null
+  and public.has_relationship_crm_access(auth.uid())
+);
+
+create policy "CRM accounts updatable by host or dao-member"
+on public.relationship_crm_accounts
+for update
 using (
   auth.uid() is not null
   and public.has_relationship_crm_access(auth.uid())
 )
 with check (
+  auth.uid() is not null
+  and public.has_relationship_crm_access(auth.uid())
+);
+
+create policy "CRM accounts deletable by host or dao-member"
+on public.relationship_crm_accounts
+for delete
+using (
   auth.uid() is not null
   and public.has_relationship_crm_access(auth.uid())
 );
@@ -149,16 +165,56 @@ using (
   )
 );
 
-create policy "CRM contacts writable by host or dao-member"
+create policy "CRM contacts insertable by host or dao-member"
 on public.relationship_crm_contacts
-for all
+for insert
+with check (
+  auth.uid() is not null
+  and public.has_relationship_crm_access(auth.uid())
+  and exists (
+    select 1
+    from public.relationship_crm_accounts a
+    where a.id = relationship_crm_contacts.account_id
+      and a.deleted_at is null
+  )
+);
+
+create policy "CRM contacts updatable by host or dao-member"
+on public.relationship_crm_contacts
+for update
 using (
   auth.uid() is not null
   and public.has_relationship_crm_access(auth.uid())
+  and exists (
+    select 1
+    from public.relationship_crm_accounts a
+    where a.id = relationship_crm_contacts.account_id
+      and a.deleted_at is null
+  )
 )
 with check (
   auth.uid() is not null
   and public.has_relationship_crm_access(auth.uid())
+  and exists (
+    select 1
+    from public.relationship_crm_accounts a
+    where a.id = relationship_crm_contacts.account_id
+      and a.deleted_at is null
+  )
+);
+
+create policy "CRM contacts deletable by host or dao-member"
+on public.relationship_crm_contacts
+for delete
+using (
+  auth.uid() is not null
+  and public.has_relationship_crm_access(auth.uid())
+  and exists (
+    select 1
+    from public.relationship_crm_accounts a
+    where a.id = relationship_crm_contacts.account_id
+      and a.deleted_at is null
+  )
 );
 
 create policy "CRM interactions readable by host or dao-member"
@@ -175,16 +231,56 @@ using (
   )
 );
 
-create policy "CRM interactions writable by host or dao-member"
+create policy "CRM interactions insertable by host or dao-member"
 on public.relationship_crm_interactions
-for all
+for insert
+with check (
+  auth.uid() is not null
+  and public.has_relationship_crm_access(auth.uid())
+  and exists (
+    select 1
+    from public.relationship_crm_accounts a
+    where a.id = relationship_crm_interactions.account_id
+      and a.deleted_at is null
+  )
+);
+
+create policy "CRM interactions updatable by host or dao-member"
+on public.relationship_crm_interactions
+for update
 using (
   auth.uid() is not null
   and public.has_relationship_crm_access(auth.uid())
+  and exists (
+    select 1
+    from public.relationship_crm_accounts a
+    where a.id = relationship_crm_interactions.account_id
+      and a.deleted_at is null
+  )
 )
 with check (
   auth.uid() is not null
   and public.has_relationship_crm_access(auth.uid())
+  and exists (
+    select 1
+    from public.relationship_crm_accounts a
+    where a.id = relationship_crm_interactions.account_id
+      and a.deleted_at is null
+  )
+);
+
+create policy "CRM interactions deletable by host or dao-member"
+on public.relationship_crm_interactions
+for delete
+using (
+  auth.uid() is not null
+  and public.has_relationship_crm_access(auth.uid())
+  and exists (
+    select 1
+    from public.relationship_crm_accounts a
+    where a.id = relationship_crm_interactions.account_id
+      and a.deleted_at is null
+  )
 );
 
 create policy "CRM tasks readable by host or dao-member"
@@ -201,14 +297,54 @@ using (
   )
 );
 
-create policy "CRM tasks writable by host or dao-member"
+create policy "CRM tasks insertable by host or dao-member"
 on public.relationship_crm_tasks
-for all
+for insert
+with check (
+  auth.uid() is not null
+  and public.has_relationship_crm_access(auth.uid())
+  and exists (
+    select 1
+    from public.relationship_crm_accounts a
+    where a.id = relationship_crm_tasks.account_id
+      and a.deleted_at is null
+  )
+);
+
+create policy "CRM tasks updatable by host or dao-member"
+on public.relationship_crm_tasks
+for update
 using (
   auth.uid() is not null
   and public.has_relationship_crm_access(auth.uid())
+  and exists (
+    select 1
+    from public.relationship_crm_accounts a
+    where a.id = relationship_crm_tasks.account_id
+      and a.deleted_at is null
+  )
 )
 with check (
   auth.uid() is not null
   and public.has_relationship_crm_access(auth.uid())
+  and exists (
+    select 1
+    from public.relationship_crm_accounts a
+    where a.id = relationship_crm_tasks.account_id
+      and a.deleted_at is null
+  )
+);
+
+create policy "CRM tasks deletable by host or dao-member"
+on public.relationship_crm_tasks
+for delete
+using (
+  auth.uid() is not null
+  and public.has_relationship_crm_access(auth.uid())
+  and exists (
+    select 1
+    from public.relationship_crm_accounts a
+    where a.id = relationship_crm_tasks.account_id
+      and a.deleted_at is null
+  )
 );

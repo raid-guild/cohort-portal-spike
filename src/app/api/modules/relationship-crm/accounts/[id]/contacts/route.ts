@@ -4,8 +4,8 @@ import {
   accountExists,
   asBoolean,
   asString,
-  asUntypedAdmin,
   includesValue,
+  isUuid,
   jsonError,
   requireCrmAccess,
 } from "@/app/api/modules/relationship-crm/lib";
@@ -20,6 +20,9 @@ export async function POST(
   }
 
   const { id: accountId } = await context.params;
+  if (!isUuid(accountId)) {
+    return jsonError("Invalid account id.", 400);
+  }
   const payload = (await request.json().catch(() => null)) as Record<string, unknown> | null;
 
   const fullName = asString(payload?.fullName);
@@ -36,12 +39,17 @@ export async function POST(
     return jsonError("preferredChannel is invalid.", 400);
   }
 
-  const exists = await accountExists(viewer.admin, accountId);
+  let exists = false;
+  try {
+    exists = await accountExists(viewer.admin, accountId);
+  } catch {
+    return jsonError("Account not found.", 404);
+  }
   if (!exists) {
     return jsonError("Account not found.", 404);
   }
 
-  const admin = asUntypedAdmin(viewer.admin);
+  const admin = viewer.admin;
   const { data, error } = await admin
     .from("relationship_crm_contacts")
     .insert({

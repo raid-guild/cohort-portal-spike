@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { asUntypedAdmin, jsonError, requireCrmAccess } from "@/app/api/modules/relationship-crm/lib";
+import { jsonError, requireCrmAccess } from "@/app/api/modules/relationship-crm/lib";
 
 export async function GET(request: NextRequest) {
   const viewer = await requireCrmAccess(request);
@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     return jsonError(viewer.error, viewer.status);
   }
 
-  const admin = asUntypedAdmin(viewer.admin);
+  const admin = viewer.admin;
   const now = new Date();
   const startOfDay = new Date(now);
   startOfDay.setUTCHours(0, 0, 0, 0);

@@ -3,8 +3,8 @@ import {
   TASK_STATUSES,
   asNullableTimestamp,
   asString,
-  asUntypedAdmin,
   includesValue,
+  isUuid,
   jsonError,
   requireCrmAccess,
 } from "@/app/api/modules/relationship-crm/lib";
@@ -19,6 +19,9 @@ export async function PATCH(
   }
 
   const { id } = await context.params;
+  if (!isUuid(id)) {
+    return jsonError("Invalid task id.", 400);
+  }
   const payload = (await request.json().catch(() => null)) as Record<string, unknown> | null;
 
   const updates: Record<string, unknown> = {};
@@ -37,7 +40,12 @@ export async function PATCH(
     updates.assignee_user_id = assigneeUserId;
   }
   if (Object.prototype.hasOwnProperty.call(payload ?? {}, "dueAt")) {
-    updates.due_at = asNullableTimestamp(payload?.dueAt);
+    const rawDueAt = payload?.dueAt;
+    const dueAt = asNullableTimestamp(rawDueAt);
+    if (rawDueAt !== null && rawDueAt !== undefined && dueAt === null) {
+      return jsonError("dueAt is invalid.", 400);
+    }
+    updates.due_at = dueAt;
   }
   if (status !== null) {
     if (!includesValue(status, TASK_STATUSES)) {
@@ -51,7 +59,7 @@ export async function PATCH(
     return jsonError("No valid fields provided.", 400);
   }
 
-  const admin = asUntypedAdmin(viewer.admin);
+  const admin = viewer.admin;
   const { data, error } = await admin
     .from("relationship_crm_tasks")
     .update(updates)

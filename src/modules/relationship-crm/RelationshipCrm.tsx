@@ -127,11 +127,12 @@ export function RelationshipCrm() {
         setDetail(null);
         return;
       }
-      if (!selectedAccountId || !loaded.find((row) => row.id === selectedAccountId)) {
-        setSelectedAccountId(loaded[0].id);
-      }
+      setSelectedAccountId((prev) => {
+        if (prev && loaded.find((row) => row.id === prev)) return prev;
+        return loaded[0].id;
+      });
     },
-    [q, stageFilter, typeFilter, ownerFilter, statusFilter, selectedAccountId],
+    [q, stageFilter, typeFilter, ownerFilter, statusFilter],
   );
 
   const loadDetail = useCallback(

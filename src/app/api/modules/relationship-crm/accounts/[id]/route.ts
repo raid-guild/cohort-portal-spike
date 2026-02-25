@@ -5,7 +5,6 @@ import {
   RELATIONSHIP_TYPES,
   asNullableTimestamp,
   asString,
-  asUntypedAdmin,
   includesValue,
   jsonError,
   requireCrmAccess,
@@ -21,7 +20,7 @@ export async function GET(
   }
 
   const { id } = await context.params;
-  const admin = asUntypedAdmin(viewer.admin);
+  const admin = viewer.admin;
 
   const [accountRes, contactsRes, interactionsRes, tasksRes] = await Promise.all([
     admin
@@ -129,7 +128,7 @@ export async function PATCH(
     return jsonError("No valid fields provided.", 400);
   }
 
-  const admin = asUntypedAdmin(viewer.admin);
+  const admin = viewer.admin;
   const { data, error } = await admin
     .from("relationship_crm_accounts")
     .update(updates)

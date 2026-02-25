@@ -5,7 +5,6 @@ import {
   RELATIONSHIP_TYPES,
   asNullableTimestamp,
   asString,
-  asUntypedAdmin,
   includesValue,
   jsonError,
   parseLimit,
@@ -26,7 +25,7 @@ export async function GET(request: NextRequest) {
   const q = asString(query.get("q"));
   const limit = parseLimit(query.get("limit"), 50, 200);
 
-  const admin = asUntypedAdmin(viewer.admin);
+  const admin = viewer.admin;
   let dbQuery = admin
     .from("relationship_crm_accounts")
     .select("id,name,relationship_type,stage,status,owner_user_id,next_follow_up_at,updated_at,created_at")
@@ -50,7 +49,7 @@ export async function GET(request: NextRequest) {
     dbQuery = dbQuery.eq("status", "active");
   }
   if (q) {
-    const escaped = q.replace(/[%_,]/g, "");
+    const escaped = q.replace(/[%_,()]/g, "");
     dbQuery = dbQuery.or(`name.ilike.%${escaped}%,notes.ilike.%${escaped}%`);
   }
 
@@ -90,7 +89,7 @@ export async function POST(request: NextRequest) {
     return jsonError("status is invalid.", 400);
   }
 
-  const admin = asUntypedAdmin(viewer.admin);
+  const admin = viewer.admin;
   const { data, error } = await admin
     .from("relationship_crm_accounts")
     .insert({

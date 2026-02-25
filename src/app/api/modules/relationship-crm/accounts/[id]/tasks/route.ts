@@ -4,8 +4,8 @@ import {
   accountExists,
   asNullableTimestamp,
   asString,
-  asUntypedAdmin,
   includesValue,
+  isUuid,
   jsonError,
   requireCrmAccess,
 } from "@/app/api/modules/relationship-crm/lib";
@@ -20,26 +20,49 @@ export async function POST(
   }
 
   const { id: accountId } = await context.params;
+  if (!isUuid(accountId)) {
+    return jsonError("Invalid account id.", 400);
+  }
   const payload = (await request.json().catch(() => null)) as Record<string, unknown> | null;
 
   const title = asString(payload?.title);
-  const assigneeUserId = asString(payload?.assigneeUserId) ?? viewer.userId;
   const dueAt = asNullableTimestamp(payload?.dueAt);
-  const status = asString(payload?.status) ?? "open";
+  const assigneeProvided = Object.prototype.hasOwnProperty.call(payload ?? {}, "assigneeUserId");
+  const statusProvided = Object.prototype.hasOwnProperty.call(payload ?? {}, "status");
+
+  let assigneeUserId = viewer.userId;
+  if (assigneeProvided) {
+    const parsedAssigneeUserId = asString(payload?.assigneeUserId);
+    if (!parsedAssigneeUserId) {
+      return jsonError("assigneeUserId is invalid.", 400);
+    }
+    assigneeUserId = parsedAssigneeUserId;
+  }
+
+  let status: (typeof TASK_STATUSES)[number] = "open";
+  if (statusProvided) {
+    const parsedStatus = asString(payload?.status);
+    if (!parsedStatus || !includesValue(parsedStatus, TASK_STATUSES)) {
+      return jsonError("status is invalid.", 400);
+    }
+    status = parsedStatus;
+  }
 
   if (!title) {
     return jsonError("title is required.", 400);
   }
-  if (!includesValue(status, TASK_STATUSES)) {
-    return jsonError("status is invalid.", 400);
-  }
 
-  const exists = await accountExists(viewer.admin, accountId);
+  let exists = false;
+  try {
+    exists = await accountExists(viewer.admin, accountId);
+  } catch {
+    return jsonError("Account not found.", 404);
+  }
   if (!exists) {
     return jsonError("Account not found.", 404);
   }
 
-  const admin = asUntypedAdmin(viewer.admin);
+  const admin = viewer.admin;
   const { data, error } = await admin
     .from("relationship_crm_tasks")
     .insert({

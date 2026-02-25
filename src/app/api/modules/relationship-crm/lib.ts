@@ -18,41 +18,12 @@ export const CONTACT_CHANNELS = ["email", "discord", "telegram", "phone", "other
 export const INTERACTION_TYPES = ["note", "email", "call", "meeting", "other"] as const;
 export const TASK_STATUSES = ["open", "done", "canceled"] as const;
 
-type QueryResult = { data: unknown; error: { message: string } | null; count?: number | null };
-
-type UntypedQuery = {
-  select: (...args: unknown[]) => UntypedQuery;
-  order: (...args: unknown[]) => UntypedQuery;
-  or: (...args: unknown[]) => UntypedQuery;
-  eq: (...args: unknown[]) => UntypedQuery;
-  in: (...args: unknown[]) => UntypedQuery;
-  ilike: (...args: unknown[]) => UntypedQuery;
-  gt: (...args: unknown[]) => UntypedQuery;
-  gte: (...args: unknown[]) => UntypedQuery;
-  lt: (...args: unknown[]) => UntypedQuery;
-  lte: (...args: unknown[]) => UntypedQuery;
-  limit: (...args: unknown[]) => UntypedQuery;
-  is: (...args: unknown[]) => UntypedQuery;
-  insert: (...args: unknown[]) => UntypedQuery;
-  update: (...args: unknown[]) => UntypedQuery;
-  single: () => Promise<QueryResult>;
-  maybeSingle: () => Promise<QueryResult>;
-} & PromiseLike<QueryResult>;
-
-type UntypedAdmin = {
-  from: (table: string) => UntypedQuery;
-};
-
 export type CrmViewer = {
   userId: string;
   roles: string[];
   entitlements: string[];
   admin: ReturnType<typeof supabaseAdminClient>;
 };
-
-export function asUntypedAdmin(admin: ReturnType<typeof supabaseAdminClient>): UntypedAdmin {
-  return admin as unknown as UntypedAdmin;
-}
 
 export function jsonError(message: string, status = 400) {
   return Response.json({ error: message }, { status });
@@ -83,6 +54,10 @@ export function includesValue<const T extends readonly string[]>(
   values: T,
 ): value is T[number] {
   return Boolean(value && values.includes(value));
+}
+
+export function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 export function parseLimit(raw: string | null, fallback = 50, max = 100) {
@@ -142,8 +117,7 @@ export async function requireCrmAccess(
 }
 
 export async function accountExists(admin: ReturnType<typeof supabaseAdminClient>, accountId: string) {
-  const untypedAdmin = asUntypedAdmin(admin);
-  const { data, error } = await untypedAdmin
+  const { data, error } = await admin
     .from("relationship_crm_accounts")
     .select("id")
     .eq("id", accountId)

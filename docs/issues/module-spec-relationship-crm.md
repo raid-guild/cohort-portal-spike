@@ -127,7 +127,7 @@ Access model:
 Module endpoints (portal-owned):
 
 - `GET /api/modules/relationship-crm/accounts`
-  - Query: `stage`, `relationshipType`, `owner`, `status`, `q`, `cursor`, `limit`
+  - Query: `stage`, `relationshipType`, `owner`, `status`, `q`, `limit`
   - Returns visible account list
 
 - `POST /api/modules/relationship-crm/accounts`
