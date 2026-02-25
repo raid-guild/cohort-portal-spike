@@ -13,12 +13,13 @@ A directory-first community portal for RaidGuild that centralizes profiles and c
 - Module registry in `modules/registry.json` (source of truth for modules).
 - Module surfaces driven by tags (`start-here`, `people-tools`, `profile-tools-public`, `me-tools`).
 - Supabase auth + profiles + avatar storage + module data API.
+- Shared dashboard shell with responsive left-rail/top-bar navigation.
 
 ## Routes
 - `/` home and start-here modules
 - `/people` public directory
 - `/people/[handle]` public profile
-- `/me` profile editor (auth required)
+- `/me` profile dashboard (auth required): read-only profile view, profile wizard, and modal profile editor
 - `/modules` module directory
 - `/modules/[id]` module detail (optional)
 - `/modules/announcements` announcements module
@@ -106,6 +107,10 @@ Behavior notes:
 - Module registry: `modules/registry.json`
 - Module authoring guide: `docs/module-authoring.md`
 - Module registry notes: `modules/README.md`
+- Card sizing in surfaces is controlled by `presentation.layout`:
+  - `compact`: small stats/data tile
+  - `default`: standard stackable module card
+  - `wide`: full-width module card
 
 ## Supabase
 - Migrations and seeds live in `supabase/`

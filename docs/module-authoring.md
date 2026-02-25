@@ -43,7 +43,11 @@ Notes:
 - Set `presentation.action` to `none` if you want a summary-only card.
 - Tag a module with `hosts` to make it host-only (hidden for non-hosts).
 - Host-only tags only control portal visibility. External modules must enforce their own access.
-- Use `presentation.layout: "wide"` to make a module card span full width in surface grids.
+- Set `presentation.layout` explicitly for predictable card sizing in dashboard surfaces:
+  - `"compact"`: small stats/data card.
+  - `"default"`: standard stackable card.
+  - `"wide"`: full-width card.
+- If layout is omitted, the portal treats it as `"default"`.
 - Use `presentation.height: "double"` to give a module card extra vertical space.
 
 ## Module isolation

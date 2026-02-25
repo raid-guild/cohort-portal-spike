@@ -15,5 +15,13 @@ If you only want a card with a summary (no CTA), set:
 - `presentation.action: "none"`, or
 - omit `url` entirely (the portal will hide the action button).
 
+## Card Layout
+Control module card size in surface grids via `presentation.layout`:
+- `compact`: small data/stat tile.
+- `default`: standard card size.
+- `wide`: full-width card.
+
+If omitted, the portal currently treats layout as `default`.
+
 ## Host-only Modules
 Add the `hosts` tag to hide a module from non-hosts. Roles are managed in `public.user_roles`.

@@ -42,8 +42,20 @@ body:
     id: ux
     attributes:
       label: UX / surfaces
-      description: "Which surfaces should this module appear on (home/people/profile/me)? Any key UI states?"
-      placeholder: "Example: appears on me-tools; simple form + save; summary card shows latest entry."
+      description: "Which surfaces should this module appear on (home/people/profile/me/host/member)? Include card sizing intent and key UI states."
+      placeholder: "Example: appears on me-tools + start-here; presentation.layout=default; summary card shows latest entry."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: card_layout
+    attributes:
+      label: Card layout
+      description: "How should the module card size in dashboard grids?"
+      options:
+        - default
+        - compact
+        - wide
     validations:
       required: true
 
