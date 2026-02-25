@@ -27,27 +27,32 @@ async function resolveTier(request: Request): Promise<ViewTier> {
   }
 
   const token = authHeader.replace("Bearer ", "");
-  const supabase = supabaseServerClient();
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
-  if (userError || !userData.user) {
+  try {
+    const supabase = supabaseServerClient();
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !userData.user) {
+      return "public";
+    }
+
+    const admin = supabaseAdminClient();
+    const now = new Date().toISOString();
+    const { data, error } = await admin
+      .from("entitlements")
+      .select("entitlement")
+      .eq("user_id", userData.user.id)
+      .eq("status", "active")
+      .or(`expires_at.is.null,expires_at.gt.${now}`);
+
+    if (error || !data) {
+      return "authenticated";
+    }
+
+    const entitlements = new Set(data.map((row) => row.entitlement));
+    return entitlements.has("dao-member") ? "dao-member" : "authenticated";
+  } catch (error) {
+    console.error("Failed to resolve skills-explorer tier", error);
     return "public";
   }
-
-  const admin = supabaseAdminClient();
-  const now = new Date().toISOString();
-  const { data, error } = await admin
-    .from("entitlements")
-    .select("entitlement")
-    .eq("user_id", userData.user.id)
-    .eq("status", "active")
-    .or(`expires_at.is.null,expires_at.gt.${now}`);
-
-  if (error || !data) {
-    return "authenticated";
-  }
-
-  const entitlements = new Set(data.map((row) => row.entitlement));
-  return entitlements.has("dao-member") ? "dao-member" : "authenticated";
 }
 
 export async function GET(request: Request) {

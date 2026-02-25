@@ -48,23 +48,37 @@ export function SkillsExplorer() {
 
   useEffect(() => {
     let cancelled = false;
+    let requestSeq = 0;
+    let activeController: AbortController | null = null;
 
     const load = async () => {
+      const seq = ++requestSeq;
+      activeController?.abort();
+      const controller = new AbortController();
+      activeController = controller;
+
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
         const res = await fetch("/api/modules/skills-explorer/view", {
+          signal: controller.signal,
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
         if (!res.ok) {
           throw new Error("Unable to load Skills Explorer data.");
         }
         const json = (await res.json()) as SkillsViewPayload;
-        if (cancelled) return;
+        if (cancelled || seq !== requestSeq) return;
         setData(json);
         setError("");
       } catch (err) {
-        if (cancelled) return;
+        if (
+          cancelled ||
+          seq !== requestSeq ||
+          (err instanceof Error && err.name === "AbortError")
+        ) {
+          return;
+        }
         setError(err instanceof Error ? err.message : "Unable to load Skills Explorer data.");
       }
     };
@@ -76,6 +90,7 @@ export function SkillsExplorer() {
 
     return () => {
       cancelled = true;
+      activeController?.abort();
       listener.subscription.unsubscribe();
     };
   }, [supabase]);

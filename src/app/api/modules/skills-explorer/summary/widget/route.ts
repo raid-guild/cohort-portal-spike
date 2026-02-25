@@ -46,7 +46,9 @@ async function resolveTier(request: Request): Promise<ViewTier> {
 
 function topCounts(values: string[], limit: number) {
   const map = new Map<string, number>();
-  values.forEach((value) => map.set(value, (map.get(value) ?? 0) + 1));
+  values.forEach((value) => {
+    map.set(value, (map.get(value) ?? 0) + 1);
+  });
   return Array.from(map.entries())
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => b.count - a.count)
@@ -107,20 +109,20 @@ function buildGraphForTier(
   people.slice(0, 12).forEach((person) => {
     person.skills
       .filter((skill) => topSkills.includes(skill))
-      .forEach((skill) =>
+      .forEach((skill) => {
         personLinks.push({
           source: `person:${person.handle}`,
           target: `skill:${skill}`,
-        }),
-      );
+        });
+      });
     person.roles
       .filter((role) => topRoles.includes(role))
-      .forEach((role) =>
+      .forEach((role) => {
         personLinks.push({
           source: `person:${person.handle}`,
           target: `role:${role}`,
-        }),
-      );
+        });
+      });
   });
 
   return {

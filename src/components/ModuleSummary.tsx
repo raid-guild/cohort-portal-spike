@@ -300,7 +300,7 @@ function SummaryWidgetView({
         title={payload.title ?? config?.title ?? "Summary widget"}
         className="w-full rounded-md border border-border bg-card"
         style={{ height: Math.max(140, Math.min(480, height)) }}
-        sandbox="allow-scripts allow-same-origin"
+        sandbox="allow-scripts"
       />
     );
   }
@@ -478,7 +478,10 @@ function ForceGraphWidget({ data }: { data: unknown }) {
 }
 
 function replaceParams(value: string, params?: Record<string, string>) {
-  return value.replace(/\{(\w+)\}/g, (_, key: string) => params?.[key] ?? "");
+  return value.replace(
+    /\{(\w+)\}/g,
+    (_, key: string) => encodeURIComponent(params?.[key] ?? ""),
+  );
 }
 
 function isBarData(

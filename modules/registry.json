@@ -439,7 +439,7 @@
         "entitlement": "dao-member"
       },
       "tags": [
-        
+        "member-tools"
       ],
       "url": "/modules/dao-member-dashboard",
       "presentation": {
