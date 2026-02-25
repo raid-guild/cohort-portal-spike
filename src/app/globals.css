@@ -78,9 +78,23 @@ body {
 
 .container-custom {
   margin: 0 auto;
-  max-width: 1280px;
-  padding-left: 1.5rem;
-  padding-right: 1.5rem;
+  max-width: 1600px;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 768px) {
+  .container-custom {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .container-custom {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
 }
 
 .grid-custom {

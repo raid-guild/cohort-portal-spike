@@ -41,7 +41,7 @@ export type ModuleEntry = {
     iframe?: { height?: number };
     action?: "open" | "none";
     actionLabel?: string;
-    layout?: "wide";
+    layout?: "compact" | "default" | "wide";
     height?: "double";
   };
   summary?: {

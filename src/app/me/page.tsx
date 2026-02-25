@@ -575,6 +575,15 @@ export default function MePage() {
     setAvatarEditorOpen(true);
   };
 
+  const secondaryButtonClass =
+    "rounded-lg border border-border px-3 py-2 text-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60";
+  const mutedButtonClass =
+    "rounded-lg border border-border bg-muted px-3 py-2 text-sm transition-all duration-150 hover:border-foreground/30 hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60";
+  const primaryButtonClass =
+    "rounded-lg border border-border bg-primary px-4 py-2 text-sm text-background hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-60";
+  const statusClass =
+    "rounded-lg border border-border bg-background px-3 py-2 text-xs text-muted-foreground";
+
   return (
     <div className="space-y-6">
       {showWizard ? (
@@ -710,15 +719,13 @@ export default function MePage() {
             </div>
 
             <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
-              <div className="text-xs text-muted-foreground">
-                {message ? message : null}
-              </div>
+              <div>{message ? <div className={statusClass}>{message}</div> : null}</div>
               <div className="flex flex-wrap items-center gap-2">
                 {wizardStep > 0 ? (
                   <button
                     type="button"
                     onClick={() => setWizardStep((step) => Math.max(0, step - 1))}
-                    className="rounded-lg border border-border px-3 py-2 text-xs hover:bg-muted"
+                    className={secondaryButtonClass}
                   >
                     Back
                   </button>
@@ -740,7 +747,7 @@ export default function MePage() {
                       }
                       setWizardStep((step) => Math.min(step + 1, wizardSteps.length - 1));
                     }}
-                    className="rounded-lg border border-border bg-primary px-3 py-2 text-xs text-background hover:opacity-90"
+                    className={`${primaryButtonClass} px-3 text-xs`}
                   >
                     Next
                   </button>
@@ -757,7 +764,7 @@ export default function MePage() {
                         setMessage("");
                       }
                     }}
-                    className="rounded-lg border border-border bg-primary px-3 py-2 text-xs text-background hover:opacity-90"
+                    className={`${primaryButtonClass} px-3 text-xs`}
                     disabled={loading}
                   >
                     Finish &amp; Save
@@ -805,7 +812,7 @@ export default function MePage() {
             <button
               type="button"
               onClick={handleEmailSignIn}
-              className="rounded-lg border border-border bg-muted px-3 py-2 text-sm transition-all duration-150 hover:border-foreground/30 hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              className={mutedButtonClass}
               disabled={loading || !email}
             >
               {authAction === "email" ? "Sending..." : "Send magic link"}
@@ -818,7 +825,7 @@ export default function MePage() {
               <button
                 type="button"
                 onClick={() => handleWeb3SignIn("ethereum")}
-                className="rounded-lg border border-border bg-muted px-3 py-2 text-sm transition-all duration-150 hover:border-foreground/30 hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                className={mutedButtonClass}
                 disabled={loading}
               >
                 {authAction === "ethereum" ? "Opening wallet..." : "Sign in with Ethereum"}
@@ -826,7 +833,7 @@ export default function MePage() {
               <button
                 type="button"
                 onClick={() => handleWeb3SignIn("solana")}
-                className="rounded-lg border border-border bg-muted px-3 py-2 text-sm transition-all duration-150 hover:border-foreground/30 hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                className={mutedButtonClass}
                 disabled={loading}
               >
                 {authAction === "solana" ? "Opening wallet..." : "Sign in with Solana"}
@@ -865,29 +872,37 @@ export default function MePage() {
             <div
               role="status"
               aria-live="polite"
-              className="rounded-lg border border-border bg-background px-3 py-2 text-xs text-muted-foreground"
+              className={statusClass}
             >
               {message}
             </div>
           ) : null}
         </div>
       ) : (
-        <div className="space-y-4 rounded-xl border border-border bg-card p-6">
-          <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-            <div>{user?.email ?? user?.id}</div>
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Account</div>
+              <div className="text-sm text-foreground">{user?.email ?? user?.id}</div>
+            </div>
             <button
               type="button"
               onClick={handleSignOut}
-              className="rounded-lg border border-border px-3 py-2 text-xs hover:bg-muted"
+              className={secondaryButtonClass}
             >
               Sign out
             </button>
           </div>
 
           {meTools.length ? (
-            <div className="rounded-xl border border-border bg-card p-4">
+            <div className="rounded-xl border border-border bg-card p-4 md:p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-sm font-semibold">Profile Tools</div>
+                <div>
+                  <div className="text-sm font-semibold">Profile Tools</div>
+                  <p className="text-xs text-muted-foreground">
+                    Modules tailored to your profile and onboarding progress.
+                  </p>
+                </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
@@ -895,14 +910,14 @@ export default function MePage() {
                       setWizardAutoOpened(false);
                       setWizardOpen(true);
                     }}
-                    className="rounded-lg border border-border px-3 py-1 text-xs hover:bg-muted"
+                    className={secondaryButtonClass}
                   >
                     Open profile wizard
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowModuleCustomize((value) => !value)}
-                    className="rounded-lg border border-border px-3 py-1 text-xs hover:bg-muted"
+                    className={secondaryButtonClass}
                   >
                     {showModuleCustomize ? "Hide customization" : "Customize"}
                   </button>
@@ -930,8 +945,11 @@ export default function MePage() {
             </div>
           ) : null}
           {portalRoles.length ? (
-            <div className="rounded-xl border border-border bg-background p-4">
+            <div className="rounded-xl border border-border bg-card p-4">
               <div className="text-sm font-semibold">Portal roles</div>
+              <p className="text-xs text-muted-foreground">
+                Access labels that control gated tools and actions.
+              </p>
               <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
                 {portalRoles.map((role) => (
                   <span
@@ -945,7 +963,14 @@ export default function MePage() {
             </div>
           ) : null}
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-4 rounded-xl border border-border bg-card p-4 md:p-6">
+            <div>
+              <div className="text-sm font-semibold">Profile details</div>
+              <p className="text-xs text-muted-foreground">
+                Keep your profile current so members can discover your work.
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
               <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-background p-4">
                 <div className="h-20 w-20 overflow-hidden rounded-full border border-border bg-muted">
@@ -966,14 +991,14 @@ export default function MePage() {
                   <button
                     type="button"
                     onClick={openAvatarEditor}
-                    className="rounded-lg border border-border px-3 py-2 text-xs hover:bg-muted"
+                    className={secondaryButtonClass}
                   >
                     Edit avatar
                   </button>
                 </div>
               </div>
             </div>
-            <label className="space-y-2 text-sm">
+              <label className="space-y-2 text-sm">
               <span className="font-semibold">Handle</span>
               <input
                 value={profile.handle}
@@ -987,7 +1012,7 @@ export default function MePage() {
                 className="w-full rounded-lg border border-border bg-background px-3 py-2"
               />
             </label>
-            <label className="space-y-2 text-sm">
+              <label className="space-y-2 text-sm">
               <span className="font-semibold">Display name</span>
               <input
                 value={profile.displayName}
@@ -1001,7 +1026,7 @@ export default function MePage() {
                 className="w-full rounded-lg border border-border bg-background px-3 py-2"
               />
             </label>
-            <label className="space-y-2 text-sm md:col-span-2">
+              <label className="space-y-2 text-sm md:col-span-2">
               <span className="font-semibold">Bio</span>
               <textarea
                 value={profile.bio}
@@ -1015,7 +1040,7 @@ export default function MePage() {
                 className="min-h-[120px] w-full rounded-lg border border-border bg-background px-3 py-2"
               />
             </label>
-            <label className="space-y-2 text-sm">
+              <label className="space-y-2 text-sm">
               <span className="font-semibold">Location</span>
               <input
                 value={profile.location}
@@ -1029,7 +1054,7 @@ export default function MePage() {
                 className="w-full rounded-lg border border-border bg-background px-3 py-2"
               />
             </label>
-            <label className="space-y-2 text-sm">
+              <label className="space-y-2 text-sm">
               <span className="font-semibold">Wallet address</span>
               <input
                 value={profile.walletAddress}
@@ -1041,7 +1066,7 @@ export default function MePage() {
                 Wallet addresses are linked by signing a message.
               </div>
             </label>
-            <div className="space-y-2 text-sm">
+              <div className="space-y-2 text-sm">
               <span className="font-semibold">Email to link</span>
               <div className="flex flex-wrap gap-2">
                 <input
@@ -1058,7 +1083,7 @@ export default function MePage() {
                 <button
                   type="button"
                   onClick={() => handleLinkEmail(profile.email)}
-                  className="rounded-lg border border-border px-3 py-2 text-xs hover:bg-muted"
+                  className={secondaryButtonClass}
                   disabled={linking}
                 >
                   Link email
@@ -1070,57 +1095,60 @@ export default function MePage() {
                 </div>
               ) : null}
             </div>
-          </div>
-
-          <div className="rounded-xl border border-border bg-background p-4">
-            <div className="space-y-4">
-              <div>
-                <div className="text-sm font-semibold">Skills</div>
-                <p className="text-xs text-muted-foreground">
-                  Select the skills you actively work with.
-                </p>
-              </div>
-              <MultiSelect
-                options={availableSkills}
-                value={profile.skills}
-                onChange={(skills) =>
-                  setProfile((prev) => ({ ...prev, skills }))
-                }
-                emptyLabel="No skills available yet."
-              />
             </div>
-            <div className="mt-4 space-y-4">
-              <div>
-                <div className="text-sm font-semibold">Roles</div>
-                <p className="text-xs text-muted-foreground">
-                  Select the roles that match how you contribute. Choose up to two.
-                </p>
-              </div>
-              <RolePicker
-                roles={RAID_GUILD_ROLES}
-                value={profile.roles}
-                onChange={(roles) =>
-                  setProfile((prev) => ({ ...prev, roles }))
-                }
-                maxSelected={rolesLimit}
-              />
-            </div>
-          </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                void handleProfileSave();
-              }}
-              className="rounded-lg border border-border bg-primary px-4 py-2 text-sm text-background hover:opacity-90"
-              disabled={loading}
-            >
-              {profileExists ? "Update profile" : "Create profile"}
-            </button>
-            {message ? (
-              <span className="text-sm text-muted-foreground">{message}</span>
-            ) : null}
+            <div className="rounded-xl border border-border bg-background p-4">
+              <div className="space-y-4">
+                <div>
+                  <div className="text-sm font-semibold">Skills</div>
+                  <p className="text-xs text-muted-foreground">
+                    Select the skills you actively work with.
+                  </p>
+                </div>
+                <MultiSelect
+                  options={availableSkills}
+                  value={profile.skills}
+                  onChange={(skills) =>
+                    setProfile((prev) => ({ ...prev, skills }))
+                  }
+                  emptyLabel="No skills available yet."
+                />
+              </div>
+              <div className="mt-4 space-y-4">
+                <div>
+                  <div className="text-sm font-semibold">Roles</div>
+                  <p className="text-xs text-muted-foreground">
+                    Select the roles that match how you contribute. Choose up to two.
+                  </p>
+                </div>
+                <RolePicker
+                  roles={RAID_GUILD_ROLES}
+                  value={profile.roles}
+                  onChange={(roles) =>
+                    setProfile((prev) => ({ ...prev, roles }))
+                  }
+                  maxSelected={rolesLimit}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  void handleProfileSave();
+                }}
+                className={primaryButtonClass}
+                disabled={loading}
+              >
+                {profileExists ? "Update profile" : "Create profile"}
+              </button>
+              {message ? (
+                <div role="status" aria-live="polite" className={statusClass}>
+                  {message}
+                </div>
+              ) : null}
+            </div>
           </div>
 
         </div>
