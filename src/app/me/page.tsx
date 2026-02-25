@@ -371,10 +371,10 @@ export default function MePage() {
       }
     };
 
-    document.addEventListener("keydown", onKeyDown);
+    dialog.addEventListener("keydown", onKeyDown);
     return () => {
       window.cancelAnimationFrame(frame);
-      document.removeEventListener("keydown", onKeyDown);
+      dialog.removeEventListener("keydown", onKeyDown);
       const restoreTarget = triggerElement ?? previousFocusedElementRef.current;
       restoreTarget?.focus();
     };
