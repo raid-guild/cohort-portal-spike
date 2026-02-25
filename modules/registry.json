@@ -565,7 +565,14 @@
         "home": {
           "source": "api",
           "title": "Cohort Skills",
-          "endpoint": "/api/modules/skills-explorer/summary"
+          "endpoint": "/api/modules/skills-explorer/summary/widget",
+          "layout": "widget",
+          "widget": {
+            "mode": "data",
+            "type": "chart",
+            "variant": "force-graph",
+            "height": 220
+          }
         },
         "people": {
           "source": "api",

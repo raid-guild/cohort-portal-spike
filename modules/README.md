@@ -23,5 +23,14 @@ Control module card size in surface grids via `presentation.layout`:
 
 If omitted, the portal currently treats layout as `default`.
 
+## Dynamic Summary Widgets
+Summary cards can render richer dynamic content by using:
+- `summary.layout: "widget"`
+- `summary.widget.mode: "data"` (portal-rendered widget data), or
+- `summary.widget.mode: "embed"` (iframe widget URL).
+
+Include summary `items` as fallback content for clients/surfaces that cannot render the
+widget.
+
 ## Host-only Modules
 Add the `hosts` tag to hide a module from non-hosts. Roles are managed in `public.user_roles`.

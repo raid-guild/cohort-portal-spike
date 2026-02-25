@@ -49,12 +49,19 @@ export type ModuleEntry = {
     title?: string;
     items?: { label: string; value: string }[];
     endpoint?: string;
-    layout?: "list" | "excerpt" | "compact";
+    layout?: "list" | "excerpt" | "compact" | "widget";
     maxItems?: number;
     truncate?: number;
     showTitle?: boolean;
     progressKey?: string;
     imageKey?: string;
+    widget?: {
+      mode?: "data" | "embed";
+      type?: string;
+      variant?: string;
+      src?: string;
+      height?: number;
+    };
   };
   summaryBySurface?: Record<
     string,
@@ -63,12 +70,19 @@ export type ModuleEntry = {
       title?: string;
       items?: { label: string; value: string }[];
       endpoint?: string;
-      layout?: "list" | "excerpt" | "compact";
+      layout?: "list" | "excerpt" | "compact" | "widget";
       maxItems?: number;
       truncate?: number;
       showTitle?: boolean;
       progressKey?: string;
       imageKey?: string;
+      widget?: {
+        mode?: "data" | "embed";
+        type?: string;
+        variant?: string;
+        src?: string;
+        height?: number;
+      };
     }
   >;
   capabilities?: {

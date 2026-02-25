@@ -111,6 +111,8 @@ Behavior notes:
   - `compact`: small stats/data tile
   - `default`: standard stackable module card
   - `wide`: full-width module card
+- Summary cards can also render dynamic widgets via `summary.layout: "widget"` and
+  `summary.widget` (data-rendered or embedded iframe).
 
 ## Supabase
 - Migrations and seeds live in `supabase/`
