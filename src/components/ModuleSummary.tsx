@@ -3,9 +3,19 @@
 import { useEffect, useState } from "react";
 import type { ModuleEntry } from "@/lib/types";
 
+type SummaryWidget = {
+  mode?: "data" | "embed";
+  type?: string;
+  variant?: string;
+  src?: string;
+  height?: number;
+  data?: unknown;
+};
+
 export type SummaryPayload = {
   title?: string;
   items?: { label: string; value: string }[];
+  widget?: SummaryWidget;
 };
 
 type SummaryConfig = {
@@ -13,12 +23,13 @@ type SummaryConfig = {
   title?: string;
   items?: { label: string; value: string }[];
   endpoint?: string;
-  layout?: "list" | "excerpt" | "compact";
+  layout?: "list" | "excerpt" | "compact" | "widget";
   maxItems?: number;
   truncate?: number;
   showTitle?: boolean;
   progressKey?: string;
   imageKey?: string;
+  widget?: SummaryWidget;
 };
 
 export function ModuleSummary({
@@ -126,10 +137,14 @@ export function ModuleSummary({
   }
 
   const resolved = data ?? summary;
-  return renderSummary(resolved, summary);
+  return renderSummary(resolved, summary, params);
 }
 
-function renderSummary(payload: SummaryPayload, config?: SummaryConfig) {
+function renderSummary(
+  payload: SummaryPayload,
+  config?: SummaryConfig,
+  params?: Record<string, string>,
+) {
   const layout = config?.layout ?? "list";
   const maxItems = config?.maxItems;
   const truncate = config?.truncate;
@@ -147,6 +162,19 @@ function renderSummary(payload: SummaryPayload, config?: SummaryConfig) {
       : value;
 
   const items = sliceItems(allItems);
+
+  if (layout === "widget") {
+    return (
+      <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
+        {showTitle && title ? (
+          <div className="text-sm font-semibold text-foreground">{title}</div>
+        ) : null}
+        <div className="mt-2">
+          <SummaryWidgetView payload={payload} config={config} params={params} />
+        </div>
+      </div>
+    );
+  }
 
   if (layout === "excerpt") {
     return (
@@ -243,6 +271,259 @@ function renderSummary(payload: SummaryPayload, config?: SummaryConfig) {
       )}
     </div>
   );
+}
+
+function SummaryWidgetView({
+  payload,
+  config,
+  params,
+}: {
+  payload: SummaryPayload;
+  config?: SummaryConfig;
+  params?: Record<string, string>;
+}) {
+  const widget: SummaryWidget = {
+    ...(config?.widget ?? {}),
+    ...(payload.widget ?? {}),
+  };
+  const mode = widget.mode ?? "data";
+
+  if (mode === "embed") {
+    const src = widget.src ? replaceParams(widget.src, params) : "";
+    const height = widget.height ?? 220;
+    if (!src) {
+      return <FallbackSummaryItems payload={payload} config={config} />;
+    }
+    return (
+      <iframe
+        src={src}
+        title={payload.title ?? config?.title ?? "Summary widget"}
+        className="w-full rounded-md border border-border bg-card"
+        style={{ height: Math.max(140, Math.min(480, height)) }}
+        sandbox="allow-scripts"
+      />
+    );
+  }
+
+  if (widget.type === "chart") {
+    if (widget.variant === "force-graph") {
+      return <ForceGraphWidget data={widget.data} />;
+    }
+    return <BarChartWidget data={widget.data} />;
+  }
+
+  return <FallbackSummaryItems payload={payload} config={config} />;
+}
+
+function FallbackSummaryItems({
+  payload,
+  config,
+}: {
+  payload: SummaryPayload;
+  config?: SummaryConfig;
+}) {
+  const items = payload.items ?? config?.items ?? [];
+  if (!items.length) {
+    return <div className="text-muted-foreground">Loading summary...</div>;
+  }
+  return (
+    <ul className="space-y-2">
+      {items.slice(0, 4).map((item) => (
+        <li key={item.label} className="flex items-center justify-between">
+          <span>{item.label}</span>
+          <span>{item.value}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function BarChartWidget({ data }: { data: unknown }) {
+  const series = isBarData(data) ? data.series : [];
+  if (!series.length) {
+    return <div className="text-muted-foreground">No chart data available.</div>;
+  }
+  const max = Math.max(...series.map((entry) => entry.value), 1);
+  return (
+    <div className="space-y-2">
+      {series.slice(0, 6).map((entry) => {
+        const width = Math.round((entry.value / max) * 100);
+        return (
+          <div key={entry.label} className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span>{entry.label}</span>
+              <span>{entry.value}</span>
+            </div>
+            <div className="h-2 rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary transition-[width]"
+                style={{ width: `${width}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ForceGraphWidget({ data }: { data: unknown }) {
+  if (!isForceGraphData(data) || !data.nodes.length) {
+    return <div className="text-muted-foreground">No graph data available.</div>;
+  }
+  const width = 620;
+  const height = 220;
+
+  const positions = new Map<string, { x: number; y: number; label: string; group?: string }>();
+  const grouped = new Map<string, Array<{ id: string; label: string; group?: string }>>();
+  data.nodes.forEach((node) => {
+    const key = node.group ?? "default";
+    const list = grouped.get(key) ?? [];
+    list.push(node);
+    grouped.set(key, list);
+  });
+
+  const preferredOrder = ["person", "skill", "role", "default"];
+  const orderedGroups = Array.from(grouped.keys()).sort((a, b) => {
+    const aIndex = preferredOrder.indexOf(a);
+    const bIndex = preferredOrder.indexOf(b);
+    if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
+    if (aIndex === -1) return 1;
+    if (bIndex === -1) return -1;
+    return aIndex - bIndex;
+  });
+
+  const leftPad = 30;
+  const rightPad = 30;
+  const topPad = 16;
+  const bottomPad = 16;
+  const cx = width / 2;
+  const cy = height / 2;
+  const rx = ((width - leftPad - rightPad) / 2) * 0.86;
+  const ry = ((height - topPad - bottomPad) / 2) * 0.52;
+
+  // Round-robin group ordering keeps clusters balanced while still grouping by type.
+  const roundRobin: Array<{ id: string; label: string; group?: string }> = [];
+  let added = true;
+  let cursor = 0;
+  while (added) {
+    added = false;
+    orderedGroups.forEach((groupName) => {
+      const list = grouped.get(groupName) ?? [];
+      if (cursor < list.length) {
+        roundRobin.push(list[cursor]);
+        added = true;
+      }
+    });
+    cursor += 1;
+  }
+
+  const nodeCount = Math.max(1, roundRobin.length);
+  roundRobin.forEach((node, index) => {
+    const angle = -Math.PI / 2 + (index / nodeCount) * Math.PI * 2;
+    const ringScale = 0.97 + (index % 3) * 0.03;
+    positions.set(node.id, {
+      x: cx + Math.cos(angle) * rx * ringScale,
+      y: cy + Math.sin(angle) * ry * ringScale,
+      label: node.label,
+      group: node.group,
+    });
+  });
+
+  return (
+    <div className="overflow-hidden rounded-md border border-border bg-card">
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-[220px] w-full">
+        {data.links.map((link, index) => {
+          const source = positions.get(link.source);
+          const target = positions.get(link.target);
+          if (!source || !target) return null;
+          return (
+            <line
+              key={`${link.source}-${link.target}-${index}`}
+              x1={source.x}
+              y1={source.y}
+              x2={target.x}
+              y2={target.y}
+              stroke="currentColor"
+              opacity="0.2"
+            />
+          );
+        })}
+        {data.nodes.map((node) => {
+          const pos = positions.get(node.id);
+          if (!pos) return null;
+          return (
+            <g key={node.id}>
+              <circle
+                cx={pos.x}
+                cy={pos.y}
+                r="6"
+                fill={node.group === "person" ? "#bd482d" : node.group === "role" ? "#8b3521" : "#d2c141"}
+              />
+              <text
+                x={pos.x}
+                y={pos.y - 9}
+                textAnchor="middle"
+                fontSize="11"
+                fill="currentColor"
+              >
+                {node.label}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function replaceParams(value: string, params?: Record<string, string>) {
+  return value.replace(
+    /\{(\w+)\}/g,
+    (_, key: string) => encodeURIComponent(params?.[key] ?? ""),
+  );
+}
+
+function isBarData(
+  value: unknown,
+): value is { series: Array<{ label: string; value: number }> } {
+  if (!value || typeof value !== "object") return false;
+  const series = (value as { series?: unknown }).series;
+  if (!Array.isArray(series)) return false;
+  return series.every(
+    (entry) =>
+      entry &&
+      typeof entry === "object" &&
+      typeof (entry as { label?: unknown }).label === "string" &&
+      typeof (entry as { value?: unknown }).value === "number",
+  );
+}
+
+function isForceGraphData(
+  value: unknown,
+): value is {
+  nodes: Array<{ id: string; label: string; group?: string }>;
+  links: Array<{ source: string; target: string }>;
+} {
+  if (!value || typeof value !== "object") return false;
+  const nodes = (value as { nodes?: unknown }).nodes;
+  const links = (value as { links?: unknown }).links;
+  if (!Array.isArray(nodes) || !Array.isArray(links)) return false;
+  const nodesValid = nodes.every(
+    (node) =>
+      node &&
+      typeof node === "object" &&
+      typeof (node as { id?: unknown }).id === "string" &&
+      typeof (node as { label?: unknown }).label === "string",
+  );
+  const linksValid = links.every(
+    (link) =>
+      link &&
+      typeof link === "object" &&
+      typeof (link as { source?: unknown }).source === "string" &&
+      typeof (link as { target?: unknown }).target === "string",
+  );
+  return nodesValid && linksValid;
 }
 
 function ProgressBar({ value }: { value: string }) {

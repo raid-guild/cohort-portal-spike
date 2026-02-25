@@ -60,6 +60,32 @@ body:
       required: true
 
   - type: dropdown
+    id: summary_layout
+    attributes:
+      label: Summary layout
+      description: "How should the module summary render in cards?"
+      options:
+        - list
+        - excerpt
+        - compact
+        - widget
+        - none
+    validations:
+      required: true
+
+  - type: dropdown
+    id: summary_widget_mode
+    attributes:
+      label: Summary widget mode (if widget)
+      description: "If Summary layout is widget, choose data (portal-rendered) or embed (iframe)."
+      options:
+        - not-applicable
+        - data
+        - embed
+    validations:
+      required: true
+
+  - type: dropdown
     id: storage
     attributes:
       label: Storage preference

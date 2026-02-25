@@ -404,7 +404,8 @@
       },
       "requiresAuth": true,
       "tags": [
-        "me-tools"
+        "me-tools",
+        "member-tools"
       ],
       "url": "/modules/dao-membership",
       "presentation": {
@@ -468,7 +469,6 @@
       },
       "requiresAuth": true,
       "tags": [
-        "start-here",
         "hosts",
         "host-tools"
       ],
@@ -559,17 +559,20 @@
       "presentation": {
         "mode": "page",
         "trigger": "button",
-        "layout": "default"
-      },
-      "access": {
-        "requiresAuth": true,
-        "entitlement": "cohort-access"
+        "layout": "wide"
       },
       "summaryBySurface": {
         "home": {
           "source": "api",
           "title": "Cohort Skills",
-          "endpoint": "/api/modules/skills-explorer/summary"
+          "endpoint": "/api/modules/skills-explorer/summary/widget",
+          "layout": "widget",
+          "widget": {
+            "mode": "data",
+            "type": "chart",
+            "variant": "force-graph",
+            "height": 220
+          }
         },
         "people": {
           "source": "api",
@@ -738,7 +741,7 @@
       },
       "requiresAuth": true,
       "tags": [
-        "start-here",
+        "people-tools",
         "me-tools",
         "profile-tools-public"
       ],
@@ -771,6 +774,7 @@
       },
       "requiresAuth": true,
       "tags": [
+        "start-here",
         "people-tools"
       ],
       "presentation": {
@@ -801,6 +805,7 @@
       },
       "requiresAuth": false,
       "tags": [
+        "start-here",
         "people-tools"
       ],
       "presentation": {
@@ -889,6 +894,59 @@
           {
             "label": "Escalation playbooks",
             "value": "Reference next steps for blockers and support paths."
+          }
+        ],
+        "layout": "list",
+        "maxItems": 3,
+        "showTitle": true
+      }
+    },
+    {
+      "id": "dao-handbook",
+      "title": "DAO Handbook",
+      "description": "Open DAO docs, policies, and contributor guidance in one place.",
+      "lane": "cohort",
+      "type": "link",
+      "url": "https://rg-handbook-nextra.vercel.app/",
+      "status": "live",
+      "owner": {
+        "name": "@dekanbro",
+        "contact": "@dekanbro"
+      },
+      "requiresAuth": true,
+      "access": {
+        "requiresAuth": true,
+        "entitlement": "dao-member"
+      },
+      "tags": [
+        "member-tools"
+      ],
+      "presentation": {
+        "mode": "dialog",
+        "trigger": "button",
+        "dialog": {
+          "size": "lg"
+        },
+        "iframe": {
+          "height": 820
+        },
+        "layout": "default"
+      },
+      "summary": {
+        "source": "static",
+        "title": "DAO Handbook",
+        "items": [
+          {
+            "label": "Governance docs",
+            "value": "Browse rules, voting norms, and governance references."
+          },
+          {
+            "label": "Operations guides",
+            "value": "Find practical workflows for running DAO work."
+          },
+          {
+            "label": "Contributor context",
+            "value": "Review expectations and orientation material."
           }
         ],
         "layout": "list",

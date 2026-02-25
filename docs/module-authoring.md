@@ -198,12 +198,80 @@ The summary endpoint should return:
 
 ### Summary presentation options
 Optional fields for summary layout:
-- `layout`: `list` (default), `excerpt`, or `compact`
+- `layout`: `list` (default), `excerpt`, `compact`, or `widget`
 - `maxItems`: limit the number of items shown
 - `truncate`: max character length for values or excerpts
 - `showTitle`: boolean to show/hide the summary title
 - `progressKey`: render a progress bar for the matching item label
 - `imageKey`: render a circular thumbnail for the matching item label (compact layout)
+- `widget`: configuration for dynamic summary widgets when `layout` is `widget`
+
+### Summary widget primitive
+Use `layout: "widget"` when a summary card should render dynamic content.
+
+Supported widget modes:
+- `mode: "data"`: endpoint returns generic `widget.data`; portal renders a supported widget component.
+- `mode: "embed"`: portal renders an iframe from `widget.src` (use for third-party mini apps).
+
+Widget config shape:
+```json
+{
+  "summary": {
+    "source": "api",
+    "endpoint": "/api/modules/example/summary",
+    "layout": "widget",
+    "widget": {
+      "mode": "data",
+      "type": "chart",
+      "variant": "force-graph",
+      "height": 220
+    }
+  }
+}
+```
+
+Endpoint response shape (with fallback):
+```json
+{
+  "title": "Example Summary",
+  "items": [
+    { "label": "People", "value": "42" }
+  ],
+  "widget": {
+    "mode": "data",
+    "type": "chart",
+    "variant": "force-graph",
+    "data": {
+      "nodes": [{ "id": "skill:Solidity", "label": "Solidity", "group": "skill" }],
+      "links": []
+    }
+  }
+}
+```
+
+Notes:
+- Always include `items` as a fallback for clients/surfaces that cannot render the widget.
+- For third-party widgets, prefer `mode: "embed"` with explicit origins and auth constraints.
+
+Example: third-party embedded widget summary
+```json
+{
+  "allowedOrigins": ["https://widgets.example.com"],
+  "summaryBySurface": {
+    "home": {
+      "source": "api",
+      "title": "Module Snapshot",
+      "endpoint": "/api/modules/example/summary",
+      "layout": "widget",
+      "widget": {
+        "mode": "embed",
+        "src": "https://widgets.example.com/summary?module=example",
+        "height": 220
+      }
+    }
+  }
+}
+```
 
 Example with excerpt:
 ```json

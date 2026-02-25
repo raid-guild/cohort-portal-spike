@@ -14,6 +14,7 @@ export function ModuleDialogTrigger({
   const [open, setOpen] = useState(false);
   const [openParams, setOpenParams] = useState<Record<string, string> | null>(null);
   const height = module.presentation?.iframe?.height ?? 720;
+  const dialogSize = module.presentation?.dialog?.size ?? "md";
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const iframeSrc = useMemo(() => {
     if (!module.url) return "";
@@ -70,6 +71,13 @@ export function ModuleDialogTrigger({
     };
   }, [module.id]);
 
+  const dialogWidthClass =
+    dialogSize === "sm"
+      ? "max-w-5xl"
+      : dialogSize === "lg"
+        ? "max-w-[min(96vw,1400px)]"
+        : "max-w-[min(95vw,1240px)]";
+
   return (
     <>
       <button
@@ -83,8 +91,10 @@ export function ModuleDialogTrigger({
         {module.presentation?.actionLabel ?? "Open Module"}
       </button>
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-3 md:p-5">
+          <div
+            className={`w-full overflow-hidden rounded-2xl border border-border bg-card shadow-xl ${dialogWidthClass}`}
+          >
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <div className="text-sm font-semibold">{module.title}</div>
               <button
@@ -101,7 +111,7 @@ export function ModuleDialogTrigger({
                 src={iframeSrc}
                 title={module.title}
                 className="w-full"
-                style={{ height }}
+                style={{ height: `min(${height}px, calc(92vh - 57px))` }}
                 onLoad={() => {
                   if (!iframeRef.current) return;
                   registerPortalIframe(module.id, iframeRef.current.contentWindow);
