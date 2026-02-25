@@ -823,6 +823,37 @@
       }
     },
     {
+      "id": "relationship-crm",
+      "title": "Relationship CRM",
+      "description": "Track sponsor, partner, and client relationship pipelines with shared follow-ups.",
+      "lane": "hosts",
+      "type": "link",
+      "url": "/modules/relationship-crm",
+      "status": "beta",
+      "owner": {
+        "name": "@dekanbro",
+        "contact": "@dekanbro"
+      },
+      "requiresAuth": true,
+      "tags": [
+        "host-tools",
+        "member-tools"
+      ],
+      "presentation": {
+        "mode": "page",
+        "trigger": "button",
+        "layout": "wide"
+      },
+      "summary": {
+        "source": "api",
+        "title": "Relationship CRM",
+        "endpoint": "/api/modules/relationship-crm/summary",
+        "layout": "compact",
+        "maxItems": 3,
+        "showTitle": true
+      }
+    },
+    {
       "id": "signup-referrals",
       "title": "Signup Referrals",
       "description": "Review email referral signups and export CSV for outreach.",

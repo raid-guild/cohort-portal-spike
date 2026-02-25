@@ -1023,6 +1023,193 @@ export type Database = {
         }
         Relationships: []
       }
+      relationship_crm_accounts: {
+        Row: {
+          created_at: string
+          created_by: string
+          deleted_at: string | null
+          id: string
+          name: string
+          next_follow_up_at: string | null
+          notes: string | null
+          owner_user_id: string
+          relationship_type: string
+          stage: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          deleted_at?: string | null
+          id?: string
+          name: string
+          next_follow_up_at?: string | null
+          notes?: string | null
+          owner_user_id: string
+          relationship_type: string
+          stage: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          deleted_at?: string | null
+          id?: string
+          name?: string
+          next_follow_up_at?: string | null
+          notes?: string | null
+          owner_user_id?: string
+          relationship_type?: string
+          stage?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      relationship_crm_contacts: {
+        Row: {
+          account_id: string
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          is_primary: boolean
+          phone: string | null
+          preferred_channel: string | null
+          role_title: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          email?: string | null
+          full_name: string
+          id?: string
+          is_primary?: boolean
+          phone?: string | null
+          preferred_channel?: string | null
+          role_title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          is_primary?: boolean
+          phone?: string | null
+          preferred_channel?: string | null
+          role_title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationship_crm_contacts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "relationship_crm_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      relationship_crm_interactions: {
+        Row: {
+          account_id: string
+          contact_id: string | null
+          created_at: string
+          created_by: string
+          id: string
+          interaction_at: string
+          interaction_type: string
+          summary: string
+        }
+        Insert: {
+          account_id: string
+          contact_id?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          interaction_at: string
+          interaction_type: string
+          summary: string
+        }
+        Update: {
+          account_id?: string
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          interaction_at?: string
+          interaction_type?: string
+          summary?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationship_crm_interactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "relationship_crm_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relationship_crm_interactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "relationship_crm_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      relationship_crm_tasks: {
+        Row: {
+          account_id: string
+          assignee_user_id: string
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          due_at: string | null
+          id: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          assignee_user_id: string
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          due_at?: string | null
+          id?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          assignee_user_id?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          due_at?: string | null
+          id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationship_crm_tasks_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "relationship_crm_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null
