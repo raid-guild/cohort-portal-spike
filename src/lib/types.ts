@@ -38,7 +38,7 @@ export type ModuleEntry = {
     mode?: "card" | "dialog" | "drawer" | "page";
     trigger?: "button" | "card" | "link";
     dialog?: { size?: "sm" | "md" | "lg" };
-    iframe?: { height?: number };
+    iframe?: { height?: number; paramTarget?: "query" | "hash" | "both" };
     action?: "open" | "none";
     actionLabel?: string;
     layout?: "compact" | "default" | "wide";

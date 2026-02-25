@@ -928,7 +928,8 @@
           "size": "lg"
         },
         "iframe": {
-          "height": 820
+          "height": 820,
+          "paramTarget": "both"
         },
         "layout": "default"
       },
@@ -947,6 +948,59 @@
           {
             "label": "Contributor context",
             "value": "Review expectations and orientation material."
+          }
+        ],
+        "layout": "list",
+        "maxItems": 3,
+        "showTitle": true
+      }
+    },
+    {
+      "id": "dao-proposals",
+      "title": "DAO Proposals",
+      "description": "View active and historical DAO proposals in the DAOhaus admin dashboard.",
+      "lane": "cohort",
+      "type": "link",
+      "url": "https://admin.daohaus.club/#/molochv3/0x64/0xf02fd4286917270cb94fbc13a0f4e1ed76f7e986/proposals",
+      "status": "live",
+      "owner": {
+        "name": "@dekanbro",
+        "contact": "@dekanbro"
+      },
+      "requiresAuth": true,
+      "access": {
+        "requiresAuth": true,
+        "entitlement": "dao-member"
+      },
+      "tags": [
+        "member-tools"
+      ],
+      "presentation": {
+        "mode": "dialog",
+        "trigger": "button",
+        "dialog": {
+          "size": "lg"
+        },
+        "iframe": {
+          "height": 820
+        },
+        "layout": "default"
+      },
+      "summary": {
+        "source": "static",
+        "title": "DAO Proposals",
+        "items": [
+          {
+            "label": "DAOhaus admin",
+            "value": "Browse proposal queue and status."
+          },
+          {
+            "label": "Chain",
+            "value": "Gnosis (0x64) Moloch v3"
+          },
+          {
+            "label": "Scope",
+            "value": "Member-only governance surface."
           }
         ],
         "layout": "list",
