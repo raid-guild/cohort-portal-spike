@@ -22,12 +22,14 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    let requestSeq = 0;
 
     const loadAccess = async () => {
+      const seq = ++requestSeq;
       const { data } = await supabase.auth.getSession();
       const session = data.session;
       if (!session) {
-        if (cancelled) return;
+        if (cancelled || seq !== requestSeq) return;
         setIsHost(false);
         setIsDaoMember(false);
         return;
@@ -47,13 +49,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           entitlementsRes.json().catch(() => null),
         ]);
 
-        if (cancelled) return;
+        if (cancelled || seq !== requestSeq) return;
         const roles = (rolesJson?.roles ?? []) as string[];
         const entitlements = (entitlementsJson?.entitlements ?? []) as string[];
         setIsHost(roles.includes("host") || roles.includes("admin"));
         setIsDaoMember(entitlements.includes("dao-member"));
       } catch {
-        if (cancelled) return;
+        if (cancelled || seq !== requestSeq) return;
         setIsHost(false);
         setIsDaoMember(false);
       }

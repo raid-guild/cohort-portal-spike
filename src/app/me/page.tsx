@@ -334,6 +334,10 @@ export default function MePage() {
     const frame = window.requestAnimationFrame(focusInitial);
 
     const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (!target || target.closest('[role="dialog"]') !== dialog) {
+        return;
+      }
       if (event.key === "Escape") {
         event.preventDefault();
         setProfileEditorOpen(false);
