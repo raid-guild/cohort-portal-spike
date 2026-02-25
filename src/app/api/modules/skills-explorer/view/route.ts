@@ -4,6 +4,22 @@ import { supabaseServerClient } from "@/lib/supabase/server";
 
 type ViewTier = "public" | "authenticated" | "dao-member";
 
+type SkillRoleCount = {
+  label: string;
+  count: number;
+};
+
+function topCounts(values: string[], limit: number): SkillRoleCount[] {
+  const map = new Map<string, number>();
+  values.forEach((value) => {
+    map.set(value, (map.get(value) ?? 0) + 1);
+  });
+  return Array.from(map.entries())
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
 async function resolveTier(request: Request): Promise<ViewTier> {
   const authHeader = request.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) {
@@ -38,31 +54,30 @@ export async function GET(request: Request) {
   const tier = await resolveTier(request);
   const people = await loadPeople();
   const allSkills = people.flatMap((person) => person.skills ?? []);
-  const uniqueSkills = new Set(allSkills);
-  const map = new Map<string, number>();
+  const allRoles = people.flatMap((person) => person.roles ?? []);
+  const uniqueSkills = Array.from(new Set(allSkills)).sort();
+  const uniqueRoles = Array.from(new Set(allRoles)).sort();
 
-  allSkills.forEach((skill) => {
-    map.set(skill, (map.get(skill) ?? 0) + 1);
-  });
+  const payload = {
+    tier,
+    stats: {
+      people: people.length,
+      uniqueSkills: uniqueSkills.length,
+      uniqueRoles: uniqueRoles.length,
+    },
+    topSkills: topCounts(allSkills, tier === "public" ? 6 : 10),
+    topRoles: topCounts(allRoles, tier === "public" ? 0 : 10),
+    skillIndex: tier === "public" ? uniqueSkills.slice(0, 24) : uniqueSkills,
+    people:
+      tier === "dao-member"
+        ? people.map((person) => ({
+            handle: person.handle,
+            displayName: person.displayName,
+            skills: person.skills ?? [],
+            roles: person.roles ?? [],
+          }))
+        : [],
+  };
 
-  const top = Array.from(map.entries())
-    .sort((a, b) => b[1] - a[1])
-    .at(0);
-
-  const visibility =
-    tier === "dao-member"
-      ? "DAO detail"
-      : tier === "authenticated"
-        ? "Authenticated aggregate"
-        : "Public aggregate";
-
-  return Response.json({
-    title: "Cohort Skills",
-    items: [
-      { label: "People", value: String(people.length) },
-      { label: "Unique skills", value: String(uniqueSkills.size) },
-      { label: "Top skill", value: top ? `${top[0]}` : "TBD" },
-      { label: "View", value: visibility },
-    ],
-  });
+  return Response.json(payload);
 }
