@@ -88,6 +88,7 @@ export function RelationshipCrm() {
   const [q, setQ] = useState("");
   const [stageFilter, setStageFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [ownerFilter, setOwnerFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
 
   const [newName, setNewName] = useState("");
@@ -107,6 +108,7 @@ export function RelationshipCrm() {
       if (q.trim()) params.set("q", q.trim());
       if (stageFilter) params.set("stage", stageFilter);
       if (typeFilter) params.set("relationshipType", typeFilter);
+      if (ownerFilter.trim()) params.set("owner", ownerFilter.trim());
       if (statusFilter) params.set("status", statusFilter);
 
       const res = await fetch(`/api/modules/relationship-crm/accounts?${params.toString()}`, {
@@ -129,7 +131,7 @@ export function RelationshipCrm() {
         setSelectedAccountId(loaded[0].id);
       }
     },
-    [q, stageFilter, typeFilter, statusFilter, selectedAccountId],
+    [q, stageFilter, typeFilter, ownerFilter, statusFilter, selectedAccountId],
   );
 
   const loadDetail = useCallback(
@@ -336,7 +338,7 @@ export function RelationshipCrm() {
         </button>
       </form>
 
-      <div className="grid gap-4 rounded border p-3 md:grid-cols-5">
+      <div className="grid gap-4 rounded border p-3 md:grid-cols-6">
         <input
           className="rounded border px-2 py-1 text-sm"
           placeholder="Search accounts"
@@ -359,6 +361,12 @@ export function RelationshipCrm() {
             </option>
           ))}
         </select>
+        <input
+          className="rounded border px-2 py-1 text-sm"
+          placeholder="Owner user id"
+          value={ownerFilter}
+          onChange={(e) => setOwnerFilter(e.target.value)}
+        />
         <select
           className="rounded border px-2 py-1 text-sm"
           value={statusFilter}

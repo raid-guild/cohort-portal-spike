@@ -46,6 +46,7 @@ export async function GET(
       .from("relationship_crm_tasks")
       .select("id,account_id,assignee_user_id,title,due_at,status,created_by,completed_at,created_at,updated_at")
       .eq("account_id", id)
+      .eq("status", "open")
       .order("status", { ascending: true })
       .order("due_at", { ascending: true, nullsFirst: false }),
   ]);
