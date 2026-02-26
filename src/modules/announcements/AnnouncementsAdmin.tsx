@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
+import { MarkdownEditor } from "@/modules/_shared/MarkdownEditor";
 
 type FormState = {
   title: string;
@@ -143,12 +144,13 @@ export function AnnouncementsAdmin() {
       </label>
       <label className="space-y-2 text-sm">
         <span className="font-semibold">Body</span>
-        <textarea
+        <MarkdownEditor
           value={form.body}
-          onChange={(event) =>
-            setForm((prev) => ({ ...prev, body: event.target.value }))
+          onChange={(body) =>
+            setForm((prev) => ({ ...prev, body }))
           }
-          className="min-h-[140px] w-full rounded-lg border border-border bg-background px-3 py-2"
+          minHeightClassName="min-h-[180px]"
+          placeholder="Write your announcement in markdown..."
         />
       </label>
       <div className="grid gap-4 md:grid-cols-3">

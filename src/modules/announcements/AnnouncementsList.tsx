@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
+import { MarkdownRenderer } from "@/modules/_shared/MarkdownRenderer";
 
 type Announcement = {
   id: string;
@@ -79,7 +80,9 @@ export function AnnouncementsList() {
           <div className="text-sm font-semibold text-foreground">
             {item.title}
           </div>
-          <p className="mt-2 text-sm">{item.body}</p>
+          <div className="mt-2">
+            <MarkdownRenderer markdown={item.body} />
+          </div>
         </li>
       ))}
     </ul>

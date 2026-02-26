@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import ReactMarkdown from "react-markdown";
 import { notFound } from "next/navigation";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
+import { DaoBlogMarkdown } from "@/modules/dao-blog/DaoBlogMarkdown";
 import { DaoBlogReferralForm } from "@/modules/dao-blog/DaoBlogReferralForm";
 
 type Post = {
@@ -134,9 +134,7 @@ export default async function DaoBlogPostPage({
       </div>
 
       <div className="rounded-xl border border-border bg-card p-5">
-        <div className="prose prose-sm max-w-none dark:prose-invert">
-          <ReactMarkdown>{post.body_md}</ReactMarkdown>
-        </div>
+        <DaoBlogMarkdown markdown={post.body_md} />
       </div>
 
       <DaoBlogReferralForm slug={post.slug} />

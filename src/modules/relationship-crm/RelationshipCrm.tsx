@@ -298,16 +298,16 @@ export function RelationshipCrm() {
     <div className="space-y-4">
       {error ? <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
 
-      <form className="grid gap-2 rounded border p-3 md:grid-cols-6" onSubmit={createAccount}>
+      <form className="grid gap-2 rounded-xl border border-border bg-card p-3 md:grid-cols-6" onSubmit={createAccount}>
         <input
-          className="rounded border px-2 py-1 text-sm md:col-span-2"
+          className="rounded-md border border-border bg-background px-3 py-2 text-sm md:col-span-2"
           placeholder="New account name"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           required
         />
         <select
-          className="rounded border px-2 py-1 text-sm"
+          className="rounded-md border border-border bg-background px-3 py-2 text-sm"
           value={newType}
           onChange={(e) => setNewType(e.target.value)}
         >
@@ -318,7 +318,7 @@ export function RelationshipCrm() {
           ))}
         </select>
         <select
-          className="rounded border px-2 py-1 text-sm"
+          className="rounded-md border border-border bg-background px-3 py-2 text-sm"
           value={newStage}
           onChange={(e) => setNewStage(e.target.value)}
         >
@@ -329,24 +329,31 @@ export function RelationshipCrm() {
           ))}
         </select>
         <input
-          className="rounded border px-2 py-1 text-sm"
+          className="rounded-md border border-border bg-background px-3 py-2 text-sm"
           type="datetime-local"
           value={newFollowUpAt}
           onChange={(e) => setNewFollowUpAt(e.target.value)}
         />
-        <button className="rounded bg-black px-3 py-1 text-sm text-white disabled:opacity-60" disabled={saving}>
+        <button
+          className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-60"
+          disabled={saving}
+        >
           Create account
         </button>
       </form>
 
-      <div className="grid gap-4 rounded border p-3 md:grid-cols-6">
+      <div className="grid gap-4 rounded-xl border border-border bg-card p-3 md:grid-cols-6">
         <input
-          className="rounded border px-2 py-1 text-sm"
+          className="rounded-md border border-border bg-background px-3 py-2 text-sm"
           placeholder="Search accounts"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <select className="rounded border px-2 py-1 text-sm" value={stageFilter} onChange={(e) => setStageFilter(e.target.value)}>
+        <select
+          className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+          value={stageFilter}
+          onChange={(e) => setStageFilter(e.target.value)}
+        >
           <option value="">All stages</option>
           {STAGES.map((value) => (
             <option key={value} value={value}>
@@ -354,7 +361,11 @@ export function RelationshipCrm() {
             </option>
           ))}
         </select>
-        <select className="rounded border px-2 py-1 text-sm" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+        <select
+          className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+        >
           <option value="">All types</option>
           {REL_TYPES.map((value) => (
             <option key={value} value={value}>
@@ -363,13 +374,13 @@ export function RelationshipCrm() {
           ))}
         </select>
         <input
-          className="rounded border px-2 py-1 text-sm"
+          className="rounded-md border border-border bg-background px-3 py-2 text-sm"
           placeholder="Owner user id"
           value={ownerFilter}
           onChange={(e) => setOwnerFilter(e.target.value)}
         />
         <select
-          className="rounded border px-2 py-1 text-sm"
+          className="rounded-md border border-border bg-background px-3 py-2 text-sm"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         >
@@ -377,7 +388,7 @@ export function RelationshipCrm() {
           <option value="inactive">inactive</option>
         </select>
         <button
-          className="rounded border px-3 py-1 text-sm"
+          className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-60"
           type="button"
           onClick={() => {
             void refresh();
@@ -389,10 +400,10 @@ export function RelationshipCrm() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-[320px_1fr]">
-        <div className="space-y-2 rounded border p-3">
+        <div className="space-y-2 rounded-xl border border-border bg-card p-3">
           <h2 className="text-sm font-semibold">Accounts</h2>
           {!accounts.length ? (
-            <div className="rounded border border-dashed p-3 text-sm text-muted-foreground">
+            <div className="rounded-lg border border-dashed border-border p-3 text-sm text-muted-foreground">
               No accounts yet. Create your first account to start tracking follow-ups.
             </div>
           ) : null}
@@ -405,7 +416,9 @@ export function RelationshipCrm() {
                 key={account.id}
                 type="button"
                 onClick={() => setSelectedAccountId(account.id)}
-                className={`w-full rounded border p-2 text-left text-sm ${selected ? "border-black" : ""}`}
+                className={`w-full rounded-lg border border-border p-2 text-left text-sm hover:bg-muted ${
+                  selected ? "border-foreground bg-muted/40" : ""
+                }`}
               >
                 <div className="font-medium">{account.name}</div>
                 <div className="text-xs text-muted-foreground">
@@ -422,19 +435,19 @@ export function RelationshipCrm() {
           })}
         </div>
 
-        <div className="space-y-3 rounded border p-3">
+        <div className="space-y-3 rounded-xl border border-border bg-card p-3">
           {!selectedAccount || !detail ? (
             <div className="text-sm text-muted-foreground">Select an account to view details.</div>
           ) : (
             <>
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-lg font-semibold">{selectedAccount.name}</h2>
-                <span className="rounded bg-slate-100 px-2 py-0.5 text-xs">{selectedAccount.relationship_type}</span>
-                <span className="rounded bg-slate-100 px-2 py-0.5 text-xs">{selectedAccount.stage}</span>
+                <span className="rounded-md bg-muted px-2 py-0.5 text-xs">{selectedAccount.relationship_type}</span>
+                <span className="rounded-md bg-muted px-2 py-0.5 text-xs">{selectedAccount.stage}</span>
               </div>
               <div className="grid gap-2 md:grid-cols-3">
                 <select
-                  className="rounded border px-2 py-1 text-sm"
+                  className="rounded-md border border-border bg-background px-3 py-2 text-sm"
                   value={selectedAccount.stage}
                   onChange={(e) => {
                     void patchAccount({ stage: e.target.value });
@@ -447,7 +460,7 @@ export function RelationshipCrm() {
                   ))}
                 </select>
                 <select
-                  className="rounded border px-2 py-1 text-sm"
+                  className="rounded-md border border-border bg-background px-3 py-2 text-sm"
                   value={selectedAccount.status}
                   onChange={(e) => {
                     void patchAccount({ status: e.target.value });
@@ -457,7 +470,7 @@ export function RelationshipCrm() {
                   <option value="inactive">inactive</option>
                 </select>
                 <input
-                  className="rounded border px-2 py-1 text-sm"
+                  className="rounded-md border border-border bg-background px-3 py-2 text-sm"
                   type="datetime-local"
                   value={toDatetimeLocalValue(selectedAccount.next_follow_up_at)}
                   onChange={(e) => {
@@ -468,7 +481,7 @@ export function RelationshipCrm() {
 
               <div className="grid gap-3 md:grid-cols-3">
                 <form
-                  className="space-y-2 rounded border p-2"
+                  className="space-y-2 rounded-lg border border-border bg-card p-2"
                   onSubmit={(e) => {
                     e.preventDefault();
                     if (!interactionSummary.trim()) return;
@@ -481,19 +494,22 @@ export function RelationshipCrm() {
                 >
                   <div className="text-sm font-medium">Add interaction</div>
                   <textarea
-                    className="min-h-24 w-full rounded border px-2 py-1 text-sm"
+                    className="min-h-24 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                     value={interactionSummary}
                     onChange={(e) => setInteractionSummary(e.target.value)}
                     placeholder="Call recap, meeting notes, etc."
                     required
                   />
-                  <button className="rounded border px-2 py-1 text-sm" disabled={saving}>
+                  <button
+                    className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-60"
+                    disabled={saving}
+                  >
                     Save interaction
                   </button>
                 </form>
 
                 <form
-                  className="space-y-2 rounded border p-2"
+                  className="space-y-2 rounded-lg border border-border bg-card p-2"
                   onSubmit={(e) => {
                     e.preventDefault();
                     if (!taskTitle.trim()) return;
@@ -508,25 +524,28 @@ export function RelationshipCrm() {
                 >
                   <div className="text-sm font-medium">Create task</div>
                   <input
-                    className="w-full rounded border px-2 py-1 text-sm"
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                     placeholder="Next action"
                     value={taskTitle}
                     onChange={(e) => setTaskTitle(e.target.value)}
                     required
                   />
                   <input
-                    className="w-full rounded border px-2 py-1 text-sm"
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                     type="datetime-local"
                     value={taskDueAt}
                     onChange={(e) => setTaskDueAt(e.target.value)}
                   />
-                  <button className="rounded border px-2 py-1 text-sm" disabled={saving}>
+                  <button
+                    className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-60"
+                    disabled={saving}
+                  >
                     Save task
                   </button>
                 </form>
 
                 <form
-                  className="space-y-2 rounded border p-2"
+                  className="space-y-2 rounded-lg border border-border bg-card p-2"
                   onSubmit={(e) => {
                     e.preventDefault();
                     if (!contactName.trim()) return;
@@ -541,31 +560,34 @@ export function RelationshipCrm() {
                 >
                   <div className="text-sm font-medium">Add contact</div>
                   <input
-                    className="w-full rounded border px-2 py-1 text-sm"
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                     placeholder="Full name"
                     value={contactName}
                     onChange={(e) => setContactName(e.target.value)}
                     required
                   />
                   <input
-                    className="w-full rounded border px-2 py-1 text-sm"
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                     placeholder="Email"
                     type="email"
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
                   />
-                  <button className="rounded border px-2 py-1 text-sm" disabled={saving}>
+                  <button
+                    className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-60"
+                    disabled={saving}
+                  >
                     Save contact
                   </button>
                 </form>
               </div>
 
               <div className="grid gap-3 md:grid-cols-3">
-                <div className="rounded border p-2">
+                <div className="rounded-lg border border-border bg-card p-2">
                   <div className="mb-2 text-sm font-medium">Contacts</div>
                   <div className="space-y-2 text-sm">
                     {detail.contacts.map((contact) => (
-                      <div key={contact.id} className="rounded border p-2">
+                      <div key={contact.id} className="rounded-md border border-border p-2">
                         <div className="font-medium">{contact.full_name}</div>
                         <div className="text-xs text-muted-foreground">{contact.email || contact.phone || "-"}</div>
                       </div>
@@ -574,11 +596,11 @@ export function RelationshipCrm() {
                   </div>
                 </div>
 
-                <div className="rounded border p-2">
+                <div className="rounded-lg border border-border bg-card p-2">
                   <div className="mb-2 text-sm font-medium">Recent interactions</div>
                   <div className="space-y-2 text-sm">
                     {detail.interactions.map((interaction) => (
-                      <div key={interaction.id} className="rounded border p-2">
+                      <div key={interaction.id} className="rounded-md border border-border p-2">
                         <div className="font-medium">{interaction.summary}</div>
                         <div className="text-xs text-muted-foreground">
                           {interaction.interaction_type} • {new Date(interaction.interaction_at).toLocaleString()}
@@ -591,11 +613,11 @@ export function RelationshipCrm() {
                   </div>
                 </div>
 
-                <div className="rounded border p-2">
+                <div className="rounded-lg border border-border bg-card p-2">
                   <div className="mb-2 text-sm font-medium">Tasks</div>
                   <div className="space-y-2 text-sm">
                     {detail.tasks.map((task) => (
-                      <div key={task.id} className="rounded border p-2">
+                      <div key={task.id} className="rounded-md border border-border p-2">
                         <div className="font-medium">{task.title}</div>
                         <div className="text-xs text-muted-foreground">
                           {task.status} • {task.due_at ? new Date(task.due_at).toLocaleString() : "No due date"}
@@ -603,7 +625,7 @@ export function RelationshipCrm() {
                         {task.status === "open" ? (
                           <div className="mt-2 flex gap-2">
                             <button
-                              className="rounded border px-2 py-0.5 text-xs"
+                              className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted disabled:opacity-60"
                               type="button"
                               onClick={() => {
                                 void updateTaskStatus(task.id, "done");
@@ -613,7 +635,7 @@ export function RelationshipCrm() {
                               Mark done
                             </button>
                             <button
-                              className="rounded border px-2 py-0.5 text-xs"
+                              className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted disabled:opacity-60"
                               type="button"
                               onClick={() => {
                                 void updateTaskStatus(task.id, "canceled");

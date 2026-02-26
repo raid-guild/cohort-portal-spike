@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
+import { MarkdownEditor } from "@/modules/_shared/MarkdownEditor";
+import { MarkdownRenderer } from "@/modules/_shared/MarkdownRenderer";
 import type {
   GuildGrimoireContentType,
   GuildGrimoireNote,
@@ -756,16 +758,13 @@ export function GuildGrimoire() {
           {mode === "text" ? (
             <label className="grid gap-1 text-sm">
               <span className="text-xs text-muted-foreground">Text (max {MAX_TEXT})</span>
-              <textarea
+              <MarkdownEditor
                 value={text}
-                onChange={(e) => setText(e.target.value)}
+                onChange={setText}
                 maxLength={MAX_TEXT}
-                className="min-h-24 rounded-lg border border-border bg-background p-3"
+                minHeightClassName="min-h-28"
                 placeholder="What’s happening?"
               />
-              <div className="text-xs text-muted-foreground">
-                {text.length}/{MAX_TEXT}
-              </div>
             </label>
           ) : mode === "image" ? (
             <label className="grid gap-1 text-sm">
@@ -1071,7 +1070,9 @@ export function GuildGrimoire() {
                 </div>
 
                 {note.content_type === "text" ? (
-                  <div className="mt-2 whitespace-pre-wrap text-sm">{note.text_content}</div>
+                  <div className="mt-2">
+                    <MarkdownRenderer markdown={note.text_content ?? ""} />
+                  </div>
                 ) : null}
 
                 {note.content_type === "image" && note.image_url ? (
