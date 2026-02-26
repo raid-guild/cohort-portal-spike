@@ -34,11 +34,12 @@ export function MarkdownEditor({
     const selected = value.slice(start, end);
     const content = selected || fallback;
     const next = `${value.slice(0, start)}${before}${content}${after}${value.slice(end)}`;
-    setValue(next);
+    const newValue = typeof maxLength === "number" ? next.slice(0, maxLength) : next;
+    setValue(newValue);
 
     requestAnimationFrame(() => {
       target.focus();
-      const cursor = start + before.length + content.length;
+      const cursor = Math.min(start + before.length + content.length, newValue.length);
       target.setSelectionRange(cursor, cursor);
     });
   }
