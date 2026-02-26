@@ -59,6 +59,9 @@ export async function PATCH(
     if (!isAuthor && !host) {
       return jsonError("Edit access denied.", 403);
     }
+    if (post.status !== "draft") {
+      return jsonError("Only draft posts can be edited.", 409);
+    }
 
     const body = (await request.json().catch(() => null)) as
       | {
@@ -111,13 +114,18 @@ export async function PATCH(
         body_md: nextBodyMd,
       })
       .eq("id", resolved.id)
+      .is("deleted_at", null)
+      .eq("status", "draft")
       .select(
         "id,title,slug,summary,header_image_url,body_md,status,published_at,author_user_id,review_submitted_at,reviewed_at,reviewed_by,review_notes,created_at,updated_at,deleted_at",
       )
-      .single();
+      .maybeSingle();
 
-    if (error || !data) {
-      return jsonError(error?.message || "Failed to update post.", 500);
+    if (error) {
+      return jsonError(error.message || "Failed to update post.", 500);
+    }
+    if (!data) {
+      return jsonError("Post is no longer editable.", 409);
     }
 
     return Response.json({ post: data });

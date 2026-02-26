@@ -4,6 +4,7 @@ import { supabaseServerClient } from "@/lib/supabase/server";
 
 export const POST_STATUSES = ["draft", "in_review", "published"] as const;
 const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const ALLOWED_HEADER_IMAGE_HOSTS = new Set(["images.unsplash.com"]);
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export type DaoBlogPost = {
@@ -122,6 +123,18 @@ export function validatePostPayload(input: {
 
   if (input.headerImageMimeType && !ALLOWED_IMAGE_MIME_TYPES.has(input.headerImageMimeType)) {
     return "header image mime type must be image/jpeg, image/png, or image/webp.";
+  }
+
+  try {
+    const parsedHeaderImageUrl = new URL(input.headerImageUrl);
+    if (
+      parsedHeaderImageUrl.protocol !== "https:" ||
+      !ALLOWED_HEADER_IMAGE_HOSTS.has(parsedHeaderImageUrl.hostname)
+    ) {
+      return "header_image_url host is not allowed.";
+    }
+  } catch {
+    return "header_image_url must be a valid URL.";
   }
 
   if (

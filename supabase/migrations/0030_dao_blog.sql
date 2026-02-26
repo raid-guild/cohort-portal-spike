@@ -95,12 +95,16 @@ for update
 using (
   auth.uid() is not null
   and (
-    author_user_id = auth.uid()
-    or exists (
+    exists (
       select 1
       from public.user_roles ur
       where ur.user_id = auth.uid()
         and ur.role in ('host', 'admin')
+    )
+    or (
+      author_user_id = auth.uid()
+      and status in ('draft', 'in_review')
+      and public.has_dao_blog_author_access(auth.uid())
     )
   )
 )
@@ -116,6 +120,7 @@ with check (
     or (
       author_user_id = auth.uid()
       and status in ('draft', 'in_review')
+      and public.has_dao_blog_author_access(auth.uid())
     )
   )
 );
