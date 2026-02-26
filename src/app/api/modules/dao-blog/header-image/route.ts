@@ -24,6 +24,38 @@ function extensionFromFilename(filename: string | null) {
   return filename.slice(idx + 1).toLowerCase();
 }
 
+function hasValidImageSignature(bytes: Uint8Array, mimeType: string) {
+  if (mimeType === "image/jpeg") {
+    return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  }
+
+  if (mimeType === "image/png") {
+    return (
+      bytes.length >= 8 &&
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47 &&
+      bytes[4] === 0x0d &&
+      bytes[5] === 0x0a &&
+      bytes[6] === 0x1a &&
+      bytes[7] === 0x0a
+    );
+  }
+
+  return (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50
+  );
+}
+
 export async function POST(request: NextRequest) {
   try {
     const viewer = await requireViewer(request);
@@ -58,8 +90,13 @@ export async function POST(request: NextRequest) {
         extension === "png" ? "image/png" : extension === "webp" ? "image/webp" : "image/jpeg";
     }
 
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (!hasValidImageSignature(bytes, mimeType)) {
+      return jsonError("Header image must be JPEG, PNG, or WebP.", 400);
+    }
+
     const path = `dao-blog/${viewer.userId}/${crypto.randomUUID()}.${extension}`;
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const buffer = Buffer.from(bytes);
 
     const { error: uploadError } = await viewer.admin.storage.from("modules").upload(path, buffer, {
       upsert: false,
