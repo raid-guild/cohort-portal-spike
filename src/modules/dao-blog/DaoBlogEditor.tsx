@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
+import { DaoBlogMarkdown } from "@/modules/dao-blog/DaoBlogMarkdown";
 
 type Post = {
   id: string;
@@ -359,6 +359,13 @@ export function DaoBlogEditor({ postId }: { postId?: string }) {
           <button type="button" onClick={() => insertText("\n- ", "", "List item")} className="rounded border border-border px-2 py-1 hover:bg-muted">
             List
           </button>
+          <button
+            type="button"
+            onClick={() => insertText("\n1. ", "", "Numbered item")}
+            className="rounded border border-border px-2 py-1 hover:bg-muted"
+          >
+            Numbered
+          </button>
           <button type="button" onClick={() => insertText("\n> ", "", "Quote")} className="rounded border border-border px-2 py-1 hover:bg-muted">
             Quote
           </button>
@@ -397,9 +404,7 @@ export function DaoBlogEditor({ postId }: { postId?: string }) {
               ) : null}
               {summary.trim() ? <p className="mb-4 text-sm text-muted-foreground">{summary.trim()}</p> : null}
               {bodyMd.trim() ? (
-                <div className="prose prose-sm max-w-none dark:prose-invert">
-                  <ReactMarkdown>{bodyMd}</ReactMarkdown>
-                </div>
+                <DaoBlogMarkdown markdown={bodyMd} />
               ) : (
                 <p className="text-sm text-muted-foreground">Markdown preview will appear here.</p>
               )}

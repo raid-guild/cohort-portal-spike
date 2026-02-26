@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
+import { MarkdownEditor } from "@/modules/_shared/MarkdownEditor";
+import { MarkdownRenderer } from "@/modules/_shared/MarkdownRenderer";
 
 type Space = {
   id: string;
@@ -180,6 +182,10 @@ export function MemberForum({
   async function submitPost(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    if (!title.trim() || !bodyMd.trim()) {
+      setError("Title and body are required.");
+      return;
+    }
     try {
       const headers = await getAuthHeader();
       const res = await fetch("/api/modules/member-forum/posts", {
@@ -206,6 +212,10 @@ export function MemberForum({
     event.preventDefault();
     if (!post) return;
     setError(null);
+    if (!commentBody.trim()) {
+      setError("Comment body is required.");
+      return;
+    }
     try {
       const headers = await getAuthHeader();
       const res = await fetch(`/api/modules/member-forum/posts/${post.id}/comments`, {
@@ -242,7 +252,9 @@ export function MemberForum({
             <article className="rounded-xl border border-border bg-card p-4">
               <p className="text-xs text-muted-foreground">/{post.space?.slug ?? "space"}</p>
               <h2 className="mt-1 text-xl font-semibold">{post.title}</h2>
-              <p className="mt-2 whitespace-pre-wrap text-sm">{post.body_md}</p>
+              <div className="mt-2">
+                <MarkdownRenderer markdown={post.body_md} />
+              </div>
               {post.is_locked ? (
                 <p className="mt-3 text-xs text-muted-foreground">This thread is locked.</p>
               ) : null}
@@ -252,7 +264,7 @@ export function MemberForum({
               <h3 className="text-lg font-medium">Comments</h3>
               {comments.map((comment) => (
                 <div key={comment.id} className="rounded-lg border border-border bg-card p-3">
-                  <p className="whitespace-pre-wrap text-sm">{comment.body_md}</p>
+                  <MarkdownRenderer markdown={comment.body_md} />
                 </div>
               ))}
               {!comments.length ? (
@@ -263,12 +275,11 @@ export function MemberForum({
             {!post.is_locked ? (
               <form onSubmit={submitComment} className="space-y-2 rounded-xl border border-border bg-card p-4">
                 <label className="block text-sm font-medium">Add comment</label>
-                <textarea
+                <MarkdownEditor
                   value={commentBody}
-                  onChange={(event) => setCommentBody(event.target.value)}
-                  className="min-h-24 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  onChange={setCommentBody}
+                  minHeightClassName="min-h-24"
                   placeholder="Write a reply in markdown"
-                  required
                 />
                 <button type="submit" className="rounded-md border border-border px-3 py-2 text-sm">
                   Comment
@@ -319,12 +330,11 @@ export function MemberForum({
           <label className="block text-sm font-medium" htmlFor="forum-body">
             Body (markdown)
           </label>
-          <textarea
-            id="forum-body"
+          <MarkdownEditor
             value={bodyMd}
-            onChange={(event) => setBodyMd(event.target.value)}
-            className="min-h-32 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-            required
+            onChange={setBodyMd}
+            minHeightClassName="min-h-32"
+            placeholder="Write your post in markdown..."
           />
 
           <button
@@ -371,9 +381,9 @@ export function MemberForum({
             <a href={`/modules/member-forum/p/${item.id}`} className="mt-1 block text-lg font-semibold">
               {item.title}
             </a>
-            <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-muted-foreground">
-              {item.body_md}
-            </p>
+            <div className="mt-2 text-muted-foreground">
+              <MarkdownRenderer markdown={item.body_md} className="space-y-2 text-sm leading-6" />
+            </div>
           </article>
         ))}
         {!posts.length ? (
