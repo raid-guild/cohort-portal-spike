@@ -4,7 +4,7 @@
 `dao-blog`
 
 ## Owner / contact
-`@dekanbro` (update if different)
+`@dekanbro`
 
 ## Problem / user value
 RaidGuild needs a simple publishing surface for announcements, thought pieces, and project updates that are publicly readable and easy to share externally. Today content is scattered across social posts and docs without durable permalink structure.
