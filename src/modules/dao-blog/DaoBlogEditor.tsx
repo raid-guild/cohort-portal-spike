@@ -14,6 +14,9 @@ type Post = {
   status: "draft" | "in_review" | "published";
 };
 
+const ALLOWED_HEADER_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_HEADER_IMAGE_BYTES = 5 * 1024 * 1024;
+
 function toKebabCase(input: string) {
   return input
     .trim()
@@ -25,9 +28,11 @@ function toKebabCase(input: string) {
 export function DaoBlogEditor({ postId }: { postId?: string }) {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
+  const localHeaderImagePreviewRef = useRef<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(postId));
   const [saving, setSaving] = useState(false);
+  const [uploadingHeaderImage, setUploadingHeaderImage] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
@@ -35,6 +40,9 @@ export function DaoBlogEditor({ postId }: { postId?: string }) {
   const [slug, setSlug] = useState("");
   const [summary, setSummary] = useState("");
   const [headerImageUrl, setHeaderImageUrl] = useState("");
+  const [headerImagePreviewUrl, setHeaderImagePreviewUrl] = useState<string | null>(null);
+  const [headerImageMimeType, setHeaderImageMimeType] = useState<string | null>(null);
+  const [headerImageSizeBytes, setHeaderImageSizeBytes] = useState<number | null>(null);
   const [bodyMd, setBodyMd] = useState("");
   const [viewMode, setViewMode] = useState<"edit" | "split" | "preview">("split");
 
@@ -65,6 +73,9 @@ export function DaoBlogEditor({ postId }: { postId?: string }) {
       setSlug(json.post.slug);
       setSummary(json.post.summary);
       setHeaderImageUrl(json.post.header_image_url);
+      setHeaderImagePreviewUrl(json.post.header_image_url);
+      setHeaderImageMimeType(null);
+      setHeaderImageSizeBytes(null);
       setBodyMd(json.post.body_md);
       setStatus(json.post.status);
     } catch (err) {
@@ -78,6 +89,94 @@ export function DaoBlogEditor({ postId }: { postId?: string }) {
     void load();
   }, [load]);
 
+  useEffect(
+    () => () => {
+      if (localHeaderImagePreviewRef.current) {
+        URL.revokeObjectURL(localHeaderImagePreviewRef.current);
+        localHeaderImagePreviewRef.current = null;
+      }
+    },
+    [],
+  );
+
+  async function uploadHeaderImage(file: File) {
+    if (!token) {
+      setError("You must be signed in to upload a header image.");
+      return;
+    }
+
+    if (!ALLOWED_HEADER_IMAGE_MIME_TYPES.has(file.type)) {
+      setError("Header image must be JPEG, PNG, or WebP.");
+      return;
+    }
+
+    if (file.size > MAX_HEADER_IMAGE_BYTES) {
+      setError("Header image must be 5MB or smaller.");
+      return;
+    }
+
+    setUploadingHeaderImage(true);
+    setError(null);
+    setStatus(null);
+    const previousUrl = headerImageUrl;
+    const previousPreviewUrl = headerImagePreviewUrl;
+
+    try {
+      if (localHeaderImagePreviewRef.current) {
+        URL.revokeObjectURL(localHeaderImagePreviewRef.current);
+        localHeaderImagePreviewRef.current = null;
+      }
+
+      const localPreview = URL.createObjectURL(file);
+      localHeaderImagePreviewRef.current = localPreview;
+      setHeaderImagePreviewUrl(localPreview);
+
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/modules/dao-blog/header-image", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      const json = (await res.json()) as {
+        url?: string;
+        mime_type?: string;
+        size_bytes?: number;
+        error?: string;
+      };
+      if (!res.ok || !json.url) {
+        throw new Error(json.error || "Failed to upload header image.");
+      }
+
+      if (localHeaderImagePreviewRef.current) {
+        URL.revokeObjectURL(localHeaderImagePreviewRef.current);
+        localHeaderImagePreviewRef.current = null;
+      }
+
+      setHeaderImageUrl(json.url);
+      setHeaderImagePreviewUrl(json.url);
+      setHeaderImageMimeType(json.mime_type ?? file.type);
+      setHeaderImageSizeBytes(
+        typeof json.size_bytes === "number" && Number.isFinite(json.size_bytes)
+          ? json.size_bytes
+          : file.size,
+      );
+      setStatus("Header image uploaded.");
+    } catch (err) {
+      if (localHeaderImagePreviewRef.current) {
+        URL.revokeObjectURL(localHeaderImagePreviewRef.current);
+        localHeaderImagePreviewRef.current = null;
+      }
+      setHeaderImageUrl(previousUrl);
+      setHeaderImagePreviewUrl(previousPreviewUrl);
+      setError(err instanceof Error ? err.message : "Failed to upload header image.");
+    } finally {
+      setUploadingHeaderImage(false);
+    }
+  }
+
   async function save() {
     if (!token) return;
 
@@ -89,6 +188,8 @@ export function DaoBlogEditor({ postId }: { postId?: string }) {
         slug: postId ? slug : toKebabCase(slug || title),
         summary,
         header_image_url: headerImageUrl,
+        header_image_mime_type: headerImageMimeType,
+        header_image_size_bytes: headerImageSizeBytes,
         body_md: bodyMd,
       };
 
@@ -138,6 +239,8 @@ export function DaoBlogEditor({ postId }: { postId?: string }) {
     });
   }
 
+  const headerImagePreviewSrc = headerImagePreviewUrl?.trim() || headerImageUrl.trim() || null;
+
   if (loading) {
     return <p className="text-sm text-muted-foreground">Loading editor...</p>;
   }
@@ -180,15 +283,35 @@ export function DaoBlogEditor({ postId }: { postId?: string }) {
         />
       </label>
 
-      <label className="block space-y-1">
-        <span className="text-sm">Header image URL</span>
-        <input
-          value={headerImageUrl}
-          onChange={(event) => setHeaderImageUrl(event.target.value)}
-          className="w-full rounded border border-border bg-background px-3 py-2 text-sm"
-          placeholder="https://..."
-        />
-      </label>
+      <div className="space-y-2">
+        <div className="text-sm">Header image</div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="cursor-pointer rounded border border-border px-3 py-2 text-xs hover:bg-muted">
+            {uploadingHeaderImage ? "Uploading..." : "Upload image"}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              disabled={uploadingHeaderImage}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void uploadHeaderImage(file);
+                event.currentTarget.value = "";
+              }}
+            />
+          </label>
+          <span className="text-xs text-muted-foreground">JPEG, PNG, or WebP. Max 5MB.</span>
+        </div>
+        {headerImagePreviewSrc ? (
+          <img
+            src={headerImagePreviewSrc}
+            alt="Header preview"
+            className="h-auto w-full max-w-xl rounded border border-border object-cover"
+          />
+        ) : (
+          <p className="text-xs text-muted-foreground">Upload a header image to continue.</p>
+        )}
+      </div>
 
       <label className="block space-y-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -265,6 +388,14 @@ export function DaoBlogEditor({ postId }: { postId?: string }) {
           ) : null}
           {viewMode !== "edit" ? (
             <div className="min-h-72 rounded border border-border bg-card p-3">
+              {headerImagePreviewSrc ? (
+                <img
+                  src={headerImagePreviewSrc}
+                  alt={title || "Draft header image"}
+                  className="mb-4 h-auto w-full rounded border border-border object-cover"
+                />
+              ) : null}
+              {summary.trim() ? <p className="mb-4 text-sm text-muted-foreground">{summary.trim()}</p> : null}
               {bodyMd.trim() ? (
                 <div className="prose prose-sm max-w-none dark:prose-invert">
                   <ReactMarkdown>{bodyMd}</ReactMarkdown>
@@ -278,11 +409,11 @@ export function DaoBlogEditor({ postId }: { postId?: string }) {
       </label>
 
       <button
-        disabled={saving}
+        disabled={saving || uploadingHeaderImage}
         onClick={save}
         className="rounded border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-60"
       >
-        {saving ? "Saving..." : "Save draft"}
+        {saving ? "Saving..." : uploadingHeaderImage ? "Uploading image..." : "Save draft"}
       </button>
     </div>
   );
