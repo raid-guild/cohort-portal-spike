@@ -1322,7 +1322,7 @@ export default function MePage() {
                       <div>
                         <div className="text-sm font-semibold">Roles</div>
                         <p className="text-xs text-muted-foreground">
-                          Select the roles that match how you contribute. Choose up to two.
+                          Select the roles that match how you contribute. Choose up to two. To switch roles, remove one selected role first.
                         </p>
                       </div>
                       <RolePicker

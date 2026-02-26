@@ -285,7 +285,7 @@ export function AvatarEditorModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4">
       <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-xl">
         <div className="flex items-center justify-between gap-2">
           <div>
