@@ -214,9 +214,7 @@
         "requiresAuth": true,
         "entitlement": "cohort-approved"
       },
-      "tags": [
-        "me-tools"
-      ],
+      "tags": [],
       "url": "/modules/profile-generators",
       "presentation": {
         "mode": "dialog",
@@ -271,8 +269,7 @@
       },
       "requiresAuth": false,
       "tags": [
-        "profile-tools-public",
-        "me-tools"
+        "profile-tools-public"
       ],
       "presentation": {
         "mode": "dialog",
@@ -329,9 +326,7 @@
         "requiresAuth": true,
         "entitlement": "cohort-approved"
       },
-      "tags": [
-        "me-tools"
-      ],
+      "tags": [],
       "url": "/modules/billing",
       "presentation": {
         "mode": "page",
@@ -548,7 +543,7 @@
         "name": "Profiles Lane",
         "contact": "discord:@profiles"
       },
-      "requiresAuth": false,
+      "requiresAuth": true,
       "tags": [
         "people-tools",
         "skills",
@@ -677,10 +672,7 @@
         "contact": "discord:@hosts"
       },
       "requiresAuth": true,
-      "tags": [
-        "people-tools",
-        "me-tools"
-      ],
+      "tags": [],
       "presentation": {
         "mode": "page",
         "trigger": "button",
@@ -709,8 +701,6 @@
       },
       "requiresAuth": true,
       "tags": [
-        "people-tools",
-        "me-tools",
         "home"
       ],
       "presentation": {
@@ -741,8 +731,6 @@
       },
       "requiresAuth": true,
       "tags": [
-        "people-tools",
-        "me-tools",
         "profile-tools-public"
       ],
       "presentation": {
@@ -774,8 +762,7 @@
       },
       "requiresAuth": true,
       "tags": [
-        "start-here",
-        "people-tools"
+        "start-here"
       ],
       "presentation": {
         "mode": "page",
@@ -805,8 +792,7 @@
       },
       "requiresAuth": false,
       "tags": [
-        "start-here",
-        "people-tools"
+        "start-here"
       ],
       "presentation": {
         "mode": "page",
@@ -898,7 +884,6 @@
       },
       "requiresAuth": true,
       "tags": [
-        "me-tools",
         "hosts",
         "host-tools"
       ],
@@ -1084,9 +1069,7 @@
         "contact": "discord:@portal"
       },
       "requiresAuth": true,
-      "tags": [
-        "me-tools"
-      ],
+      "tags": [],
       "presentation": {
         "mode": "page",
         "trigger": "button",

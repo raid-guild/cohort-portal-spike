@@ -10,7 +10,7 @@ export type ModuleViewsConfig = {
 
 const DEFAULT_VISIBLE_MODULES_BY_SURFACE: Record<string, string[]> = {
   // Keep first-time /me focused; users can enable more via Customize.
-  me: ["profile-completion", "cohort-application"],
+  me: ["profile-completion", "dao-membership", "cohort-application"],
 };
 
 export function getSurfaceViewConfig(
@@ -38,6 +38,19 @@ export function getSurfaceViewConfig(
     // If defaults drift from registry/moduleIds, avoid hiding every module.
     const defaultVisibleSet = new Set(intersection.length > 0 ? intersection : moduleIds);
     normalizedHidden = moduleIds.filter((id) => !defaultVisibleSet.has(id));
+  } else {
+    // When available modules expand over time, keep newly introduced modules hidden by default
+    // unless they are part of the default visible set for the surface.
+    const knownInStored = new Set([...order, ...hidden].filter((id) => knownIds.has(id)));
+    const defaultVisible = DEFAULT_VISIBLE_MODULES_BY_SURFACE[surface] ?? moduleIds;
+    const defaultVisibleSet = new Set(defaultVisible.filter((id) => knownIds.has(id)));
+    const nextHidden = new Set(normalizedHidden);
+    moduleIds.forEach((id) => {
+      if (!knownInStored.has(id) && !defaultVisibleSet.has(id)) {
+        nextHidden.add(id);
+      }
+    });
+    normalizedHidden = Array.from(nextHidden);
   }
 
   return {

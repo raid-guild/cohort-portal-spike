@@ -56,7 +56,7 @@ export default function MePage() {
   const [avatarImageVersion, setAvatarImageVersion] = useState<number>(0);
   const [availableSkills, setAvailableSkills] = useState<string[]>([]);
   const [linking, setLinking] = useState(false);
-  const [meTools, setMeTools] = useState<ModuleEntry[]>([]);
+  const [profileModules, setProfileModules] = useState<ModuleEntry[]>([]);
   const [portalRoles, setPortalRoles] = useState<string[]>([]);
   const [isPaid, setIsPaid] = useState(false);
   const [paidSource, setPaidSource] = useState<string | null>(null);
@@ -104,12 +104,12 @@ export default function MePage() {
     fetch("/api/modules")
       .then((res) => res.json())
       .then((registry) => {
-        const tools = (registry.modules ?? []).filter((module: ModuleEntry) =>
-          module.tags?.includes("me-tools"),
+        const modules = (registry.modules ?? []).filter(
+          (module: ModuleEntry) => !module.tags?.includes("mock"),
         );
-        setMeTools(tools);
+        setProfileModules(modules);
       })
-      .catch(() => setMeTools([]));
+      .catch(() => setProfileModules([]));
   }, []);
 
   useEffect(() => {
@@ -1089,7 +1089,7 @@ export default function MePage() {
             ) : null}
           </div>
 
-          {meTools.length ? (
+          {profileModules.length ? (
             <div className="rounded-xl border border-border bg-card p-4 md:p-5">
               <div>
                 <div className="text-sm font-semibold">Profile Tools</div>
@@ -1100,7 +1100,7 @@ export default function MePage() {
               {showModuleCustomize ? (
                 <div className="mt-3">
                   <ModuleViewsEditor
-                    modules={meTools}
+                    modules={profileModules}
                     surface="me"
                     config={moduleViewConfig}
                     onChange={saveModuleViews}
@@ -1111,7 +1111,7 @@ export default function MePage() {
               ) : null}
               <div className="mt-3">
                 <ModuleSurfaceList
-                  modules={meTools}
+                  modules={profileModules}
                   surface="me"
                   viewConfig={moduleViewConfig}
                 />
