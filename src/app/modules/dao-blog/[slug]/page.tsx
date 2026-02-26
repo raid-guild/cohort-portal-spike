@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import ReactMarkdown from "react-markdown";
 import { notFound } from "next/navigation";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
 import { DaoBlogReferralForm } from "@/modules/dao-blog/DaoBlogReferralForm";
@@ -89,7 +90,6 @@ export async function generateMetadata({
         },
       ],
       publishedTime: post.published_at ?? undefined,
-      authors: [post.author_user_id],
     },
     twitter: {
       card: "summary_large_image",
@@ -134,7 +134,9 @@ export default async function DaoBlogPostPage({
       </div>
 
       <div className="rounded-xl border border-border bg-card p-5">
-        <pre className="whitespace-pre-wrap font-sans text-sm leading-7">{post.body_md}</pre>
+        <div className="prose prose-sm max-w-none dark:prose-invert">
+          <ReactMarkdown>{post.body_md}</ReactMarkdown>
+        </div>
       </div>
 
       <DaoBlogReferralForm slug={post.slug} />

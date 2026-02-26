@@ -27,6 +27,9 @@ export async function POST(
     if (!post || post.deleted_at) {
       return jsonError("Post not found.", 404);
     }
+    if (post.status !== "in_review") {
+      return jsonError("Post cannot be rejected from its current status.", 400);
+    }
 
     const body = (await request.json().catch(() => null)) as { review_notes?: unknown } | null;
     const reviewNotes = asString(body?.review_notes);
@@ -42,6 +45,8 @@ export async function POST(
         review_notes: reviewNotes,
       })
       .eq("id", resolved.id)
+      .is("deleted_at", null)
+      .eq("status", "in_review")
       .select(
         "id,title,slug,summary,header_image_url,body_md,status,published_at,author_user_id,review_submitted_at,reviewed_at,reviewed_by,review_notes,created_at,updated_at,deleted_at",
       )

@@ -17,34 +17,21 @@ export async function GET(
 ) {
   try {
     const resolved = await params;
-    const slug = resolved.id.trim().toLowerCase();
+    const id = resolved.id.trim();
 
-    if (!slug) {
-      return jsonError("slug is required.");
+    if (!id) {
+      return jsonError("id is required.");
     }
 
-    const admin = asUntypedAdmin(supabaseAdminClient());
-    const { data, error } = await admin
-      .from("dao_blog_posts")
-      .select(
-        "id,title,slug,summary,header_image_url,body_md,status,published_at,author_user_id,review_submitted_at,reviewed_at,reviewed_by,review_notes,created_at,updated_at,deleted_at",
-      )
-      .eq("slug", slug)
-      .eq("status", "published")
-      .is("deleted_at", null)
-      .maybeSingle();
+    const post = await loadPostById(supabaseAdminClient(), id);
 
-    if (error) {
-      return jsonError(`Failed to load post: ${error.message}`, 500);
-    }
-
-    if (!data) {
+    if (!post || post.deleted_at || post.status !== "published") {
       return jsonError("Post not found.", 404);
     }
 
-    return Response.json({ post: data });
+    return Response.json({ post });
   } catch (err) {
-    console.error("[dao-blog] get by slug error:", err);
+    console.error("[dao-blog] get by id error:", err);
     return jsonError("Failed to load post.", 500);
   }
 }

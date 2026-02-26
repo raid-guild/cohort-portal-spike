@@ -9,6 +9,7 @@ insert into public.entitlements (user_id, entitlement, status) values
   ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'dao-member', 'active')
 on conflict (user_id, entitlement) do update set
   status = excluded.status,
+  expires_at = null,
   updated_at = now();
 
 insert into public.dao_blog_posts (
