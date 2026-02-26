@@ -52,6 +52,7 @@ Experience:
 - Public permalink route: `/modules/dao-blog/[slug]`
 - Author dashboard route: `/modules/dao-blog/manage`
 - Editor route: `/modules/dao-blog/manage/new` and `/modules/dao-blog/manage/[id]`
+- `member-tools` publish card includes primary CTA: `New Post` -> `/modules/dao-blog/manage/new`
 
 Key UI states:
 - Anonymous reader sees published posts only
@@ -59,6 +60,7 @@ Key UI states:
 - Dao-member can create draft, edit own drafts, submit for review
 - Host can review and approve/reject submissions
 - Empty state for no published posts
+- Empty author dashboard state includes `Create your first post` CTA
 
 Card sizing intent:
 - `presentation.layout = wide`
@@ -189,6 +191,7 @@ N/A for v1 (portal-owned module route)
 - [ ] Module is registered in `modules/registry.json`
 - [ ] Public index page renders published posts for anonymous users
 - [ ] Public permalink route exists at `/modules/dao-blog/[slug]`
+- [ ] Dao-member can start a new post from `member-tools` via `New Post` CTA
 - [ ] Permalink pages include Open Graph + Twitter metadata for unfurls
 - [ ] Slugs are immutable after create
 - [ ] Only active `dao-member` users can create and edit their own draft content
