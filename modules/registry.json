@@ -854,6 +854,37 @@
       }
     },
     {
+      "id": "dao-blog",
+      "title": "DAO Blog",
+      "description": "Public announcements, thought pieces, and project updates with host-reviewed publishing.",
+      "lane": "portal",
+      "type": "link",
+      "url": "/modules/dao-blog",
+      "status": "beta",
+      "owner": {
+        "name": "@dekanbro",
+        "contact": "@dekanbro"
+      },
+      "requiresAuth": false,
+      "tags": [
+        "start-here",
+        "member-tools"
+      ],
+      "presentation": {
+        "mode": "page",
+        "trigger": "button",
+        "layout": "wide"
+      },
+      "summary": {
+        "source": "api",
+        "title": "DAO Blog",
+        "endpoint": "/api/modules/dao-blog/summary",
+        "layout": "excerpt",
+        "maxItems": 3,
+        "showTitle": true
+      }
+    },
+    {
       "id": "signup-referrals",
       "title": "Signup Referrals",
       "description": "Review email referral signups and export CSV for outreach.",
