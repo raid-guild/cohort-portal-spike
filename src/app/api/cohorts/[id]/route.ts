@@ -42,6 +42,13 @@ const hasCohortAccess = async (userId: string) => {
   return Boolean(data);
 };
 
+const toSlug = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -95,9 +102,12 @@ export async function PUT(
   const { id } = await context.params;
   const payload = (await request.json()) as {
     name?: string;
+    slug?: string | null;
     status?: string;
     startAt?: string | null;
     endAt?: string | null;
+    themeLong?: string | null;
+    headerImageUrl?: string | null;
     content?: {
       schedule?: unknown;
       projects?: unknown;
@@ -111,15 +121,28 @@ export async function PUT(
     .from("cohorts")
     .update({
       ...(payload.name ? { name: payload.name } : {}),
+      ...(payload.slug !== undefined
+        ? { slug: payload.slug ? toSlug(payload.slug) : null }
+        : {}),
       ...(payload.status ? { status: payload.status } : {}),
       ...(payload.startAt !== undefined ? { start_at: payload.startAt } : {}),
       ...(payload.endAt !== undefined ? { end_at: payload.endAt } : {}),
+      ...(payload.themeLong !== undefined ? { theme_long: payload.themeLong } : {}),
+      ...(payload.headerImageUrl !== undefined
+        ? { header_image_url: payload.headerImageUrl }
+        : {}),
     })
     .eq("id", id)
     .select("*")
     .single();
 
   if (error || !cohort) {
+    if (
+      error?.message.toLowerCase().includes("duplicate") ||
+      error?.message.includes("cohorts_slug_unique_idx")
+    ) {
+      return Response.json({ error: "Slug already exists." }, { status: 409 });
+    }
     return Response.json({ error: "Unable to update cohort." }, { status: 500 });
   }
 

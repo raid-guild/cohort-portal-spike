@@ -42,6 +42,13 @@ const hasCohortAccess = async (userId: string) => {
   return Boolean(data);
 };
 
+const toSlug = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
 export async function GET(request: NextRequest) {
   const result = await requireUser(request);
   if ("error" in result) {
@@ -59,7 +66,7 @@ export async function GET(request: NextRequest) {
   const admin = supabaseAdminClient();
   const { data, error } = await admin
     .from("cohorts")
-    .select("id, name, status, start_at, end_at")
+    .select("id, name, slug, status, start_at, end_at, theme_long, header_image_url")
     .order("start_at", { ascending: false });
 
   if (error) {
@@ -93,9 +100,12 @@ export async function POST(request: NextRequest) {
 
   const payload = (await request.json()) as {
     name: string;
+    slug?: string | null;
     status?: string;
     startAt?: string | null;
     endAt?: string | null;
+    themeLong?: string | null;
+    headerImageUrl?: string | null;
     content?: {
       schedule?: unknown;
       projects?: unknown;
@@ -113,14 +123,23 @@ export async function POST(request: NextRequest) {
     .from("cohorts")
     .insert({
       name: payload.name,
+      slug: toSlug(payload.slug?.trim() || payload.name),
       status: payload.status ?? "upcoming",
       start_at: payload.startAt ?? null,
       end_at: payload.endAt ?? null,
+      theme_long: payload.themeLong ?? null,
+      header_image_url: payload.headerImageUrl ?? null,
     })
     .select("*")
     .single();
 
   if (error || !cohort) {
+    if (
+      error?.message.toLowerCase().includes("duplicate") ||
+      error?.message.includes("cohorts_slug_unique_idx")
+    ) {
+      return Response.json({ error: "Slug already exists." }, { status: 409 });
+    }
     return Response.json(
       { error: error?.message ?? "Unable to create cohort." },
       { status: 500 },

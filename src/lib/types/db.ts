@@ -144,28 +144,37 @@ export type Database = {
         Row: {
           created_at: string
           end_at: string | null
+          header_image_url: string | null
           id: string
           name: string
+          slug: string | null
           start_at: string | null
           status: string
+          theme_long: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           end_at?: string | null
+          header_image_url?: string | null
           id?: string
           name: string
+          slug?: string | null
           start_at?: string | null
           status?: string
+          theme_long?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           end_at?: string | null
+          header_image_url?: string | null
           id?: string
           name?: string
+          slug?: string | null
           start_at?: string | null
           status?: string
+          theme_long?: string | null
           updated_at?: string
         }
         Relationships: []
