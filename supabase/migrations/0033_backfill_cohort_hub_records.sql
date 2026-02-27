@@ -4,6 +4,23 @@
 -- - completed -> archived
 -- - in progress -> active
 
+do $$
+declare
+  cohort_count bigint;
+  content_count bigint;
+begin
+  select count(*) into cohort_count from public.cohorts;
+  select count(*) into content_count from public.cohort_content;
+
+  if cohort_count > 25 or content_count > 25 then
+    raise exception
+      'Refusing destructive reset in 0033_backfill_cohort_hub_records: cohorts=% cohort_content=%',
+      cohort_count,
+      content_count;
+  end if;
+end
+$$;
+
 delete from public.cohort_content;
 delete from public.cohorts;
 

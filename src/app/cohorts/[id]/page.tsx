@@ -112,10 +112,12 @@ async function loadCohort(
 
   if (!cohortData) return null;
 
+  const cohortId = (cohortData as CohortRow).id;
+
   const { data: contentData, error: contentError } = await admin
     .from("cohort_content")
     .select("schedule,projects,resources")
-    .eq("cohort_id", id)
+    .eq("cohort_id", cohortId)
     .maybeSingle();
 
   if (contentError) {

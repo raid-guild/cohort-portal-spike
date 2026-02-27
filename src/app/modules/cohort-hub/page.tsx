@@ -412,8 +412,12 @@ export default function CohortHubPage() {
                       const path = `/cohorts/${selectedCohort?.slug || selectedId}`;
                       const origin =
                         typeof window !== "undefined" ? window.location.origin : "";
-                      await navigator.clipboard.writeText(`${origin}${path}`);
-                      setCopyMessage("Copied");
+                      try {
+                        await navigator.clipboard.writeText(`${origin}${path}`);
+                        setCopyMessage("Copied");
+                      } catch {
+                        setCopyMessage("Copy failed");
+                      }
                       setTimeout(() => setCopyMessage(null), 1500);
                     }}
                   >
