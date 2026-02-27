@@ -69,7 +69,7 @@ body:
         - excerpt
         - compact
         - widget
-        - none
+        - no-summary
     validations:
       required: true
 
