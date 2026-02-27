@@ -11,6 +11,10 @@ import {
 const ITEM_SELECT =
   "id,type,title,description_md,steps_to_reproduce_md,expected_result_md,actual_result_md,problem_md,proposed_outcome_md,status,priority,module_id,route_path,reporter_user_id,assignee_user_id,triage_notes,browser_meta,created_at,updated_at,closed_at";
 
+function escapeLike(value: string) {
+  return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
+}
+
 export async function GET(request: NextRequest) {
   const auth = await requireFeedbackAuth(request);
   if ("error" in auth) {
@@ -40,12 +44,15 @@ export async function GET(request: NextRequest) {
     dbQuery = dbQuery.eq("priority", query.priority);
   }
   if (query.q) {
+    const safeQ = escapeLike(query.q);
     dbQuery = dbQuery.or(
-      `title.ilike.%${query.q}%,description_md.ilike.%${query.q}%,problem_md.ilike.%${query.q}%,proposed_outcome_md.ilike.%${query.q}%`,
+      `title.ilike.%${safeQ}%,description_md.ilike.%${safeQ}%,problem_md.ilike.%${safeQ}%,proposed_outcome_md.ilike.%${safeQ}%`,
     );
   }
   if (query.cursor) {
-    dbQuery = dbQuery.lt("created_at", query.cursor);
+    dbQuery = dbQuery.or(
+      `created_at.lt.${query.cursor.createdAt},and(created_at.eq.${query.cursor.createdAt},id.lt.${query.cursor.id})`,
+    );
   }
 
   const { data, error } = await dbQuery;
@@ -56,7 +63,10 @@ export async function GET(request: NextRequest) {
   const rows = (data ?? []) as FeedbackItem[];
   const hasMore = rows.length > query.limit;
   const items = hasMore ? rows.slice(0, query.limit) : rows;
-  const nextCursor = hasMore ? items[items.length - 1]?.created_at ?? null : null;
+  const nextCursor =
+    hasMore && items.length
+      ? `${items[items.length - 1].created_at}|${items[items.length - 1].id}`
+      : null;
 
   return Response.json({
     items,

@@ -8,23 +8,37 @@ export async function GET(request: NextRequest) {
   }
 
   const mineOnly = !auth.isHost;
-  let query = auth.admin
-    .from("feedback_items")
-    .select("status");
 
-  if (mineOnly) {
-    query = query.eq("reporter_user_id", auth.userId);
+  const countByStatus = async (status: "new" | "triaged" | "in_progress") => {
+    let query = auth.admin
+      .from("feedback_items")
+      .select("id", { count: "exact", head: true })
+      .eq("status", status);
+
+    if (mineOnly) {
+      query = query.eq("reporter_user_id", auth.userId);
+    }
+
+    const { count, error } = await query;
+    if (error) {
+      throw error;
+    }
+    return count ?? 0;
+  };
+
+  let newCount = 0;
+  let triagedCount = 0;
+  let inProgressCount = 0;
+  try {
+    [newCount, triagedCount, inProgressCount] = await Promise.all([
+      countByStatus("new"),
+      countByStatus("triaged"),
+      countByStatus("in_progress"),
+    ]);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to load summary.";
+    return Response.json({ error: message }, { status: 500 });
   }
-
-  const { data, error } = await query;
-  if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
-  }
-
-  const rows = data ?? [];
-  const newCount = rows.filter((row) => row.status === "new").length;
-  const triagedCount = rows.filter((row) => row.status === "triaged").length;
-  const inProgressCount = rows.filter((row) => row.status === "in_progress").length;
 
   return Response.json({
     title: mineOnly ? "My feedback" : "Feedback center",

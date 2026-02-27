@@ -65,15 +65,25 @@ export async function PATCH(
     return Response.json({ error: "No updatable fields provided." }, { status: 400 });
   }
 
-  const { data, error } = await auth.admin
+  let updateQuery = auth.admin
     .from("feedback_items")
     .update(updateResult.value)
-    .eq("id", id)
-    .select(ITEM_SELECT)
-    .single();
+    .eq("id", id);
+
+  if (!auth.isHost) {
+    updateQuery = updateQuery.eq("reporter_user_id", auth.userId).eq("status", "new");
+  }
+
+  const { data, error } = await updateQuery.select(ITEM_SELECT).maybeSingle();
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 });
+  }
+  if (!data) {
+    return Response.json(
+      { error: auth.isHost ? "Not found." : "Item can no longer be edited." },
+      { status: auth.isHost ? 404 : 409 },
+    );
   }
 
   return Response.json({ item: data as FeedbackItem });

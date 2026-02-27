@@ -46,8 +46,8 @@ insert into public.feedback_items (
     null,
     null,
     '{"userAgent":"staging-fixture"}'::jsonb,
-    now() - interval '3 days',
-    now() - interval '3 days',
+    '2026-02-24T00:00:00Z'::timestamptz,
+    '2026-02-24T00:00:00Z'::timestamptz,
     null
   ),
   (
@@ -68,8 +68,8 @@ insert into public.feedback_items (
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     'Added to backlog for Q2 UX improvements.',
     '{"userAgent":"staging-fixture"}'::jsonb,
-    now() - interval '2 days',
-    now() - interval '1 day',
+    '2026-02-25T00:00:00Z'::timestamptz,
+    '2026-02-26T00:00:00Z'::timestamptz,
     null
   ),
   (
@@ -90,8 +90,8 @@ insert into public.feedback_items (
     'cccccccc-cccc-cccc-cccc-cccccccccccc',
     'Collecting more examples before drafting UX adjustments.',
     '{"userAgent":"staging-fixture"}'::jsonb,
-    now() - interval '36 hours',
-    now() - interval '12 hours',
+    '2026-02-25T12:00:00Z'::timestamptz,
+    '2026-02-26T12:00:00Z'::timestamptz,
     null
   ),
   (
@@ -112,8 +112,8 @@ insert into public.feedback_items (
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     'Captured as candidate for future module-spec workflow.',
     '{"userAgent":"staging-fixture"}'::jsonb,
-    now() - interval '30 hours',
-    now() - interval '6 hours',
+    '2026-02-25T18:00:00Z'::timestamptz,
+    '2026-02-26T18:00:00Z'::timestamptz,
     null
   ),
   (
@@ -134,9 +134,9 @@ insert into public.feedback_items (
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     'Closed after confirming no follow-up needed.',
     '{"userAgent":"staging-fixture"}'::jsonb,
-    now() - interval '12 days',
-    now() - interval '7 days',
-    now() - interval '7 days'
+    '2026-02-15T00:00:00Z'::timestamptz,
+    '2026-02-20T00:00:00Z'::timestamptz,
+    '2026-02-20T00:00:00Z'::timestamptz
   )
 on conflict (id) do update set
   type = excluded.type,

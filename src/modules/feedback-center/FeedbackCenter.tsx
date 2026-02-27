@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { MarkdownEditor } from "@/modules/_shared/MarkdownEditor";
 
@@ -69,34 +69,43 @@ export function FeedbackCenter() {
 
   const isHost = roles.includes("host") || roles.includes("admin");
 
+  const loadRoles = useCallback(async (accessToken: string | null) => {
+    if (!accessToken) {
+      setRoles([]);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/me/roles", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const json = (await res.json().catch(() => ({}))) as { roles?: string[] };
+      setRoles(json.roles ?? []);
+    } catch {
+      setRoles([]);
+    }
+  }, []);
+
   useEffect(() => {
     const loadSession = async () => {
       const { data } = await supabase.auth.getSession();
       const accessToken = data.session?.access_token ?? null;
       setToken(accessToken);
-
-      if (accessToken) {
-        const res = await fetch("/api/me/roles", {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        const json = (await res.json().catch(() => ({}))) as { roles?: string[] };
-        setRoles(json.roles ?? []);
-      } else {
-        setRoles([]);
-      }
+      await loadRoles(accessToken);
     };
 
     void loadSession();
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setToken(session?.access_token ?? null);
-      if (!session?.access_token) setRoles([]);
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const accessToken = session?.access_token ?? null;
+      setToken(accessToken);
+      await loadRoles(accessToken);
     });
 
     return () => {
       sub.subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, [supabase, loadRoles]);
 
   useEffect(() => {
     if (!token) return;

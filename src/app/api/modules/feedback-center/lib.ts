@@ -40,7 +40,7 @@ export type FeedbackItemQuery = {
   priority: FeedbackPriority | null;
   q: string | null;
   limit: number;
-  cursor: string | null;
+  cursor: { createdAt: string; id: string } | null;
 };
 
 function asTrimmed(value: unknown): string | null {
@@ -80,6 +80,22 @@ function asPriority(value: string | null): FeedbackPriority | null {
   return null;
 }
 
+function asItemCursor(value: string | null) {
+  if (!value) return null;
+  const [createdAtRaw, idRaw] = value.split("|");
+  const createdAt = asTrimmed(createdAtRaw);
+  const id = asTrimmed(idRaw);
+  if (!createdAt || !id) return null;
+
+  const parsed = Date.parse(createdAt);
+  if (Number.isNaN(parsed)) return null;
+
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(id)) return null;
+
+  return { createdAt: new Date(parsed).toISOString(), id };
+}
+
 export function parseItemQuery(url: URL): FeedbackItemQuery {
   const known = new Set(ALLOWED_ITEM_QUERY_KEYS);
   for (const key of url.searchParams.keys()) {
@@ -95,7 +111,7 @@ export function parseItemQuery(url: URL): FeedbackItemQuery {
   const q = asTrimmed(url.searchParams.get("q"));
   const limitRaw = Number(url.searchParams.get("limit") ?? "20");
   const limit = Number.isFinite(limitRaw) ? Math.min(50, Math.max(1, Math.floor(limitRaw))) : 20;
-  const cursor = asTrimmed(url.searchParams.get("cursor"));
+  const cursor = asItemCursor(asTrimmed(url.searchParams.get("cursor")));
 
   return { mine, type, status, priority, q, limit, cursor };
 }
@@ -236,6 +252,10 @@ export function validateReporterPatch(
     return { error: "feature and module_request reports require problem_md and proposed_outcome_md." };
   }
 
+  if (Object.keys(update).length === 0) {
+    return { error: "No updatable fields were provided." };
+  }
+
   return { value: update };
 }
 
@@ -271,6 +291,10 @@ export function validateHostPatch(
 
   if (Object.prototype.hasOwnProperty.call(body, "triage_notes")) {
     update.triage_notes = asNullableTrimmed(body.triage_notes);
+  }
+
+  if (Object.keys(update).length === 0) {
+    return { error: "No updatable fields were provided." };
   }
 
   return { value: update };
