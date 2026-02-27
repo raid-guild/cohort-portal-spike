@@ -135,10 +135,73 @@ await portalRpc("profile.refresh", { handle: "dekanbro" });
 If RPC fails (for example, when running standalone), modules should fall back to
 local refresh signals (see `emitLocalProfileRefresh`).
 
+## Domain events (persisted bus v1)
+Use the persisted event bus for backend automations and cross-module reactions
+(for example: badges, notifications, timelines), not the iframe RPC bus.
+
+### Event contract
+Emit events with:
+- `moduleId` (required)
+- `kind` (required)
+- `actorId` (optional)
+- `subject` (optional object, usually `{ type, id }`)
+- `visibility` (`public` | `authenticated` | `private`, default `authenticated`)
+- `data` (optional JSON payload)
+- `occurredAt` (optional ISO datetime)
+- `source` (optional provenance string)
+- `dedupeKey` (optional idempotency key)
+
+Naming:
+- Core: `core.<domain>.<action>`
+- Custom: `custom.<moduleId>.<action>`
+
+Rules:
+- `custom.*` must match `custom.<moduleId>.*`
+- modules may emit only kinds declared in registry
+
+### Registry declaration
+Add emit capabilities in `modules/registry.json`:
+```json
+{
+  "capabilities": {
+    "events": {
+      "emit": {
+        "kinds": [
+          "core.guild_grimoire.note_created",
+          "custom.guild-grimoire.import_completed"
+        ],
+        "requiresUserAuth": true
+      }
+    }
+  }
+}
+```
+
+### Server helper usage
+Emit from server mutation routes with `src/lib/portal-events.ts`:
+```ts
+import { emitPortalEvent } from "@/lib/portal-events";
+
+await emitPortalEvent({
+  moduleId: "guild-grimoire",
+  kind: "core.guild_grimoire.note_created",
+  actorId: auth.userId,
+  subject: { type: "guild_grimoire_note", id: noteId },
+  visibility: "authenticated",
+  data: { contentType: "text" },
+  dedupeKey: `note:${noteId}:created`,
+});
+```
+
+Guidance:
+- Emit after successful writes.
+- Start fail-open (log on emit errors, do not fail primary user write path).
+- Keep consumers decoupled; avoid direct module-to-module writes.
+
 ## Capabilities (contract metadata)
-Use `capabilities` to document what a module is allowed to do. This is a registry-side
-contract for now (not enforced automatically), but it keeps portal-owned and third-party
-modules aligned on expectations.
+Use `capabilities` to declare what a module is allowed to do. Some capabilities are
+enforced by portal APIs/brokers (for example `portalRpc` and `events.emit`), while others
+remain contract metadata for shared expectations.
 
 Example:
 ```json

@@ -1,67 +1,72 @@
-# Event Persistence (Proposed)
+# Event Persistence (v1)
 
-Status: Draft
-Owner: TBD
-Last updated: 2026-02-11
+Status: Implemented baseline
+Owner: Portal Core
+Last updated: 2026-02-27
 
 ## Why
-We want a standard, portal-owned place for modules to emit and read events so other
-modules can react without tight coupling. This enables shared timelines, cross-module
-signals, and future realtime without forcing direct module-to-module communication.
+We need a portal-owned event bus so modules can emit domain events once and let multiple consumers react independently (badges, notifications, timelines, analytics) without direct module-to-module wiring.
 
 ## Goals
-- Provide a stable, minimal event envelope.
-- Support persisted events with visibility controls.
-- Keep schema enforcement light to avoid blocking module builders.
-- Allow both core (platform) and custom (module) event kinds.
+- Define a stable, minimal event envelope for all modules.
+- Keep producer integration low-friction: one shared helper + registry-declared kinds.
+- Persist events for replayable automation (not only transient UI messaging).
+- Enforce emit authorization centrally.
 
-## Non-goals (v0)
-- Full schema validation per event kind.
-- Cross-tab realtime delivery.
-- Event-driven workflows or background jobs.
+## Non-goals (v1)
+- Realtime subscriptions.
+- Per-kind strict JSON schema validation.
+- Exactly-once global delivery guarantees.
 
-## Event Envelope (v0)
+## Event Envelope
 ```json
 {
-  "kind": "core.bounty.created",
+  "moduleId": "guild-grimoire",
+  "kind": "core.guild_grimoire.note_created",
   "actorId": "uuid",
-  "subject": { "type": "bounty", "id": "uuid" },
-  "visibility": "public",
-  "data": { "title": "Build X" }
+  "subject": { "type": "guild_grimoire_note", "id": "uuid" },
+  "visibility": "authenticated",
+  "data": { "contentType": "text" },
+  "occurredAt": "2026-02-27T18:07:00.000Z",
+  "source": "module:guild-grimoire",
+  "dedupeKey": "note:<uuid>:created"
 }
 ```
 
 Fields:
-- `kind`: string
-- `actorId`: optional user id
-- `subject`: optional object, at least `{ type, id }`
-- `visibility`: `public` | `authenticated` | `private`
-- `data`: optional JSON payload (no strict schema enforced at v0)
+- `moduleId` (required): producing module id.
+- `kind` (required): event kind string.
+- `actorId` (optional): user responsible for the event.
+- `subject` (optional): object reference, usually `{ type, id }`.
+- `visibility` (optional): `public` | `authenticated` | `private` (defaults to `authenticated`).
+- `data` (optional): free-form JSON payload.
+- `occurredAt` (optional): ISO datetime; defaults to now.
+- `source` (optional): provenance string; defaults to `module:<moduleId>`.
+- `dedupeKey` (optional): producer-scoped idempotency key.
 
-## Naming rules
+## Naming Rules
 - Core events: `core.<domain>.<action>`
-  - Example: `core.bounty.created`
+  - Example: `core.guild_grimoire.note_created`
 - Custom events: `custom.<moduleId>.<action>`
-  - Example: `custom.skills-explorer.graph_built`
-- Emit enforcement:
-  - If `kind` starts with `custom.`, it must match `custom.<moduleId>.`
-  - If `kind` starts with `core.`, it must be on an allowlist
+  - Example: `custom.guild-grimoire.import_completed`
 
-## Registry capabilities (proposed)
-Add to `modules/registry.json`:
+Validation rules:
+- `custom.*` kinds must start with `custom.<moduleId>.`.
+- `core.*` kinds are allowed only when explicitly declared by the module.
+
+## Registry Capabilities
+Declare allowed event kinds in `modules/registry.json`:
+
 ```json
 {
   "capabilities": {
     "events": {
       "emit": {
-        "kinds": ["core.bounty.created", "custom.bounty-board.note_added"],
+        "kinds": [
+          "core.guild_grimoire.note_created",
+          "custom.guild-grimoire.import_completed"
+        ],
         "requiresUserAuth": true
-      },
-      "read": {
-        "kinds": ["core.bounty.created", "core.badge.awarded"],
-        "visibility": ["public", "authenticated"],
-        "requiresUserAuth": false,
-        "allowedRoles": ["host"]
       }
     }
   }
@@ -69,45 +74,39 @@ Add to `modules/registry.json`:
 ```
 
 Notes:
-- Emit controls which event kinds a module may create.
-- Read controls which event kinds a module may access.
-- These are authorization hints enforced by portal APIs.
+- New modules should only need this declaration plus helper calls in write routes.
+- Consumers should subscribe by `kind`; producers remain decoupled.
 
-## Table (proposed)
-```sql
-create table public.portal_events (
-  id uuid primary key default gen_random_uuid(),
-  kind text not null,
-  actor_id uuid,
-  subject jsonb,
-  data jsonb,
-  visibility text not null default 'public',
-  created_at timestamptz not null default now()
-);
-```
+## Storage
+Migration: `supabase/migrations/0031_portal_events.sql`
 
-## API surface (proposed)
-- `POST /api/portal-events`
-  - Accepts the event envelope.
-  - Auth via user token or module key.
-  - Enforces registry `capabilities.events.emit`.
-- `GET /api/portal-events`
-  - Filters by `kind`, `subject`, `actorId`, `visibility`.
-  - Enforces registry `capabilities.events.read`.
+Table: `public.portal_events`
+- `id uuid pk`
+- `module_id text`
+- `kind text`
+- `actor_id uuid null`
+- `subject jsonb null`
+- `data jsonb null`
+- `visibility text`
+- `occurred_at timestamptz`
+- `source text`
+- `dedupe_key text null`
+- `created_at timestamptz`
 
-## Initial core event kinds (candidate)
-- `core.announcement.published`
-- `core.bounty.created`
-- `core.bounty.claimed`
-- `core.badge.awarded`
-- `core.cohort.application_approved`
+Indexes:
+- `occurred_at desc`
+- `(kind, occurred_at desc)`
+- `(module_id, occurred_at desc)`
+- `(actor_id, occurred_at desc)`
+- unique `(module_id, dedupe_key)` when `dedupe_key` is present
 
-## Timeline integration (candidate)
-- Raider Timeline queries its own `timeline_entries`.
-- It also queries `portal_events` for allowed kinds.
-- The UI merges both lists by `created_at`.
+## API + Helper
+- API: `POST /api/portal-events`
+  - auth: user bearer token or `x-module-id` + `x-module-key`
+  - validates emit permissions from registry
+  - validates kind naming rules
+- Helper: `emitPortalEvent(...)` in `src/lib/portal-events.ts`
+  - use from server mutation routes to emit domain events directly
 
-## Open questions
-- Should `actorId` be required for all authenticated emits?
-- Should `subject` be required for `core.*` kinds?
-- Do we need a `source` field for provenance and dedupe?
+## Current Scope
+This v1 ships event production and persistence. Consumers (badge automation, digests, etc.) should be implemented as independent readers over `portal_events`.
