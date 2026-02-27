@@ -53,12 +53,20 @@ export function CohortLandingReferralForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-2 rounded-lg border border-border p-4">
-      <p className="text-sm font-medium">Apply for this cohort</p>
-      <p className="text-xs text-muted-foreground">
+    <form
+      onSubmit={onSubmit}
+      className="space-y-3 rounded-xl border-2 border-foreground/20 bg-card p-5 shadow-sm"
+    >
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Join This Cohort
+      </p>
+      <p className="text-xl font-semibold leading-tight text-foreground">
+        Apply now and get cohort updates
+      </p>
+      <p className="text-sm text-muted-foreground">
         Leave your email and we will share next steps.
       </p>
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <input
           type="email"
           required
@@ -70,7 +78,7 @@ export function CohortLandingReferralForm({
         <button
           type="submit"
           disabled={saving}
-          className="rounded border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-60"
+          className="whitespace-nowrap rounded bg-foreground px-5 py-2 text-sm font-semibold text-background hover:opacity-90 disabled:opacity-60"
         >
           {saving ? "Submitting..." : "Sign up"}
         </button>
