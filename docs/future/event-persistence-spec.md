@@ -109,4 +109,4 @@ Indexes:
   - use from server mutation routes to emit domain events directly
 
 ## Current Scope
-This v1 ships event production and persistence. Consumers (badge automation, digests, etc.) should be implemented as independent readers over `portal_events`.
+This v1 ships event production and persistence, with initial consumers now running as independent readers over `portal_events`. See `docs/events-and-automations.md` for current consumers and schedules.

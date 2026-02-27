@@ -6,6 +6,7 @@ import {
   loadPostById,
   requireViewer,
 } from "@/app/api/modules/dao-blog/lib";
+import { emitPortalEvent } from "@/lib/portal-events";
 
 export async function POST(
   request: NextRequest,
@@ -53,6 +54,31 @@ export async function POST(
 
     if (error || !data) {
       return jsonError(error?.message || "Failed to approve post.", 500);
+    }
+    const updatedPost = data as {
+      id: string;
+      slug: string;
+      title: string;
+      published_at: string | null;
+    };
+
+    try {
+      await emitPortalEvent({
+        moduleId: "dao-blog",
+        kind: "core.dao_blog.post_published",
+        authenticatedUserId: viewer.userId,
+        actorId: viewer.userId,
+        subject: { type: "dao_blog_post", id: updatedPost.id },
+        visibility: "public",
+        data: {
+          slug: updatedPost.slug,
+          title: updatedPost.title,
+          publishedAt: updatedPost.published_at,
+        },
+        dedupeKey: `dao_blog_post:${updatedPost.id}:published`,
+      });
+    } catch (emitError) {
+      console.error("[dao-blog] emit post_published failed:", emitError);
     }
 
     return Response.json({ post: data });

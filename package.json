@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
     "sync:modules": "node scripts/sync-registry.js",
     "module:key": "node scripts/create-module-key.js",
     "snapshot:dao-members": "node scripts/dao-membership-snapshot.js",
@@ -34,6 +35,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.0.18"
   }
 }

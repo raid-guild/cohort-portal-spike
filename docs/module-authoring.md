@@ -198,6 +198,32 @@ Guidance:
 - Start fail-open (log on emit errors, do not fail primary user write path).
 - Keep consumers decoupled; avoid direct module-to-module writes.
 
+### Event producer template (copy/paste)
+For any new module mutation route:
+1. Add event kind(s) to `capabilities.events.emit.kinds` in registry.
+2. After successful write, emit event with a stable `dedupeKey`.
+3. Do not call other modules directly; let consumers react from `portal_events`.
+
+```ts
+try {
+  await emitPortalEvent({
+    moduleId: "<module-id>",
+    kind: "core.<domain>.<action>",
+    authenticatedUserId: viewer.userId,
+    actorId: viewer.userId,
+    subject: { type: "<entity_type>", id: entityId },
+    visibility: "authenticated",
+    data: {
+      // minimal metadata needed by consumers
+    },
+    dedupeKey: `<entity_type>:${entityId}:<action>`,
+  });
+} catch (emitError) {
+  // fail-open: preserve module response contract
+  console.error("[<module-id>] emit <action> failed:", emitError);
+}
+```
+
 ## Capabilities (contract metadata)
 Use `capabilities` to declare what a module is allowed to do. Some capabilities are
 enforced by portal APIs/brokers (for example `portalRpc` and `events.emit`), while others
