@@ -135,11 +135,26 @@ function cadenceIntervalMs(cadence: Cadence) {
   return cadence === "weekly" ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
 }
 
+function parseTimestampMs(value: string | null) {
+  if (!value) return null;
+  const parsed = new Date(value).valueOf();
+  if (!Number.isFinite(parsed)) return null;
+  return parsed;
+}
+
+function digestWindowStartMs(pref: PreferenceRow, nowMs: number) {
+  const parsedLastSent = parseTimestampMs(pref.last_digest_sent_at);
+  if (parsedLastSent !== null) {
+    return parsedLastSent;
+  }
+  return nowMs - cadenceIntervalMs(pref.cadence);
+}
+
 function isDue(pref: PreferenceRow, nowMs: number) {
   if (!pref.email_enabled) return false;
   if (!pref.last_digest_sent_at) return true;
-  const last = new Date(pref.last_digest_sent_at).valueOf();
-  if (!Number.isFinite(last)) return true;
+  const last = parseTimestampMs(pref.last_digest_sent_at);
+  if (last === null) return true;
   return nowMs - last >= cadenceIntervalMs(pref.cadence);
 }
 
@@ -191,6 +206,7 @@ export async function enqueueNotificationDigests(maxUsers = DEFAULT_MAX_USERS) {
 
   let eligible = 0;
   let queued = 0;
+  const eventsByWindowAndKinds = new Map<string, EventRow[]>();
 
   for (const profile of profiles) {
     if (!profile.user_id || !profile.email) continue;
@@ -204,25 +220,30 @@ export async function enqueueNotificationDigests(maxUsers = DEFAULT_MAX_USERS) {
     const kinds = Array.from(new Set(topics.flatMap((topic) => topicKinds(topic))));
     if (!kinds.length) continue;
 
-    const startMs = pref.last_digest_sent_at
-      ? new Date(pref.last_digest_sent_at).valueOf()
-      : nowMs - cadenceIntervalMs(pref.cadence);
+    const startMs = digestWindowStartMs(pref, nowMs);
     const windowStartIso = new Date(startMs).toISOString();
+    const eventsCacheKey = `${windowStartIso}::${kinds.slice().sort().join(",")}`;
 
-    const { data: rawEvents, error: eventsError } = await admin
-      .from("portal_events")
-      .select("id,kind,actor_id,subject,data,visibility,occurred_at")
-      .in("kind", kinds)
-      .gt("occurred_at", windowStartIso)
-      .lte("occurred_at", nowIso)
-      .order("occurred_at", { ascending: false })
-      .limit(MAX_ITEMS_PER_DIGEST * 2);
+    let events = eventsByWindowAndKinds.get(eventsCacheKey);
+    if (!events) {
+      const { data: rawEvents, error: eventsError } = await admin
+        .from("portal_events")
+        .select("id,kind,actor_id,subject,data,visibility,occurred_at")
+        .in("kind", kinds)
+        .gt("occurred_at", windowStartIso)
+        .lte("occurred_at", nowIso)
+        .order("occurred_at", { ascending: false })
+        .limit(MAX_ITEMS_PER_DIGEST * 2);
 
-    if (eventsError) {
-      throw new Error(eventsError.message);
+      if (eventsError) {
+        throw new Error(eventsError.message);
+      }
+
+      events = (rawEvents ?? []) as EventRow[];
+      eventsByWindowAndKinds.set(eventsCacheKey, events);
     }
 
-    const filtered = ((rawEvents ?? []) as EventRow[])
+    const filtered = events
       .filter((event) => {
         if (event.visibility === "private") {
           return event.actor_id === profile.user_id;

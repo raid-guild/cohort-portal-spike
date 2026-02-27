@@ -158,7 +158,6 @@ export async function emitPortalEvent(input: PortalEventInput) {
     viewerId: normalized.authenticatedUserId,
   });
 
-  const dedupeKey = normalized.dedupeKey ?? crypto.randomUUID();
   const { error } = await untyped.from("portal_events").insert({
     module_id: normalized.moduleId,
     kind: normalized.kind,
@@ -168,7 +167,7 @@ export async function emitPortalEvent(input: PortalEventInput) {
     visibility: normalized.visibility,
     occurred_at: normalized.occurredAt ?? new Date().toISOString(),
     source: normalized.source ?? `module:${normalized.moduleId}`,
-    dedupe_key: dedupeKey,
+    dedupe_key: normalized.dedupeKey,
   });
 
   if (error) {
@@ -189,6 +188,12 @@ export async function verifyModuleKey(moduleId: string, moduleKey: string) {
     .eq("module_id", moduleId)
     .maybeSingle();
 
-  if (error || !isRecord(data)) return false;
-  return data.key_hash === hash;
+  if (error || !isRecord(data) || typeof data.key_hash !== "string") return false;
+  if (!/^[a-f0-9]{64}$/i.test(data.key_hash)) return false;
+
+  const storedHash = Buffer.from(data.key_hash, "hex");
+  const providedHash = Buffer.from(hash, "hex");
+  if (storedHash.length !== providedHash.length) return false;
+
+  return crypto.timingSafeEqual(storedHash, providedHash);
 }

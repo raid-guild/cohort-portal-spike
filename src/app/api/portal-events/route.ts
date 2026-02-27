@@ -70,6 +70,9 @@ export async function POST(request: NextRequest) {
       { status: 401 },
     );
   }
+  if (kind.startsWith("core.") && !moduleKeyValid) {
+    return Response.json({ error: "Valid module key required to emit core.* events." }, { status: 403 });
+  }
 
   const actorIdRaw = asString(body?.actorId);
   const actorId = actorIdRaw || viewerId || null;

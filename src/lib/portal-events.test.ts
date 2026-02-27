@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import crypto from "node:crypto";
 
 const loadRegistry = vi.fn();
 const from = vi.fn();
@@ -84,5 +85,66 @@ describe("emitPortalEvent", () => {
         kind: "core.member_forum.post_created",
       }),
     ).rejects.toThrow("Authenticated user required");
+  });
+
+  it("keeps dedupe_key null when dedupeKey is omitted", async () => {
+    loadRegistry.mockReturnValue({
+      modules: [
+        {
+          id: "member-forum",
+          capabilities: {
+            events: {
+              emit: {
+                kinds: ["core.member_forum.post_created"],
+                requiresUserAuth: false,
+              },
+            },
+          },
+        },
+      ],
+    });
+
+    const insert = vi.fn().mockResolvedValue({ error: null });
+    from.mockReturnValue({ insert });
+
+    const { emitPortalEvent } = await import("./portal-events");
+    await emitPortalEvent({
+      moduleId: "member-forum",
+      kind: "core.member_forum.post_created",
+      actorId: "user-2",
+      data: { title: "Hello" },
+    });
+
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ dedupe_key: null }));
+  });
+});
+
+describe("verifyModuleKey", () => {
+  beforeEach(() => {
+    from.mockReset();
+  });
+
+  it("returns true for matching key hash", async () => {
+    const key = "module-secret";
+    const keyHash = crypto.createHash("sha256").update(key).digest("hex");
+    const maybeSingle = vi.fn().mockResolvedValue({ data: { key_hash: keyHash }, error: null });
+    const eq = vi.fn(() => ({ maybeSingle }));
+    const select = vi.fn(() => ({ eq }));
+    from.mockReturnValue({ select });
+
+    const { verifyModuleKey } = await import("./portal-events");
+    await expect(verifyModuleKey("guild-grimoire", key)).resolves.toBe(true);
+  });
+
+  it("returns false for malformed stored hash", async () => {
+    const maybeSingle = vi
+      .fn()
+      .mockResolvedValue({ data: { key_hash: "not-a-valid-sha256-hash" }, error: null });
+    const eq = vi.fn(() => ({ maybeSingle }));
+    const select = vi.fn(() => ({ eq }));
+    from.mockReturnValue({ select });
+
+    const { verifyModuleKey } = await import("./portal-events");
+    await expect(verifyModuleKey("guild-grimoire", "module-secret")).resolves.toBe(false);
   });
 });
