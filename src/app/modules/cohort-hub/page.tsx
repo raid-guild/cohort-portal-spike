@@ -54,6 +54,9 @@ const emptyContent: CohortContent = {
   notes: [],
 };
 
+const ALLOWED_HEADER_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_HEADER_IMAGE_BYTES = 5 * 1024 * 1024;
+
 const parseTeamList = (input: string) =>
   input
     .split(",")
@@ -98,6 +101,7 @@ export default function CohortHubPage() {
   const [isHost, setIsHost] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadingHeaderImage, setUploadingHeaderImage] = useState(false);
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editMode, setEditMode] = useState<EditMode>("edit");
@@ -300,6 +304,44 @@ export default function CohortHubPage() {
       setError(msg);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const uploadHeaderImage = async (file: File) => {
+    if (!authToken) {
+      setError("You must be signed in to upload a header image.");
+      return;
+    }
+    if (!ALLOWED_HEADER_IMAGE_MIME_TYPES.has(file.type)) {
+      setError("Header image must be JPEG, PNG, or WebP.");
+      return;
+    }
+    if (file.size > MAX_HEADER_IMAGE_BYTES) {
+      setError("Header image must be 5MB or smaller.");
+      return;
+    }
+
+    setUploadingHeaderImage(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/cohorts/header-image", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: formData,
+      });
+      const json = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !json.url) {
+        throw new Error(json.error || "Failed to upload header image.");
+      }
+      setDraftHeaderImageUrl(json.url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to upload header image.");
+    } finally {
+      setUploadingHeaderImage(false);
     }
   };
 
@@ -611,12 +653,39 @@ export default function CohortHubPage() {
               </label>
               <label className="text-xs text-muted-foreground">
                 Header image URL
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <label className="cursor-pointer rounded-lg border border-border px-3 py-1 text-xs hover:bg-muted">
+                    {uploadingHeaderImage ? "Uploading..." : "Upload image"}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="sr-only"
+                      disabled={uploadingHeaderImage}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) void uploadHeaderImage(file);
+                        event.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+                  <span className="text-xs text-muted-foreground">
+                    JPEG, PNG, or WebP. Max 5MB.
+                  </span>
+                </div>
                 <input
                   value={draftHeaderImageUrl}
                   onChange={(event) => setDraftHeaderImageUrl(event.target.value)}
                   className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
                   placeholder="https://..."
                 />
+                {draftHeaderImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={draftHeaderImageUrl}
+                    alt="Cohort header preview"
+                    className="mt-2 h-28 w-full rounded-md border border-border object-cover"
+                  />
+                ) : null}
               </label>
 
               <div className="grid gap-3 md:grid-cols-2">
