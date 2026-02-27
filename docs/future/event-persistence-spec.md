@@ -22,7 +22,7 @@ We need a portal-owned event bus so modules can emit domain events once and let 
 ```json
 {
   "moduleId": "guild-grimoire",
-  "kind": "core.guild_grimoire.note_created",
+  "kind": "core.guild-grimoire.note_created",
   "actorId": "uuid",
   "subject": { "type": "guild_grimoire_note", "id": "uuid" },
   "visibility": "authenticated",
@@ -46,7 +46,7 @@ Fields:
 
 ## Naming Rules
 - Core events: `core.<domain>.<action>`
-  - Example: `core.guild_grimoire.note_created`
+  - Example: `core.guild-grimoire.note_created`
 - Custom events: `custom.<moduleId>.<action>`
   - Example: `custom.guild-grimoire.import_completed`
 
@@ -63,7 +63,7 @@ Declare allowed event kinds in `modules/registry.json`:
     "events": {
       "emit": {
         "kinds": [
-          "core.guild_grimoire.note_created",
+          "core.guild-grimoire.note_created",
           "custom.guild-grimoire.import_completed"
         ],
         "requiresUserAuth": true

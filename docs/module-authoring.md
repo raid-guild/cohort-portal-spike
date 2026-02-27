@@ -167,7 +167,7 @@ Add emit capabilities in `modules/registry.json`:
     "events": {
       "emit": {
         "kinds": [
-          "core.guild_grimoire.note_created",
+          "core.guild-grimoire.note_created",
           "custom.guild-grimoire.import_completed"
         ],
         "requiresUserAuth": true
@@ -184,7 +184,7 @@ import { emitPortalEvent } from "@/lib/portal-events";
 
 await emitPortalEvent({
   moduleId: "guild-grimoire",
-  kind: "core.guild_grimoire.note_created",
+  kind: "core.guild-grimoire.note_created",
   actorId: auth.userId,
   subject: { type: "guild_grimoire_note", id: noteId },
   visibility: "authenticated",
