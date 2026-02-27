@@ -44,6 +44,12 @@ function getSiteOrigin() {
   return "http://localhost:3000";
 }
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
 function formatRange(startAt: string | null, endAt: string | null) {
   if (!startAt && !endAt) return "Dates TBD";
   const start = startAt ? new Date(startAt).toLocaleDateString("en-US") : "TBD";
@@ -97,7 +103,7 @@ async function loadCohort(
   }
 
   let cohortData = bySlug;
-  if (!cohortData) {
+  if (!cohortData && isUuid(id)) {
     const { data: byId, error: byIdError } = await admin
       .from("cohorts")
       .select("id,slug,name,status,start_at,end_at,theme_long,header_image_url")
