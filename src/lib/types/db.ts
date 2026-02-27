@@ -507,6 +507,75 @@ export type Database = {
           },
         ]
       }
+      feedback_items: {
+        Row: {
+          actual_result_md: string | null
+          assignee_user_id: string | null
+          browser_meta: Json | null
+          closed_at: string | null
+          created_at: string
+          description_md: string
+          expected_result_md: string | null
+          id: string
+          module_id: string | null
+          priority: string
+          problem_md: string | null
+          proposed_outcome_md: string | null
+          reporter_user_id: string
+          route_path: string | null
+          status: string
+          steps_to_reproduce_md: string | null
+          title: string
+          triage_notes: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          actual_result_md?: string | null
+          assignee_user_id?: string | null
+          browser_meta?: Json | null
+          closed_at?: string | null
+          created_at?: string
+          description_md: string
+          expected_result_md?: string | null
+          id?: string
+          module_id?: string | null
+          priority?: string
+          problem_md?: string | null
+          proposed_outcome_md?: string | null
+          reporter_user_id: string
+          route_path?: string | null
+          status?: string
+          steps_to_reproduce_md?: string | null
+          title: string
+          triage_notes?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          actual_result_md?: string | null
+          assignee_user_id?: string | null
+          browser_meta?: Json | null
+          closed_at?: string | null
+          created_at?: string
+          description_md?: string
+          expected_result_md?: string | null
+          id?: string
+          module_id?: string | null
+          priority?: string
+          problem_md?: string | null
+          proposed_outcome_md?: string | null
+          reporter_user_id?: string
+          route_path?: string | null
+          status?: string
+          steps_to_reproduce_md?: string | null
+          title?: string
+          triage_notes?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       module_data: {
         Row: {
           created_at: string | null
