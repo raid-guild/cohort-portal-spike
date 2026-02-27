@@ -91,6 +91,9 @@ Proposed tables:
 - `actual_result_md text null` (required when `type='bug'`)
 - `problem_md text null` (required when `type='feature' or type='module_request'`)
 - `proposed_outcome_md text null` (required when `type='feature' or type='module_request'`)
+- `target_module_name text null` (required when `type='module_request'`)
+- `target_module_slug text null` (required when `type='module_request'`)
+- `target_module_summary_md text null` (required when `type='module_request'`)
 - `status text not null default 'new'` check in (`new`, `triaged`, `in_progress`, `done`, `closed`)
 - `priority text not null default 'medium'` check in (`low`, `medium`, `high`)
 - `module_id text null`
@@ -138,6 +141,7 @@ Module endpoints (portal-owned):
 Validation/auth expectations:
 - All endpoints require signed-in user
 - Type-specific required fields enforced server-side
+  - when `type='module_request'`: require `target_module_name`, `target_module_slug`, `target_module_summary_md` (in addition to `problem_md` and `proposed_outcome_md`)
 - Role checks: host/admin for triage updates and non-mine listing
 
 ## Portal RPC (optional)
