@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireAuth, asString, asStringArray, jsonError } from "@/app/api/modules/guild-grimoire/lib";
 import { canEnqueueTranscription, enqueueTranscriptionJob } from "@/app/api/modules/guild-grimoire/transcription";
+import { emitPortalEvent, type PortalEventVisibility } from "@/lib/portal-events";
 
 const MAX_TEXT = 256;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -71,6 +72,12 @@ function parseDurationSeconds(raw: string | null) {
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) return null;
   return Math.round(n);
+}
+
+function noteVisibilityToEventVisibility(visibility: string): PortalEventVisibility {
+  if (visibility === "public") return "public";
+  if (visibility === "private") return "private";
+  return "authenticated";
 }
 
 export async function POST(request: NextRequest) {
@@ -170,6 +177,24 @@ export async function POST(request: NextRequest) {
         console.error("[guild-grimoire] link tags error:", linkRes.error.message);
         // non-fatal
       }
+    }
+
+    try {
+      await emitPortalEvent({
+        moduleId: "guild-grimoire",
+        kind: "core.guild_grimoire.note_created",
+        authenticatedUserId: auth.userId,
+        actorId: auth.userId,
+        subject: { type: "guild_grimoire_note", id: noteId },
+        visibility: noteVisibilityToEventVisibility(visibility),
+        data: {
+          contentType: "text",
+          noteVisibility: visibility,
+        },
+        dedupeKey: `guild_grimoire_note:${noteId}:created`,
+      });
+    } catch (emitError) {
+      console.error("[guild-grimoire] emit note_created failed:", emitError);
     }
 
     return Response.json({ id: noteId });
@@ -348,6 +373,24 @@ export async function POST(request: NextRequest) {
         console.error("[guild-grimoire] transcription status update error:", updateError.message);
       }
     }
+  }
+
+  try {
+    await emitPortalEvent({
+      moduleId: "guild-grimoire",
+      kind: "core.guild_grimoire.note_created",
+      authenticatedUserId: auth.userId,
+      actorId: auth.userId,
+      subject: { type: "guild_grimoire_note", id: noteId },
+      visibility: noteVisibilityToEventVisibility(visibility),
+      data: {
+        contentType,
+        noteVisibility: visibility,
+      },
+      dedupeKey: `guild_grimoire_note:${noteId}:created`,
+    });
+  } catch (emitError) {
+    console.error("[guild-grimoire] emit note_created failed:", emitError);
   }
 
   return Response.json({ id: noteId });

@@ -776,6 +776,16 @@
         "layout": "excerpt",
         "maxItems": 2,
         "showTitle": true
+      },
+      "capabilities": {
+        "events": {
+          "emit": {
+            "kinds": [
+              "core.guild_grimoire.note_created"
+            ],
+            "requiresUserAuth": true
+          }
+        }
       }
     },
     {
@@ -806,6 +816,16 @@
         "layout": "list",
         "maxItems": 3,
         "showTitle": true
+      },
+      "capabilities": {
+        "events": {
+          "emit": {
+            "kinds": [
+              "core.member_forum.post_created"
+            ],
+            "requiresUserAuth": true
+          }
+        }
       }
     },
     {
@@ -868,6 +888,16 @@
         "layout": "excerpt",
         "maxItems": 3,
         "showTitle": true
+      },
+      "capabilities": {
+        "events": {
+          "emit": {
+            "kinds": [
+              "core.dao_blog.post_published"
+            ],
+            "requiresUserAuth": true
+          }
+        }
       }
     },
     {

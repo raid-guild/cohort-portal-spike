@@ -91,6 +91,15 @@ export type ModuleEntry = {
     announcementsWrite?: { requiresUserAuth?: boolean; allowedRoles?: string[] };
     aiGenerate?: { requiresUserAuth?: boolean; provider?: string };
     portalRpc?: { allowedActions?: string[] };
+    events?: {
+      emit?: { kinds?: string[]; requiresUserAuth?: boolean };
+      read?: {
+        kinds?: string[];
+        visibility?: Array<"public" | "authenticated" | "private">;
+        requiresUserAuth?: boolean;
+        allowedRoles?: string[];
+      };
+    };
   };
   access?: {
     requiresAuth?: boolean;

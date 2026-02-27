@@ -1,5 +1,5 @@
 import { supabaseAdminClient } from "@/lib/supabase/admin";
-import { sendOnboardingEmail } from "@/lib/sendgrid";
+import { sendNotificationDigestEmail, sendOnboardingEmail } from "@/lib/sendgrid";
 
 const DEFAULT_BATCH_SIZE = 50;
 const MAX_BATCH_SIZE = 200;
@@ -11,6 +11,14 @@ type OutboxRow = {
   event_type: string;
   payload: Record<string, unknown> | null;
   attempt_count: number;
+};
+
+type UntypedQuery = {
+  upsert: (...args: unknown[]) => Promise<{ error: { message: string } | null }>;
+};
+
+type UntypedAdmin = {
+  from: (table: string) => UntypedQuery;
 };
 
 function toDate(secondsFromNow: number) {
@@ -36,6 +44,41 @@ async function handleEmailReferralCreated(payload: Record<string, unknown> | nul
     throw new Error("Missing payload.email for email_referral.created");
   }
   await sendOnboardingEmail(email, referral);
+}
+
+type DigestItem = {
+  title: string;
+  summary: string;
+  href: string;
+  occurredAt: string;
+};
+
+function asDigestItems(value: unknown): DigestItem[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+    .map((item) => ({
+      title: typeof item.title === "string" ? item.title : "",
+      summary: typeof item.summary === "string" ? item.summary : "",
+      href: typeof item.href === "string" ? item.href : "",
+      occurredAt: typeof item.occurredAt === "string" ? item.occurredAt : "",
+    }))
+    .filter((item) => item.title && item.href);
+}
+
+async function handleNotificationDigestReady(payload: Record<string, unknown> | null) {
+  const email = typeof payload?.email === "string" ? payload.email.trim() : "";
+  const cadence = payload?.cadence === "weekly" ? "weekly" : "daily";
+  const items = asDigestItems(payload?.items);
+
+  if (!email) {
+    throw new Error("Missing payload.email for notification.digest.ready");
+  }
+  if (!items.length) {
+    throw new Error("Missing payload.items for notification.digest.ready");
+  }
+
+  await sendNotificationDigestEmail(email, cadence, items);
 }
 
 export async function processSendGridOutboxBatch(batchSize?: number) {
@@ -83,6 +126,9 @@ export async function processSendGridOutboxBatch(batchSize?: number) {
         case "email_referral.created":
           await handleEmailReferralCreated(row.payload);
           break;
+        case "notification.digest.ready":
+          await handleNotificationDigestReady(row.payload);
+          break;
         default:
           {
             const { error: unsupportedError } = await admin
@@ -114,6 +160,25 @@ export async function processSendGridOutboxBatch(batchSize?: number) {
         .eq("id", row.id);
 
       if (error) throw new Error(error.message);
+
+      if (row.event_type === "notification.digest.ready") {
+        const userId = typeof row.payload?.user_id === "string" ? row.payload.user_id : null;
+        if (userId) {
+          const nowIso = new Date().toISOString();
+          const untyped = admin as unknown as UntypedAdmin;
+          const { error: prefError } = await untyped.from("user_notification_preferences").upsert(
+            {
+              user_id: userId,
+              last_digest_sent_at: nowIso,
+              updated_at: nowIso,
+            },
+            { onConflict: "user_id" },
+          );
+          if (prefError) {
+            console.error("Failed to update notification digest sent marker:", userId, prefError.message);
+          }
+        }
+      }
       sent += 1;
     } catch (error) {
       const nextAttemptCount = (row.attempt_count ?? 0) + 1;

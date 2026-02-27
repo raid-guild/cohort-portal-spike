@@ -8,6 +8,7 @@ import {
   sanitizePostForResponse,
   type ForumPost,
 } from "@/app/api/modules/member-forum/lib";
+import { emitPortalEvent } from "@/lib/portal-events";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
@@ -131,6 +132,26 @@ export async function POST(request: NextRequest) {
 
     if (error || !data) {
       return jsonError(error?.message || "Failed to create post.", 500);
+    }
+    const createdPost = data as ForumPost;
+
+    try {
+      await emitPortalEvent({
+        moduleId: "member-forum",
+        kind: "core.member_forum.post_created",
+        authenticatedUserId: viewer.userId,
+        actorId: viewer.userId,
+        subject: { type: "forum_post", id: createdPost.id },
+        visibility: "authenticated",
+        data: {
+          spaceId: createdPost.space_id,
+          spaceSlug: space.slug,
+          title: createdPost.title,
+        },
+        dedupeKey: `forum_post:${createdPost.id}:created`,
+      });
+    } catch (emitError) {
+      console.error("[member-forum] emit post_created failed:", emitError);
     }
 
     return Response.json({
