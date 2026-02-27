@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import {
+  getYouTubeVideoId,
+  toSafeHttpUrl,
+  truncateAtWordBoundary,
+} from "@/lib/cohort-utils";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
 import { CohortLandingReferralForm } from "@/modules/cohort-hub/CohortLandingReferralForm";
 
@@ -49,28 +54,6 @@ function formatRange(startAt: string | null, endAt: string | null) {
   const start = startAt ? new Date(startAt).toLocaleDateString("en-US") : "TBD";
   const end = endAt ? new Date(endAt).toLocaleDateString("en-US") : "TBD";
   return `${start} -> ${end}`;
-}
-
-function getYouTubeVideoId(url?: string) {
-  if (!url) return null;
-  try {
-    const parsed = new URL(url);
-    const host = parsed.hostname.replace("www.", "").toLowerCase();
-
-    if (host === "youtu.be") {
-      const id = parsed.pathname.split("/").filter(Boolean)[0] ?? "";
-      return id || null;
-    }
-    if (host === "youtube.com" || host === "m.youtube.com") {
-      const v = parsed.searchParams.get("v");
-      if (v) return v;
-      const parts = parsed.pathname.split("/").filter(Boolean);
-      if ((parts[0] === "shorts" || parts[0] === "embed") && parts[1]) return parts[1];
-    }
-    return null;
-  } catch {
-    return null;
-  }
 }
 
 async function loadCohort(
@@ -136,7 +119,15 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const record = await loadCohort(id);
+  let record: Awaited<ReturnType<typeof loadCohort>>;
+  try {
+    record = await loadCohort(id);
+  } catch {
+    return {
+      title: "Cohort Not Found",
+      robots: { index: false, follow: false },
+    };
+  }
 
   if (!record) {
     return {
@@ -147,8 +138,11 @@ export async function generateMetadata({
 
   const siteOrigin = getSiteOrigin();
   const permalink = `${siteOrigin}/cohorts/${record.cohort.slug ?? record.cohort.id}`;
+  const safeHeaderImageUrl = toSafeHttpUrl(record.cohort.header_image_url);
   const description =
-    record.cohort.theme_long?.slice(0, 200) ||
+    (record.cohort.theme_long
+      ? truncateAtWordBoundary(record.cohort.theme_long, 200)
+      : null) ||
     `${record.cohort.name} · ${formatRange(record.cohort.start_at, record.cohort.end_at)}`;
 
   return {
@@ -160,13 +154,13 @@ export async function generateMetadata({
       description,
       url: permalink,
       type: "website",
-      images: record.cohort.header_image_url ? [{ url: record.cohort.header_image_url }] : undefined,
+      images: safeHeaderImageUrl ? [{ url: safeHeaderImageUrl }] : undefined,
     },
     twitter: {
-      card: record.cohort.header_image_url ? "summary_large_image" : "summary",
+      card: safeHeaderImageUrl ? "summary_large_image" : "summary",
       title: record.cohort.name,
       description,
-      images: record.cohort.header_image_url ? [record.cohort.header_image_url] : undefined,
+      images: safeHeaderImageUrl ? [safeHeaderImageUrl] : undefined,
     },
   };
 }
@@ -184,14 +178,15 @@ export default async function CohortLandingPage({
   const projects = content?.projects ?? [];
   const resources = content?.resources ?? [];
   const schedule = content?.schedule ?? [];
+  const safeHeaderImageUrl = toSafeHttpUrl(cohort.header_image_url);
 
   return (
     <article className="mx-auto max-w-4xl space-y-6">
-      {cohort.header_image_url ? (
+      {safeHeaderImageUrl ? (
         <div className="overflow-hidden rounded-xl border border-border">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={cohort.header_image_url}
+            src={safeHeaderImageUrl}
             alt={`${cohort.name} header`}
             className="h-auto max-h-[420px] w-full object-cover"
           />
@@ -256,27 +251,29 @@ export default async function CohortLandingPage({
         <div className="mt-3 space-y-3 text-sm">
           {resources.length ? (
             resources.map((resource, index) => {
+              const safeResourceUrl = toSafeHttpUrl(resource.url);
               const ytId = getYouTubeVideoId(resource.url);
               return (
                 <div key={`${resource.title ?? "resource"}-${index}`} className="rounded-lg border p-3">
                   <p className="font-medium">{resource.title ?? "Untitled resource"}</p>
-                  {resource.url ? (
+                  {safeResourceUrl ? (
                     <a
-                      href={resource.url}
+                      href={safeResourceUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="mt-1 inline-block break-all text-sm underline-offset-4 hover:underline"
                     >
-                      {resource.url}
+                      {safeResourceUrl}
                     </a>
                   ) : null}
                   {resource.type ? <p className="mt-1 text-xs text-muted-foreground">{resource.type}</p> : null}
                   {ytId ? (
                     <div className="mt-3 overflow-hidden rounded-md border border-border">
                       <iframe
-                        title={`${resource.title ?? "Resource"} video`}
+                        title={resource.title ?? "Resource"}
                         src={`https://www.youtube.com/embed/${ytId}`}
                         className="aspect-video w-full"
+                        loading="lazy"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                         referrerPolicy="strict-origin-when-cross-origin"
                         allowFullScreen

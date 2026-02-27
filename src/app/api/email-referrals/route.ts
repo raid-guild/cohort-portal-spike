@@ -39,6 +39,19 @@ const getPayload = async (request: NextRequest) => {
   return {};
 };
 
+const getSiteOrigin = () => {
+  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return "http://localhost:3000";
+};
+
+const isTrustedBrowserRequest = (request: NextRequest) => {
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+  const allowedOrigin = getSiteOrigin();
+  return origin === allowedOrigin;
+};
+
 export async function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
@@ -52,7 +65,8 @@ export async function POST(request: NextRequest) {
   }
 
   const headerKey = request.headers.get("x-form-api-key");
-  if (!headerKey || headerKey !== apiKey) {
+  const trustedBrowserRequest = isTrustedBrowserRequest(request);
+  if (!trustedBrowserRequest && (!headerKey || headerKey !== apiKey)) {
     return Response.json(
       { error: "Unauthorized." },
       { status: 401, headers: corsHeaders },

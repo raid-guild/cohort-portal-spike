@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getYouTubeVideoId, toSafeHttpUrl } from "@/lib/cohort-utils";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 type Cohort = {
@@ -62,32 +63,6 @@ const parseTeamList = (input: string) =>
 
 const readTeamList = (team?: string[]) => (team?.length ? team.join(", ") : "");
 
-const getYouTubeVideoId = (url?: string) => {
-  if (!url) return null;
-  try {
-    const parsed = new URL(url);
-    const host = parsed.hostname.replace("www.", "").toLowerCase();
-
-    if (host === "youtu.be") {
-      const id = parsed.pathname.split("/").filter(Boolean)[0] ?? "";
-      return id || null;
-    }
-
-    if (host === "youtube.com" || host === "m.youtube.com") {
-      const fromQuery = parsed.searchParams.get("v");
-      if (fromQuery) return fromQuery;
-
-      const parts = parsed.pathname.split("/").filter(Boolean);
-      if (parts[0] === "shorts" && parts[1]) return parts[1];
-      if (parts[0] === "embed" && parts[1]) return parts[1];
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-};
-
 export default function CohortHubPage() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -114,11 +89,21 @@ export default function CohortHubPage() {
   const [draftResources, setDraftResources] = useState<ResourceItem[]>([]);
   const [draftNotes, setDraftNotes] = useState<NoteItem[]>([]);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const selectedCohort = useMemo(
     () => cohorts.find((cohort) => cohort.id === selectedId) ?? null,
     [cohorts, selectedId],
   );
+  const safeSelectedHeaderImageUrl = toSafeHttpUrl(selectedCohort?.header_image_url);
 
   const seedDraftFrom = (cohort: Cohort | null, data: CohortContent | null) => {
     setDraftName(cohort?.name ?? "");
@@ -366,12 +351,12 @@ export default function CohortHubPage() {
 
         <div className="space-y-6">
           <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
-            {selectedCohort?.header_image_url ? (
+            {safeSelectedHeaderImageUrl ? (
               <div className="mb-4 overflow-hidden rounded-lg border border-border">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={selectedCohort.header_image_url}
-                  alt={`${selectedCohort.name} header`}
+                  src={safeSelectedHeaderImageUrl}
+                  alt={`${selectedCohort?.name ?? "Cohort"} header`}
                   className="h-44 w-full object-cover"
                 />
               </div>
@@ -415,10 +400,16 @@ export default function CohortHubPage() {
                       try {
                         await navigator.clipboard.writeText(`${origin}${path}`);
                         setCopyMessage("Copied");
+                        if (copyTimeoutRef.current) {
+                          clearTimeout(copyTimeoutRef.current);
+                        }
+                        copyTimeoutRef.current = setTimeout(() => {
+                          setCopyMessage(null);
+                          copyTimeoutRef.current = null;
+                        }, 1500);
                       } catch {
                         setCopyMessage("Copy failed");
                       }
-                      setTimeout(() => setCopyMessage(null), 1500);
                     }}
                   >
                     Copy link
@@ -493,27 +484,29 @@ export default function CohortHubPage() {
               <div className="mt-3 space-y-2 text-xs text-muted-foreground">
                 {content.resources?.length ? (
                   content.resources.map((resource, index) => {
+                    const safeResourceUrl = toSafeHttpUrl(resource.url);
                     const ytId = getYouTubeVideoId(resource.url);
                     return (
                       <div key={`${resource.title}-${index}`} className="rounded-lg border p-3">
                         <div className="text-xs font-semibold text-foreground">{resource.title}</div>
-                        {resource.url ? (
+                        {safeResourceUrl ? (
                           <a
-                            href={resource.url}
+                            href={safeResourceUrl}
                             className="mt-1 inline-block break-all text-xs underline-offset-4 hover:underline"
                             target="_blank"
                             rel="noreferrer"
                           >
-                            {resource.url}
+                            {safeResourceUrl}
                           </a>
                         ) : null}
                         {resource.type ? <div className="mt-1 text-xs text-muted-foreground">{resource.type}</div> : null}
                         {ytId ? (
                           <div className="mt-3 overflow-hidden rounded-md border border-border">
                             <iframe
-                              title={`${resource.title} video`}
+                              title={resource.title}
                               src={`https://www.youtube.com/embed/${ytId}`}
                               className="aspect-video w-full"
+                              loading="lazy"
                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                               referrerPolicy="strict-origin-when-cross-origin"
                               allowFullScreen

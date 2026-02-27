@@ -21,16 +21,10 @@ export function CohortLandingReferralForm({
     setError(null);
 
     try {
-      const apiKey = process.env.NEXT_PUBLIC_FORM_API_KEY;
-      if (!apiKey) {
-        throw new Error("Referral form is not configured for this environment.");
-      }
-
       const res = await fetch("/api/email-referrals", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-form-api-key": apiKey,
         },
         body: JSON.stringify({
           email,
@@ -53,7 +47,7 @@ export function CohortLandingReferralForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-2 rounded-lg border border-border p-4">
+    <form onSubmit={onSubmit} aria-busy={saving} className="space-y-2 rounded-lg border border-border p-4">
       <p className="text-sm font-medium">Apply for this cohort</p>
       <p className="text-xs text-muted-foreground">
         Leave your email and we will share next steps.
@@ -70,6 +64,7 @@ export function CohortLandingReferralForm({
         <button
           type="submit"
           disabled={saving}
+          aria-busy={saving}
           className="rounded border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-60"
         >
           {saving ? "Submitting..." : "Sign up"}

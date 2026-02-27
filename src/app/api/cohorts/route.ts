@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { isDuplicateSlugError, toSlug, validateSlugInput } from "@/lib/cohort-utils";
 import type { Json } from "@/lib/types/db";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
 import { supabaseServerClient } from "@/lib/supabase/server";
@@ -41,13 +42,6 @@ const hasCohortAccess = async (userId: string) => {
     .maybeSingle();
   return Boolean(data);
 };
-
-const toSlug = (value: string) =>
-  value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 
 export async function GET(request: NextRequest) {
   const result = await requireUser(request);
@@ -118,26 +112,49 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Name is required." }, { status: 400 });
   }
 
+  const providedSlug = payload.slug?.trim();
+  if (providedSlug) {
+    const slugError = validateSlugInput(providedSlug);
+    if (slugError) {
+      return Response.json({ error: slugError }, { status: 400 });
+    }
+  }
+
+  const baseSlug = toSlug(providedSlug || payload.name);
+  if (!baseSlug) {
+    return Response.json(
+      { error: "Name must include at least one letter or number." },
+      { status: 400 },
+    );
+  }
+
   const admin = supabaseAdminClient();
-  const { data: cohort, error } = await admin
-    .from("cohorts")
-    .insert({
-      name: payload.name,
-      slug: toSlug(payload.slug?.trim() || payload.name),
-      status: payload.status ?? "upcoming",
-      start_at: payload.startAt ?? null,
-      end_at: payload.endAt ?? null,
-      theme_long: payload.themeLong ?? null,
-      header_image_url: payload.headerImageUrl ?? null,
-    })
-    .select("*")
-    .single();
+  let cohort: { id: string } | null = null;
+  let error: { code?: string; message?: string } | null = null;
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const slug = attempt === 0 ? baseSlug : `${baseSlug}-${attempt + 1}`;
+    const result = await admin
+      .from("cohorts")
+      .insert({
+        name: payload.name,
+        slug,
+        status: payload.status ?? "upcoming",
+        start_at: payload.startAt ?? null,
+        end_at: payload.endAt ?? null,
+        theme_long: payload.themeLong ?? null,
+        header_image_url: payload.headerImageUrl ?? null,
+      })
+      .select("*")
+      .single();
+    cohort = result.data;
+    error = result.error;
+    if (!error) break;
+    if (!isDuplicateSlugError(error) || Boolean(providedSlug)) break;
+  }
 
   if (error || !cohort) {
-    if (
-      error?.message.toLowerCase().includes("duplicate") ||
-      error?.message.includes("cohorts_slug_unique_idx")
-    ) {
+    if (isDuplicateSlugError(error)) {
       return Response.json({ error: "Slug already exists." }, { status: 409 });
     }
     return Response.json(

@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { isDuplicateSlugError, toSlug, validateSlugInput } from "@/lib/cohort-utils";
 import type { Json } from "@/lib/types/db";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
 import { supabaseServerClient } from "@/lib/supabase/server";
@@ -41,13 +42,6 @@ const hasCohortAccess = async (userId: string) => {
     .maybeSingle();
   return Boolean(data);
 };
-
-const toSlug = (value: string) =>
-  value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 
 export async function GET(
   request: NextRequest,
@@ -116,13 +110,21 @@ export async function PUT(
     };
   };
 
+  const providedSlug = payload.slug?.trim();
+  if (providedSlug) {
+    const slugError = validateSlugInput(providedSlug);
+    if (slugError) {
+      return Response.json({ error: slugError }, { status: 400 });
+    }
+  }
+
   const admin = supabaseAdminClient();
   const { data: cohort, error } = await admin
     .from("cohorts")
     .update({
       ...(payload.name ? { name: payload.name } : {}),
       ...(payload.slug !== undefined
-        ? { slug: payload.slug ? toSlug(payload.slug) : null }
+        ? { slug: providedSlug ? toSlug(providedSlug) : null }
         : {}),
       ...(payload.status ? { status: payload.status } : {}),
       ...(payload.startAt !== undefined ? { start_at: payload.startAt } : {}),
@@ -137,10 +139,7 @@ export async function PUT(
     .single();
 
   if (error || !cohort) {
-    if (
-      error?.message.toLowerCase().includes("duplicate") ||
-      error?.message.includes("cohorts_slug_unique_idx")
-    ) {
+    if (isDuplicateSlugError(error)) {
       return Response.json({ error: "Slug already exists." }, { status: 409 });
     }
     return Response.json({ error: "Unable to update cohort." }, { status: 500 });
