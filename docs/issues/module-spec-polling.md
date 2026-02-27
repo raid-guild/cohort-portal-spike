@@ -42,12 +42,12 @@ Out of scope (future):
 
 ## UX / surfaces
 Surfaces:
-- `start-here` (optional card)
-- `cohort-tools` (primary)
-- `host-tools` (creation + management controls)
+- `people-tools` (primary shared discovery + voting feed)
+- `me-tools` (secondary personal voting/results surface)
 
 Experience:
 - Main module route: `/modules/polling`
+- Module renders as a page-mode experience (not widget-only)
 - Sections:
   - `Open polls`
   - `Closed polls`
@@ -72,13 +72,13 @@ Key interactions:
 `not-applicable`
 
 ## Storage preference
-`unknown`
+`dedicated-tables`
 
 ## Data model (fields)
-Use `module_data` for v1 unless strong reason for dedicated tables.
+Use dedicated polling tables for v1 so eligibility and voting constraints are enforced at API/DB layer.
 
 Suggested records:
-- Poll definition (`kind = "poll"`):
+- Poll definition (`public.polls`):
   - `id`
   - `question`
   - `description`
@@ -88,7 +88,7 @@ Suggested records:
   - `close_at`
   - `closed_at`
   - `visibility`
-- Vote record (`kind = "vote"`):
+- Vote record (`public.poll_votes`):
   - `poll_id`
   - `user_id`
   - `option_id`
@@ -98,12 +98,17 @@ Suggested records:
 Constraints:
 - Unique (`poll_id`, `user_id`) for one active vote per user
 - Reject votes when poll is closed (`closed_at` set or `close_at < now`)
+- Enforce eligibility for create/vote/view_results based on role + entitlement rules
+- Add Supabase migration(s) for `public.polls` + `public.poll_votes` and related indexes/constraints
 
 ## API requirements
 Module endpoints:
 
 - `GET /api/modules/polling`
   - returns open + recent closed polls with aggregate counts and viewer vote
+
+- `GET /api/modules/polling/[id]`
+  - returns poll detail, options/tallies, viewer vote, and eligibility state
 
 - `POST /api/modules/polling`
   - host-only
@@ -124,6 +129,8 @@ Validation/auth expectations:
 - Poll creation requires 2-6 unique non-empty options
 - Vote option must belong to poll
 - Non-host cannot close polls
+- Create/vote/view_results checks enforce eligibility consistently
+- Domain events are emitted for lifecycle actions: `poll_created`, `vote_cast`, `poll_closed`
 
 ## Portal RPC (optional)
 Not required for v1.
@@ -138,11 +145,13 @@ N/A (portal-owned module)
 - [ ] Signed-in member can cast vote and change vote before close
 - [ ] Closed polls reject new votes
 - [ ] Host can close poll manually
+- [ ] Eligibility rules are enforced for create/vote/view_results
+- [ ] Lifecycle events emitted: `poll_created`, `vote_cast`, `poll_closed`
 - [ ] Summary endpoint returns active count + recent vote count
 - [ ] Lint passes
 
 ## Testing / seed data (required for DB-backed features)
-- [x] No DB schema changes required for v1 (`module_data` path)
+- [ ] DB migration(s) added for polling tables and constraints
 - [ ] Seed plan:
   - at least 2 open polls and 1 closed poll
   - votes from multiple sample users
