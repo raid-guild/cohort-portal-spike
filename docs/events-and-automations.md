@@ -63,6 +63,6 @@ Existing processor now supports:
 On successful digest send, it updates `last_digest_sent_at` for the user.
 
 ## Vercel cron schedule
-- `*/15 * * * *` -> `/api/integrations/events/process`
+- `0 13 * * *` -> `/api/integrations/events/process`
 - `30 13 * * *` -> `/api/integrations/notifications/enqueue`
 - `0 14 * * *` -> `/api/integrations/sendgrid/process`

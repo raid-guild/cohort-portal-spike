@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/integrations/events/process",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 13 * * *"
     },
     {
       "path": "/api/integrations/notifications/enqueue",
