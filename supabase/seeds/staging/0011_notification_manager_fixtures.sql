@@ -19,9 +19,9 @@ insert into public.user_notification_preferences (
     true,
     true,
     false,
-    now() - interval '2 days',
-    now() - interval '7 days',
-    now() - interval '1 day'
+    '2026-02-25T00:00:00Z'::timestamptz,
+    '2026-02-20T00:00:00Z'::timestamptz,
+    '2026-02-26T00:00:00Z'::timestamptz
   ),
   (
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
@@ -31,8 +31,8 @@ insert into public.user_notification_preferences (
     false,
     false,
     null,
-    now() - interval '7 days',
-    now() - interval '12 hours'
+    '2026-02-20T00:00:00Z'::timestamptz,
+    '2026-02-26T12:00:00Z'::timestamptz
   )
 on conflict (user_id) do update set
   email_enabled = excluded.email_enabled,

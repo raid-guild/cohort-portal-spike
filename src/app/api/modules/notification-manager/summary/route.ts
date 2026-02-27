@@ -75,7 +75,8 @@ export async function GET(request: NextRequest) {
     .maybeSingle();
 
   if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error("notification-manager summary query failed", error);
+    return Response.json({ error: "Failed to load notification preferences." }, { status: 500 });
   }
 
   const preferences = (data as PreferenceRow | null) ?? defaultPreferences(userId);
