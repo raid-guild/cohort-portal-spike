@@ -65,6 +65,7 @@ export default function MePage() {
   const [wizardAutoOpened, setWizardAutoOpened] = useState(false);
   const [profileEditorOpen, setProfileEditorOpen] = useState(false);
   const [profileReady, setProfileReady] = useState(false);
+  const [profileLoadedForUserId, setProfileLoadedForUserId] = useState<string | null>(null);
   const [showModuleCustomize, setShowModuleCustomize] = useState(false);
   const [moduleViewConfig, setModuleViewConfig] = useState<ModuleViewsConfig | null>(
     null,
@@ -197,6 +198,7 @@ export default function MePage() {
       setProfile(emptyProfile);
       setProfileExists(false);
       setPortalRoles([]);
+      setProfileLoadedForUserId(null);
       setProfileReady(true);
       return;
     }
@@ -216,6 +218,7 @@ export default function MePage() {
         email: user.email ?? "",
       });
       setProfileExists(false);
+      setProfileLoadedForUserId(user.id);
       setProfileReady(true);
       return;
     }
@@ -231,11 +234,13 @@ export default function MePage() {
       avatarUrl: data.avatar_url ?? "",
     });
     setProfileExists(true);
+    setProfileLoadedForUserId(user.id);
     setProfileReady(true);
   }, [supabase, user]);
 
   useEffect(() => {
     if (!authReady) return;
+    setProfileLoadedForUserId(null);
     loadProfile();
   }, [authReady, loadProfile]);
 
@@ -415,6 +420,7 @@ export default function MePage() {
       setWizardAutoOpened(false);
       return;
     }
+    if (profileLoadedForUserId !== session.user.id) return;
     if (!profileReady) return;
     if (!profileExists || !isProfileComplete) {
       if (!wizardOpen) {
@@ -432,6 +438,7 @@ export default function MePage() {
     authReady,
     isProfileComplete,
     profileExists,
+    profileLoadedForUserId,
     profileReady,
     session,
     wizardAutoOpened,
