@@ -164,13 +164,13 @@ export async function processSendGridOutboxBatch(batchSize?: number) {
       if (row.event_type === "notification.digest.ready") {
         const userId = typeof row.payload?.user_id === "string" ? row.payload.user_id : null;
         if (userId) {
-          const nowIso = new Date().toISOString();
+          const digestSentAtIso = new Date().toISOString();
           const untyped = admin as unknown as UntypedAdmin;
           const { error: prefError } = await untyped.from("user_notification_preferences").upsert(
             {
               user_id: userId,
-              last_digest_sent_at: nowIso,
-              updated_at: nowIso,
+              last_digest_sent_at: digestSentAtIso,
+              updated_at: digestSentAtIso,
             },
             { onConflict: "user_id" },
           );

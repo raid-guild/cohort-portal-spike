@@ -64,6 +64,13 @@ using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
 -- Dedupe queued digest jobs by digest_key.
+alter table public.integration_outbox
+  add constraint integration_outbox_digest_ready_requires_key
+  check (
+    event_type <> 'notification.digest.ready'
+    or nullif(payload ->> 'digest_key', '') is not null
+  );
+
 create unique index if not exists integration_outbox_dedupe_notification_digest_ready_idx
   on public.integration_outbox (event_type, ((payload ->> 'digest_key')))
   where event_type = 'notification.digest.ready';
