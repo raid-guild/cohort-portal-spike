@@ -20,7 +20,7 @@ Core value:
 
 ## Scope (what’s in / out)
 In scope (v1):
-- Unified intake form with type selector: `bug`, `feature`, `feedback`
+- Unified intake form with type selector: `bug`, `feature`, `feedback`, `module_request`
 - Type-specific fields and validation
 - Reporter can view own submissions + statuses
 - Host/admin triage view to update status/priority/notes
@@ -47,11 +47,12 @@ Experience:
   - `Triage` (host/admin only)
 
 Submit flow:
-- Type chooser (`bug`, `feature`, `feedback`)
+- Type chooser (`bug`, `feature`, `feedback`, `module_request`)
 - Required fields:
   - all: title, description (markdown)
   - bug: steps to reproduce, expected, actual
-  - feature: user problem, proposed outcome
+  - feature: user problem, proposed outcome (core portal feature or enhancement to an existing module)
+  - module_request: user problem, proposed outcome, target module concept (proposed module name/slug and short summary)
 - Auto-captured context: current route, module id (if available), browser user agent
 - Success state returns a tracking ID
 
@@ -82,14 +83,14 @@ Proposed tables:
 
 1) `public.feedback_items`
 - `id uuid pk default gen_random_uuid()`
-- `type text not null` check in (`bug`, `feature`, `feedback`)
+- `type text not null` check in (`bug`, `feature`, `feedback`, `module_request`)
 - `title text not null`
 - `description_md text not null`
 - `steps_to_reproduce_md text null` (required when `type='bug'`)
 - `expected_result_md text null` (required when `type='bug'`)
 - `actual_result_md text null` (required when `type='bug'`)
-- `problem_md text null` (required when `type='feature'`)
-- `proposed_outcome_md text null` (required when `type='feature'`)
+- `problem_md text null` (required when `type='feature' or type='module_request'`)
+- `proposed_outcome_md text null` (required when `type='feature' or type='module_request'`)
 - `status text not null default 'new'` check in (`new`, `triaged`, `in_progress`, `done`, `closed`)
 - `priority text not null default 'medium'` check in (`low`, `medium`, `high`)
 - `module_id text null`
@@ -148,7 +149,7 @@ N/A for v1 (portal-owned module route)
 ## Acceptance criteria
 - [ ] Module is registered in `modules/registry.json`
 - [ ] Module appears on `me-tools`
-- [ ] Signed-in user can submit bug/feature/feedback items
+- [ ] Signed-in user can submit bug/feature/feedback/module_request items
 - [ ] Type-specific required fields are enforced
 - [ ] Reporter can view own submissions and statuses
 - [ ] Host/admin can view all submissions and triage/update statuses
