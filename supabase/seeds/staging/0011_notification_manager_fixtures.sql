@@ -41,4 +41,5 @@ on conflict (user_id) do update set
   forum_enabled = excluded.forum_enabled,
   grimoire_enabled = excluded.grimoire_enabled,
   last_digest_sent_at = excluded.last_digest_sent_at,
+  created_at = excluded.created_at,
   updated_at = excluded.updated_at;
