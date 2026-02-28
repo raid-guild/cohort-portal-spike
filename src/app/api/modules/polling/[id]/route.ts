@@ -126,7 +126,7 @@ export async function GET(
         can_close: canClose,
       },
       totals: {
-        total_votes: votes.length,
+        total_votes: canSeeResults ? votes.length : null,
       },
     },
     options: options.map((option) => ({

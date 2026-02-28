@@ -9,8 +9,8 @@ type PollListItem = {
   description: string | null;
   opens_at: string;
   closes_at: string;
-  state: "upcoming" | "open" | "closed";
-  votes_count: number;
+  state: "draft" | "upcoming" | "open" | "closed";
+  votes_count: number | null;
   viewer_vote_option_id: string | null;
   viewer: {
     can_vote: boolean;
@@ -33,10 +33,10 @@ type PollDetail = {
     description: string | null;
     opens_at: string;
     closes_at: string;
-    state: "upcoming" | "open" | "closed";
+    state: "draft" | "upcoming" | "open" | "closed";
     allow_vote_change: boolean;
     results_visible: boolean;
-    totals: { total_votes: number };
+    totals: { total_votes: number | null };
     viewer: {
       can_vote: boolean;
       can_close: boolean;
@@ -232,7 +232,9 @@ export function PollingModule() {
             >
               <div className="font-medium">{poll.title}</div>
               <div className="mt-1 text-xs text-muted-foreground">{new Date(poll.closes_at).toLocaleString()}</div>
-              <div className="mt-1 text-xs text-muted-foreground">{poll.votes_count} vote(s)</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {poll.votes_count === null ? "Votes hidden" : `${poll.votes_count} vote(s)`}
+              </div>
             </button>
           ))}
         </div>
@@ -259,6 +261,10 @@ export function PollingModule() {
             <div className="space-y-2">
               {detail.options.map((option) => {
                 const selected = detail.viewer_vote?.option_id === option.id;
+                const canVoteThisOption =
+                  detail.poll.viewer.can_vote &&
+                  (!selected || detail.poll.allow_vote_change) &&
+                  detail.poll.state === "open";
                 return (
                   <div key={option.id} className="rounded-lg border border-border p-3">
                     <div className="flex items-center justify-between gap-3">
@@ -272,7 +278,7 @@ export function PollingModule() {
                       </div>
                       <button
                         type="button"
-                        disabled={busy || !detail.poll.viewer.can_vote}
+                        disabled={busy || !canVoteThisOption}
                         className="rounded-lg border border-border px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                         onClick={() => castVote(option.id)}
                       >
@@ -285,7 +291,11 @@ export function PollingModule() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 text-sm">
-              <span className="text-muted-foreground">Total votes: {detail.poll.totals.total_votes}</span>
+              <span className="text-muted-foreground">
+                {detail.poll.totals.total_votes === null
+                  ? "Total votes hidden"
+                  : `Total votes: ${detail.poll.totals.total_votes}`}
+              </span>
               {detail.poll.allow_vote_change ? (
                 <span className="text-muted-foreground">Vote changes enabled</span>
               ) : (

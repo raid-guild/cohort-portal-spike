@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
 
   const admin = asUntypedAdmin(viewer.admin);
   const now = new Date();
-  const closingSoonCutoff = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
+  const closingSoonCutoff = now.getTime() + 48 * 60 * 60 * 1000;
 
   const [pollsRes, rulesRes, votesRes] = await Promise.all([
     admin
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     const state = stateForPoll(poll, now);
     if (state === "open") {
       openPolls += 1;
-      if (poll.closes_at <= closingSoonCutoff) {
+      if (new Date(poll.closes_at).getTime() <= closingSoonCutoff) {
         closingSoon += 1;
       }
     }

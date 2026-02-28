@@ -99,4 +99,27 @@ describe("polling close route", () => {
     const res = await POST(req as never, { params: Promise.resolve({ id: "poll-1" }) });
     expect(res.status).toBe(403);
   });
+
+  it("returns 409 when poll is already closed", async () => {
+    requirePollViewer.mockResolvedValue({ userId: "creator-1", roles: [], entitlements: [], admin: {} });
+    asUntypedAdmin.mockReturnValue(
+      makeCloseAdmin({
+        poll: {
+          id: "poll-1",
+          created_by: "creator-1",
+          status: "closed",
+        },
+      }),
+    );
+    isHost.mockReturnValue(false);
+
+    const { POST } = await import("./route");
+    const req = new Request("http://localhost/api/modules/polling/poll-1/close", {
+      method: "POST",
+    });
+
+    const res = await POST(req as never, { params: Promise.resolve({ id: "poll-1" }) });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "Poll is already closed." });
+  });
 });

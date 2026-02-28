@@ -33,6 +33,9 @@ export async function POST(
   if (!(poll.created_by === viewer.userId || isHost(viewer))) {
     return jsonError("Only poll creator or host can close polls.", 403);
   }
+  if (poll.status === "closed") {
+    return jsonError("Poll is already closed.", 409);
+  }
 
   const now = new Date().toISOString();
   const { data: updatedData, error: updatedError } = await admin

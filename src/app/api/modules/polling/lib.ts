@@ -98,11 +98,12 @@ export function isHost(viewer: Pick<PollViewer, "roles">) {
 }
 
 export function stateForPoll(poll: Pick<PollRow, "status" | "opens_at" | "closes_at">, now: Date) {
+  if (poll.status === "draft") return "draft" as const;
   if (poll.status === "closed") return "closed" as const;
   const opensAt = new Date(poll.opens_at);
   const closesAt = new Date(poll.closes_at);
   if (now < opensAt) return "upcoming" as const;
-  if (now > closesAt) return "closed" as const;
+  if (now >= closesAt) return "closed" as const;
   return "open" as const;
 }
 

@@ -56,6 +56,7 @@ export async function GET(request: NextRequest) {
     .select(
       "id,title,description,created_by,opens_at,closes_at,status,allow_vote_change,results_visibility,created_at,updated_at",
     )
+    .neq("status", "draft")
     .order("opens_at", { ascending: false })
     .limit(limit + 1);
 
@@ -69,15 +70,22 @@ export async function GET(request: NextRequest) {
   }
 
   const polls = (data ?? []) as PollRow[];
-  const page = polls.slice(0, limit);
-  const hasNextPage = polls.length > limit;
+  const now = new Date();
+  const filteredPolls = polls.filter((poll) => {
+    const state = stateForPoll(poll, now);
+    if (!status) return true;
+    return status === state;
+  });
+
+  const page = filteredPolls.slice(0, limit);
+  const hasNextPage = filteredPolls.length > limit;
   const pollIds = page.map((poll) => poll.id);
 
   if (!pollIds.length) {
     return Response.json({ items: [], nextCursor: null });
   }
 
-  const [rulesRes, optionsRes, votesRes, myVotesRes] = await Promise.all([
+  const [rulesRes, optionsRes, myVotesRes] = await Promise.all([
     admin
       .from("poll_eligibility_rules")
       .select("id,poll_id,action,rule_type,rule_value")
@@ -89,19 +97,14 @@ export async function GET(request: NextRequest) {
     admin
       .from("poll_votes")
       .select("poll_id,option_id")
-      .in("poll_id", pollIds),
-    admin
-      .from("poll_votes")
-      .select("poll_id,option_id")
       .in("poll_id", pollIds)
       .eq("voter_user_id", viewer.userId),
   ]);
 
-  if (rulesRes.error || optionsRes.error || votesRes.error || myVotesRes.error) {
+  if (rulesRes.error || optionsRes.error || myVotesRes.error) {
     return jsonError(
       rulesRes.error?.message ||
         optionsRes.error?.message ||
-        votesRes.error?.message ||
         myVotesRes.error?.message ||
         "Failed to load polls.",
       500,
@@ -122,9 +125,24 @@ export async function GET(request: NextRequest) {
     optionsCountByPoll.set(row.poll_id, (optionsCountByPoll.get(row.poll_id) ?? 0) + 1);
   }
 
+  const voteCounts = await Promise.all(
+    pollIds.map(async (pollId) => {
+      const { count, error } = await admin
+        .from("poll_votes")
+        .select("id", { count: "exact", head: true })
+        .eq("poll_id", pollId);
+      return { pollId, count, error };
+    }),
+  );
+
+  const voteCountError = voteCounts.find((entry) => entry.error);
+  if (voteCountError?.error) {
+    return jsonError(voteCountError.error.message, 500);
+  }
+
   const votesCountByPoll = new Map<string, number>();
-  for (const row of (votesRes.data ?? []) as Array<{ poll_id: string }>) {
-    votesCountByPoll.set(row.poll_id, (votesCountByPoll.get(row.poll_id) ?? 0) + 1);
+  for (const entry of voteCounts) {
+    votesCountByPoll.set(entry.pollId, entry.count ?? 0);
   }
 
   const myVoteByPoll = new Map<string, string>();
@@ -132,7 +150,6 @@ export async function GET(request: NextRequest) {
     myVoteByPoll.set(row.poll_id, row.option_id);
   }
 
-  const now = new Date();
   const items = page
     .map((poll) => {
       const rules = rulesByPoll.get(poll.id) ?? [];
@@ -154,7 +171,7 @@ export async function GET(request: NextRequest) {
         allow_vote_change: poll.allow_vote_change,
         results_visibility: poll.results_visibility,
         options_count: optionsCountByPoll.get(poll.id) ?? 0,
-        votes_count: votesCountByPoll.get(poll.id) ?? 0,
+        votes_count: canViewResults ? (votesCountByPoll.get(poll.id) ?? 0) : null,
         viewer_vote_option_id: myVoteByPoll.get(poll.id) ?? null,
         viewer: {
           can_vote: canVote,
@@ -164,14 +181,12 @@ export async function GET(request: NextRequest) {
       };
     })
     .filter((item) => {
-      if (!status) return true;
-      return status === item.state;
-    })
-    .filter((item) => item.viewer.can_vote || item.viewer.can_view_results || item.viewer.can_close);
+      return item.viewer.can_vote || item.viewer.can_view_results || item.viewer.can_close;
+    });
 
   return Response.json({
     items,
-    nextCursor: hasNextPage ? page[page.length - 1]?.opens_at ?? null : null,
+    nextCursor: hasNextPage && items.length > 0 ? items[items.length - 1]?.opens_at ?? null : null,
   });
 }
 
@@ -224,17 +239,27 @@ export async function POST(request: NextRequest) {
     return jsonError("At least two options are required.", 400);
   }
 
-  const parsedRules = (Array.isArray(body.eligibility_rules) ? body.eligibility_rules : [])
-    .map((rule) => parseRule(rule))
-    .filter((rule): rule is PollRule => Boolean(rule));
+  let effectiveRules: PollRule[];
 
-  const effectiveRules: PollRule[] = parsedRules.length
-    ? parsedRules
-    : [
-        { action: "create", rule_type: "authenticated", rule_value: null },
-        { action: "vote", rule_type: "authenticated", rule_value: null },
-        { action: "view_results", rule_type: "authenticated", rule_value: null },
-      ];
+  if (typeof body.eligibility_rules === "undefined") {
+    effectiveRules = [
+      { action: "create", rule_type: "authenticated", rule_value: null },
+      { action: "vote", rule_type: "authenticated", rule_value: null },
+      { action: "view_results", rule_type: "authenticated", rule_value: null },
+    ];
+  } else {
+    if (!Array.isArray(body.eligibility_rules)) {
+      return jsonError("eligibility_rules must be an array.", 400);
+    }
+
+    const parsed = body.eligibility_rules.map((rule) => parseRule(rule));
+    const validRules = parsed.filter((rule): rule is PollRule => Boolean(rule));
+    if (validRules.length !== parsed.length || validRules.length === 0) {
+      return jsonError("One or more eligibility_rules are invalid.", 400);
+    }
+
+    effectiveRules = validRules;
+  }
 
   const canCreate = evaluateEligibility("create", effectiveRules, viewer);
   if (!canCreate) {

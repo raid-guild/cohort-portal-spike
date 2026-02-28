@@ -25,6 +25,7 @@ type VoteConfig = {
   existingVote: Record<string, unknown> | null;
   insertVote?: Record<string, unknown>;
   updateVote?: Record<string, unknown>;
+  insertError?: { message: string; code?: string } | null;
 };
 
 function makeVoteAdmin(config: VoteConfig) {
@@ -75,7 +76,9 @@ function makeVoteAdmin(config: VoteConfig) {
           }),
           insert: () => ({
             select: () => ({
-              single: vi.fn().mockResolvedValue({ data: config.insertVote ?? null, error: null }),
+              single: vi
+                .fn()
+                .mockResolvedValue({ data: config.insertVote ?? null, error: config.insertError ?? null }),
             }),
           }),
           update: () => ({
@@ -284,5 +287,35 @@ describe("polling vote route", () => {
     const res = await POST(req as never, { params: Promise.resolve({ id: "poll-1" }) });
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ error: "Poll is not open for voting." });
+  });
+
+  it("returns 409 when concurrent insert hits unique constraint", async () => {
+    requirePollViewer.mockResolvedValue({ userId: "user-1", roles: [], entitlements: ["dao-member"], admin: {} });
+    asUntypedAdmin.mockReturnValue(
+      makeVoteAdmin({
+        poll: {
+          id: "poll-1",
+          status: "open",
+          allow_vote_change: false,
+        },
+        rules: [{ action: "vote", rule_type: "authenticated", rule_value: null }],
+        optionExists: true,
+        existingVote: null,
+        insertError: { message: "duplicate key value violates unique constraint", code: "23505" },
+      }),
+    );
+    stateForPoll.mockReturnValue("open");
+    evaluateEligibility.mockReturnValue(true);
+
+    const { POST } = await import("./route");
+    const req = new Request("http://localhost/api/modules/polling/poll-1/vote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ option_id: "option-1" }),
+    });
+
+    const res = await POST(req as never, { params: Promise.resolve({ id: "poll-1" }) });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "Vote already exists." });
   });
 });

@@ -145,6 +145,9 @@ export async function POST(
       .single();
 
     if (error || !data) {
+      if ((error as { code?: string } | null)?.code === "23505") {
+        return jsonError("Vote already exists.", 409);
+      }
       return jsonError(error?.message ?? "Failed to cast vote.", 500);
     }
 
