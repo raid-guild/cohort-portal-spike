@@ -199,14 +199,6 @@ insert into public.poll_votes (
     'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
     now() - interval '1 day',
     now() - interval '1 day'
-  ),
-  (
-    '84000000-0000-0000-0000-000000000402',
-    '84000000-0000-0000-0000-000000000002',
-    '84000000-0000-0000-0000-000000000201',
-    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-    now() - interval '9 days',
-    now() - interval '9 days'
   )
 on conflict (id) do update set
   poll_id = excluded.poll_id,

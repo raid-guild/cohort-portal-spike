@@ -125,6 +125,10 @@ export async function POST(
   let voteRecord: VoteRecord | null = null;
 
   if (existingVote) {
+    if (existingVote.option_id === optionId) {
+      return Response.json({ vote: existingVote, changed: false });
+    }
+
     if (!poll.allow_vote_change) {
       return jsonError("Vote already exists and vote changes are disabled.", 409);
     }

@@ -50,6 +50,12 @@ export async function GET(request: NextRequest) {
   const limit = parseLimit(url.searchParams.get("limit"), 20, 50);
   const status = asTrimmed(url.searchParams.get("status"));
   const cursor = asIsoDate(url.searchParams.get("cursor"));
+  const now = new Date();
+  const nowIso = now.toISOString();
+
+  if (status && status !== "open" && status !== "upcoming" && status !== "closed") {
+    return Response.json({ items: [], nextCursor: null });
+  }
 
   let query = admin
     .from("polls")
@@ -59,6 +65,14 @@ export async function GET(request: NextRequest) {
     .neq("status", "draft")
     .order("opens_at", { ascending: false })
     .limit(limit + 1);
+
+  if (status === "open") {
+    query = query.eq("status", "open").lte("opens_at", nowIso).gt("closes_at", nowIso);
+  } else if (status === "upcoming") {
+    query = query.eq("status", "open").gt("opens_at", nowIso);
+  } else if (status === "closed") {
+    query = query.or(`status.eq.closed,closes_at.lte.${nowIso}`);
+  }
 
   if (cursor) {
     query = query.lt("opens_at", cursor);
@@ -70,22 +84,15 @@ export async function GET(request: NextRequest) {
   }
 
   const polls = (data ?? []) as PollRow[];
-  const now = new Date();
-  const filteredPolls = polls.filter((poll) => {
-    const state = stateForPoll(poll, now);
-    if (!status) return true;
-    return status === state;
-  });
-
-  const page = filteredPolls.slice(0, limit);
-  const hasNextPage = filteredPolls.length > limit;
+  const page = polls.slice(0, limit);
+  const hasNextPage = polls.length > limit;
   const pollIds = page.map((poll) => poll.id);
 
   if (!pollIds.length) {
     return Response.json({ items: [], nextCursor: null });
   }
 
-  const [rulesRes, optionsRes, myVotesRes] = await Promise.all([
+  const [rulesRes, optionsRes, votesRes, myVotesRes] = await Promise.all([
     admin
       .from("poll_eligibility_rules")
       .select("id,poll_id,action,rule_type,rule_value")
@@ -96,15 +103,20 @@ export async function GET(request: NextRequest) {
       .in("poll_id", pollIds),
     admin
       .from("poll_votes")
+      .select("poll_id")
+      .in("poll_id", pollIds),
+    admin
+      .from("poll_votes")
       .select("poll_id,option_id")
       .in("poll_id", pollIds)
       .eq("voter_user_id", viewer.userId),
   ]);
 
-  if (rulesRes.error || optionsRes.error || myVotesRes.error) {
+  if (rulesRes.error || optionsRes.error || votesRes.error || myVotesRes.error) {
     return jsonError(
       rulesRes.error?.message ||
         optionsRes.error?.message ||
+        votesRes.error?.message ||
         myVotesRes.error?.message ||
         "Failed to load polls.",
       500,
@@ -125,24 +137,9 @@ export async function GET(request: NextRequest) {
     optionsCountByPoll.set(row.poll_id, (optionsCountByPoll.get(row.poll_id) ?? 0) + 1);
   }
 
-  const voteCounts = await Promise.all(
-    pollIds.map(async (pollId) => {
-      const { count, error } = await admin
-        .from("poll_votes")
-        .select("id", { count: "exact", head: true })
-        .eq("poll_id", pollId);
-      return { pollId, count, error };
-    }),
-  );
-
-  const voteCountError = voteCounts.find((entry) => entry.error);
-  if (voteCountError?.error) {
-    return jsonError(voteCountError.error.message, 500);
-  }
-
   const votesCountByPoll = new Map<string, number>();
-  for (const entry of voteCounts) {
-    votesCountByPoll.set(entry.pollId, entry.count ?? 0);
+  for (const row of (votesRes.data ?? []) as Array<{ poll_id: string }>) {
+    votesCountByPoll.set(row.poll_id, (votesCountByPoll.get(row.poll_id) ?? 0) + 1);
   }
 
   const myVoteByPoll = new Map<string, string>();
@@ -186,7 +183,7 @@ export async function GET(request: NextRequest) {
 
   return Response.json({
     items,
-    nextCursor: hasNextPage && items.length > 0 ? items[items.length - 1]?.opens_at ?? null : null,
+    nextCursor: hasNextPage && page.length > 0 ? page[page.length - 1]?.opens_at ?? null : null,
   });
 }
 

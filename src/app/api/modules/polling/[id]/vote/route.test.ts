@@ -263,6 +263,46 @@ describe("polling vote route", () => {
     });
   });
 
+  it("returns unchanged when voter submits the same option", async () => {
+    requirePollViewer.mockResolvedValue({ userId: "user-1", roles: [], entitlements: ["dao-member"], admin: {} });
+    asUntypedAdmin.mockReturnValue(
+      makeVoteAdmin({
+        poll: {
+          id: "poll-1",
+          status: "open",
+          allow_vote_change: false,
+        },
+        rules: [{ action: "vote", rule_type: "authenticated", rule_value: null }],
+        optionExists: true,
+        existingVote: {
+          id: "vote-1",
+          poll_id: "poll-1",
+          option_id: "option-1",
+          voter_user_id: "user-1",
+          created_at: "2026-02-28T00:00:00.000Z",
+          updated_at: "2026-02-28T00:00:00.000Z",
+        },
+      }),
+    );
+    stateForPoll.mockReturnValue("open");
+    evaluateEligibility.mockReturnValue(true);
+
+    const { POST } = await import("./route");
+    const req = new Request("http://localhost/api/modules/polling/poll-1/vote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ option_id: "option-1" }),
+    });
+
+    const res = await POST(req as never, { params: Promise.resolve({ id: "poll-1" }) });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      vote: expect.objectContaining({ id: "vote-1", option_id: "option-1" }),
+      changed: false,
+    });
+    expect(emitPortalEvent).not.toHaveBeenCalled();
+  });
+
   it("denies votes when poll is closed", async () => {
     requirePollViewer.mockResolvedValue({ userId: "user-1", roles: [], entitlements: ["dao-member"], admin: {} });
     asUntypedAdmin.mockReturnValue(
