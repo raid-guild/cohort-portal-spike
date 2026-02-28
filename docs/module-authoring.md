@@ -538,6 +538,33 @@ Functions: {
 }
 ```
 
+## Route handler type safety (required for module APIs)
+
+When route handlers use untyped Supabase clients (for example via `asUntypedAdmin`),
+`data` can be inferred as `{}` and fail only during production TypeScript checks.
+
+Use these patterns in module API routes:
+- Define explicit row aliases and reuse them:
+  - `type VoteRow = { id: string; poll_id: string; ... }`
+- For list responses, normalize once:
+  - `const votes = (votesRes.data ?? []) as VoteRow[]`
+  - Then call array methods on `votes` (not directly on `votesRes.data`)
+- For single-row responses, cast to the non-null row type, not a nullable union:
+  - Good: `let vote: VoteRow | null = null; vote = data as VoteRow`
+  - Avoid: `vote = data as typeof vote` when `vote` is `VoteRow | null`
+- If possible, prefer typed Supabase clients over untyped wrappers.
+
+Common failure signatures this prevents:
+- `Property 'map' does not exist on type '{}'`
+- `Conversion of type '{}' to type 'null' may be a mistake`
+
+Pre-PR verification for any new/changed module API route:
+1. `npm run lint`
+2. `npx tsc --noEmit`
+3. `npm run build`
+
+If (2) or (3) fails, do not merge; fix type inference in the affected route first.
+
 ## Staging validation: seeds + smoke tests (recommended)
 If your module adds new tables/migrations or depends on specific data states, add a staging seed so preview deployments can be tested reliably.
 
