@@ -37,7 +37,6 @@ export async function POST(
     return jsonError("Poll is already closed.", 409);
   }
 
-  const now = new Date().toISOString();
   const { data: updatedData, error: updatedError } = await admin
     .from("polls")
     .update({ status: "closed" })
@@ -51,6 +50,7 @@ export async function POST(
     return jsonError(updatedError?.message ?? "Failed to close poll.", 500);
   }
 
+  const now = new Date().toISOString();
   try {
     await emitPortalEvent({
       moduleId: "polling",

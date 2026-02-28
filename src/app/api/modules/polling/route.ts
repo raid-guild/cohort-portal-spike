@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
   const status = asTrimmed(url.searchParams.get("status"));
   const cursor = asIsoDate(url.searchParams.get("cursor"));
   const nowIso = new Date().toISOString();
-
+  const now = new Date();
   let query = admin
     .from("polls")
     .select(
@@ -79,8 +79,6 @@ export async function GET(request: NextRequest) {
   }
 
   const filteredPolls = (data ?? []) as PollRow[];
-  const now = new Date();
-
   const page = filteredPolls.slice(0, limit);
   const hasNextPage = filteredPolls.length > limit;
   const pollIds = page.map((poll) => poll.id);
@@ -89,7 +87,7 @@ export async function GET(request: NextRequest) {
     return Response.json({ items: [], nextCursor: null });
   }
 
-  const [rulesRes, optionsRes, myVotesRes] = await Promise.all([
+  const [rulesRes, optionsRes, votesRes, myVotesRes] = await Promise.all([
     admin
       .from("poll_eligibility_rules")
       .select("id,poll_id,action,rule_type,rule_value")
@@ -100,15 +98,20 @@ export async function GET(request: NextRequest) {
       .in("poll_id", pollIds),
     admin
       .from("poll_votes")
+      .select("poll_id")
+      .in("poll_id", pollIds),
+    admin
+      .from("poll_votes")
       .select("poll_id,option_id")
       .in("poll_id", pollIds)
       .eq("voter_user_id", viewer.userId),
   ]);
 
-  if (rulesRes.error || optionsRes.error || myVotesRes.error) {
+  if (rulesRes.error || optionsRes.error || votesRes.error || myVotesRes.error) {
     return jsonError(
       rulesRes.error?.message ||
         optionsRes.error?.message ||
+        votesRes.error?.message ||
         myVotesRes.error?.message ||
         "Failed to load polls.",
       500,
@@ -130,16 +133,7 @@ export async function GET(request: NextRequest) {
   }
 
   const votesCountByPoll = new Map<string, number>();
-  const { data: votesRes, error: votesError } = await admin
-    .from("poll_votes")
-    .select("poll_id")
-    .in("poll_id", pollIds);
-
-  if (votesError) {
-    return jsonError(votesError.message, 500);
-  }
-
-  for (const row of (votesRes ?? []) as Array<{ poll_id: string }>) {
+  for (const row of (votesRes.data ?? []) as Array<{ poll_id: string }>) {
     votesCountByPoll.set(row.poll_id, (votesCountByPoll.get(row.poll_id) ?? 0) + 1);
   }
 
