@@ -21,6 +21,7 @@ export type UntypedQuery = {
   limit: (...args: unknown[]) => UntypedQuery;
   eq: (...args: unknown[]) => UntypedQuery;
   neq: (...args: unknown[]) => UntypedQuery;
+  or: (...args: unknown[]) => UntypedQuery;
   in: (...args: unknown[]) => UntypedQuery;
   lt: (...args: unknown[]) => UntypedQuery;
   lte: (...args: unknown[]) => UntypedQuery;
