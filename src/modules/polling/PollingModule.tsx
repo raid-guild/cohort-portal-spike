@@ -210,6 +210,16 @@ export function PollingModule() {
       setError("At least two options are required.");
       return;
     }
+    const opensDate = new Date(createOpensAt);
+    const closesDate = new Date(createClosesAt);
+    if (Number.isNaN(opensDate.getTime()) || Number.isNaN(closesDate.getTime())) {
+      setError("Invalid open or close date.");
+      return;
+    }
+    if (closesDate <= opensDate) {
+      setError("Close date must be after open date.");
+      return;
+    }
 
     setBusy(true);
     setError(null);
@@ -220,8 +230,8 @@ export function PollingModule() {
         body: JSON.stringify({
           title: createTitle.trim(),
           description: createDescription.trim() || null,
-          opens_at: new Date(createOpensAt).toISOString(),
-          closes_at: new Date(createClosesAt).toISOString(),
+          opens_at: opensDate.toISOString(),
+          closes_at: closesDate.toISOString(),
           allow_vote_change: createAllowVoteChange,
           results_visibility: createResultsVisibility,
           options: options.map((label) => ({ label })),
