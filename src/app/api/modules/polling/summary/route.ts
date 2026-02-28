@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
 
   const polls = (pollsRes.data ?? []) as PollRow[];
   const rules = (rulesRes.data ?? []) as PollRule[];
+  const votes = (votesRes.data ?? []) as Array<{ poll_id: string }>;
 
   const rulesByPoll = new Map<string, PollRule[]>();
   for (const rule of rules) {
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const participated = new Set((votesRes.data ?? []).map((row: { poll_id: string }) => row.poll_id)).size;
+  const participated = new Set(votes.map((row) => row.poll_id)).size;
 
   return Response.json({
     title: "Polling",

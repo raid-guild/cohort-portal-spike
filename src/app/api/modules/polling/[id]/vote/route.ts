@@ -113,16 +113,16 @@ export async function POST(
     updated_at: string;
   } | null) ?? null;
 
-  let voteRecord:
-    | {
-        id: string;
-        poll_id: string;
-        option_id: string;
-        voter_user_id: string;
-        created_at: string;
-        updated_at: string;
-      }
-    | null = null;
+  type VoteRecord = {
+    id: string;
+    poll_id: string;
+    option_id: string;
+    voter_user_id: string;
+    created_at: string;
+    updated_at: string;
+  };
+
+  let voteRecord: VoteRecord | null = null;
 
   if (existingVote) {
     if (!poll.allow_vote_change) {
@@ -143,7 +143,7 @@ export async function POST(
       return jsonError(error?.message ?? "Failed to update vote.", 500);
     }
 
-    voteRecord = data as typeof voteRecord;
+    voteRecord = data as VoteRecord;
   } else {
     const { data, error } = await admin
       .from("poll_votes")
@@ -161,7 +161,7 @@ export async function POST(
       return jsonError(error?.message ?? "Failed to cast vote.", 500);
     }
 
-    voteRecord = data as typeof voteRecord;
+    voteRecord = data as VoteRecord;
   }
 
   try {
