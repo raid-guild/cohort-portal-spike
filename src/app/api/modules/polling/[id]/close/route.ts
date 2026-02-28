@@ -40,7 +40,7 @@ export async function POST(
   const now = new Date().toISOString();
   const { data: updatedData, error: updatedError } = await admin
     .from("polls")
-    .update({ status: "closed", closes_at: now })
+    .update({ status: "closed" })
     .eq("id", poll.id)
     .select(
       "id,title,description,created_by,opens_at,closes_at,status,allow_vote_change,results_visibility,created_at,updated_at",

@@ -123,10 +123,14 @@ export async function POST(
   };
 
   let voteRecord: VoteRecord | null = null;
+  let changed = false;
 
   if (existingVote) {
     if (!poll.allow_vote_change) {
       return jsonError("Vote already exists and vote changes are disabled.", 409);
+    }
+    if (existingVote.option_id === optionId) {
+      return Response.json({ vote: existingVote, changed: false });
     }
 
     const { data, error } = await admin
@@ -144,6 +148,7 @@ export async function POST(
     }
 
     voteRecord = data as VoteRecord;
+    changed = true;
   } else {
     const { data, error } = await admin
       .from("poll_votes")
@@ -176,7 +181,7 @@ export async function POST(
       },
       data: {
         vote_id: voteRecord.id,
-        changed: Boolean(existingVote),
+        changed,
       },
       dedupeKey: `polling_vote:${voteRecord.id}:${voteRecord.updated_at}`,
     });
@@ -184,5 +189,5 @@ export async function POST(
     console.error("[polling] failed to emit vote_cast event", error);
   }
 
-  return Response.json({ vote: voteRecord, changed: Boolean(existingVote) });
+  return Response.json({ vote: voteRecord, changed });
 }

@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
   const limit = parseLimit(url.searchParams.get("limit"), 20, 50);
   const status = asTrimmed(url.searchParams.get("status"));
   const cursor = asIsoDate(url.searchParams.get("cursor"));
+  const nowIso = new Date().toISOString();
 
   let query = admin
     .from("polls")
@@ -60,6 +61,14 @@ export async function GET(request: NextRequest) {
     .order("opens_at", { ascending: false })
     .limit(limit + 1);
 
+  if (status === "open") {
+    query = query.eq("status", "open").lte("opens_at", nowIso).gt("closes_at", nowIso);
+  } else if (status === "upcoming") {
+    query = query.eq("status", "open").gt("opens_at", nowIso);
+  } else if (status === "closed") {
+    query = query.or(`status.eq.closed,and(status.eq.open,closes_at.lte.${nowIso})`);
+  }
+
   if (cursor) {
     query = query.lt("opens_at", cursor);
   }
@@ -69,13 +78,8 @@ export async function GET(request: NextRequest) {
     return jsonError(error.message, 500);
   }
 
-  const polls = (data ?? []) as PollRow[];
+  const filteredPolls = (data ?? []) as PollRow[];
   const now = new Date();
-  const filteredPolls = polls.filter((poll) => {
-    const state = stateForPoll(poll, now);
-    if (!status) return true;
-    return status === state;
-  });
 
   const page = filteredPolls.slice(0, limit);
   const hasNextPage = filteredPolls.length > limit;
@@ -125,24 +129,18 @@ export async function GET(request: NextRequest) {
     optionsCountByPoll.set(row.poll_id, (optionsCountByPoll.get(row.poll_id) ?? 0) + 1);
   }
 
-  const voteCounts = await Promise.all(
-    pollIds.map(async (pollId) => {
-      const { count, error } = await admin
-        .from("poll_votes")
-        .select("id", { count: "exact", head: true })
-        .eq("poll_id", pollId);
-      return { pollId, count, error };
-    }),
-  );
+  const votesCountByPoll = new Map<string, number>();
+  const { data: votesRes, error: votesError } = await admin
+    .from("poll_votes")
+    .select("poll_id")
+    .in("poll_id", pollIds);
 
-  const voteCountError = voteCounts.find((entry) => entry.error);
-  if (voteCountError?.error) {
-    return jsonError(voteCountError.error.message, 500);
+  if (votesError) {
+    return jsonError(votesError.message, 500);
   }
 
-  const votesCountByPoll = new Map<string, number>();
-  for (const entry of voteCounts) {
-    votesCountByPoll.set(entry.pollId, entry.count ?? 0);
+  for (const row of (votesRes ?? []) as Array<{ poll_id: string }>) {
+    votesCountByPoll.set(row.poll_id, (votesCountByPoll.get(row.poll_id) ?? 0) + 1);
   }
 
   const myVoteByPoll = new Map<string, string>();
@@ -186,7 +184,7 @@ export async function GET(request: NextRequest) {
 
   return Response.json({
     items,
-    nextCursor: hasNextPage && items.length > 0 ? items[items.length - 1]?.opens_at ?? null : null,
+    nextCursor: hasNextPage && page.length > 0 ? page[page.length - 1]?.opens_at ?? null : null,
   });
 }
 
