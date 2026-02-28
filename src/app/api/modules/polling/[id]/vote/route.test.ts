@@ -26,6 +26,7 @@ type VoteConfig = {
   insertVote?: Record<string, unknown>;
   updateVote?: Record<string, unknown>;
   insertError?: { message: string; code?: string } | null;
+  updateError?: { message: string; code?: string } | null;
 };
 
 function makeVoteAdmin(config: VoteConfig) {
@@ -84,7 +85,9 @@ function makeVoteAdmin(config: VoteConfig) {
           update: () => ({
             eq: () => ({
               select: () => ({
-                single: vi.fn().mockResolvedValue({ data: config.updateVote ?? null, error: null }),
+                single: vi
+                  .fn()
+                  .mockResolvedValue({ data: config.updateVote ?? null, error: config.updateError ?? null }),
               }),
             }),
           }),
@@ -317,5 +320,51 @@ describe("polling vote route", () => {
     const res = await POST(req as never, { params: Promise.resolve({ id: "poll-1" }) });
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ error: "Vote already exists." });
+  });
+
+  it("returns 400 for null JSON body", async () => {
+    requirePollViewer.mockResolvedValue({ userId: "user-1", roles: [], entitlements: ["dao-member"], admin: {} });
+
+    const { POST } = await import("./route");
+    const req = new Request("http://localhost/api/modules/polling/poll-1/vote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "null",
+    });
+
+    const res = await POST(req as never, { params: Promise.resolve({ id: "poll-1" }) });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Invalid JSON." });
+    expect(asUntypedAdmin).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when DB rejects vote because poll is no longer open", async () => {
+    requirePollViewer.mockResolvedValue({ userId: "user-1", roles: [], entitlements: ["dao-member"], admin: {} });
+    asUntypedAdmin.mockReturnValue(
+      makeVoteAdmin({
+        poll: {
+          id: "poll-1",
+          status: "open",
+          allow_vote_change: false,
+        },
+        rules: [{ action: "vote", rule_type: "authenticated", rule_value: null }],
+        optionExists: true,
+        existingVote: null,
+        insertError: { message: "Poll is not open for voting.", code: "23514" },
+      }),
+    );
+    stateForPoll.mockReturnValue("open");
+    evaluateEligibility.mockReturnValue(true);
+
+    const { POST } = await import("./route");
+    const req = new Request("http://localhost/api/modules/polling/poll-1/vote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ option_id: "option-1" }),
+    });
+
+    const res = await POST(req as never, { params: Promise.resolve({ id: "poll-1" }) });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "Poll is not open for voting." });
   });
 });

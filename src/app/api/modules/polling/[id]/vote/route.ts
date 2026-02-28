@@ -31,14 +31,18 @@ export async function POST(
 
   const { id } = await params;
 
-  let body: VoteBody;
+  let body: unknown;
   try {
-    body = (await request.json()) as VoteBody;
+    body = await request.json();
   } catch {
     return jsonError("Invalid JSON.", 400);
   }
 
-  const optionId = asTrimmed(body.option_id);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return jsonError("Invalid JSON.", 400);
+  }
+
+  const optionId = asTrimmed((body as VoteBody).option_id);
   if (!optionId) {
     return jsonError("option_id is required.", 400);
   }
@@ -133,6 +137,9 @@ export async function POST(
       .single();
 
     if (error || !data) {
+      if ((error as { code?: string } | null)?.code === "23514") {
+        return jsonError("Poll is not open for voting.", 409);
+      }
       return jsonError(error?.message ?? "Failed to update vote.", 500);
     }
 
@@ -147,6 +154,9 @@ export async function POST(
     if (error || !data) {
       if ((error as { code?: string } | null)?.code === "23505") {
         return jsonError("Vote already exists.", 409);
+      }
+      if ((error as { code?: string } | null)?.code === "23514") {
+        return jsonError("Poll is not open for voting.", 409);
       }
       return jsonError(error?.message ?? "Failed to cast vote.", 500);
     }
