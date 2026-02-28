@@ -1148,6 +1148,49 @@
       }
     },
     {
+      "id": "polling",
+      "title": "Polling",
+      "description": "Create and run structured community polls with eligibility controls.",
+      "lane": "portal",
+      "type": "link",
+      "url": "/modules/polling",
+      "status": "beta",
+      "owner": {
+        "name": "@dekanbro",
+        "contact": "@dekanbro"
+      },
+      "requiresAuth": true,
+      "tags": [
+        "people-tools",
+        "me-tools"
+      ],
+      "presentation": {
+        "mode": "page",
+        "trigger": "button",
+        "layout": "default"
+      },
+      "summary": {
+        "source": "api",
+        "title": "Polling",
+        "endpoint": "/api/modules/polling/summary",
+        "layout": "compact",
+        "maxItems": 3,
+        "showTitle": true
+      },
+      "capabilities": {
+        "events": {
+          "emit": {
+            "kinds": [
+              "core.polling.poll_created",
+              "core.polling.vote_cast",
+              "core.polling.poll_closed"
+            ],
+            "requiresUserAuth": true
+          }
+        }
+      }
+    },
+    {
       "id": "module-requests",
       "title": "Module Requests",
       "description": "Propose new portal modules and signal interest.",
