@@ -245,7 +245,16 @@ export function PollingModule() {
       setCreateResultsVisibility("live");
       setCreateOpensAt(toInputDateTimeValue(new Date()));
       setCreateClosesAt(toInputDateTimeValue(new Date(Date.now() + 24 * 60 * 60 * 1000)));
-      setTab("open");
+      const createdOpensDate = new Date(res.poll.opens_at);
+      const createdClosesDate = new Date(res.poll.closes_at);
+      const now = Date.now();
+      if (createdOpensDate.getTime() > now) {
+        setTab("upcoming");
+      } else if (createdClosesDate.getTime() <= now) {
+        setTab("closed");
+      } else {
+        setTab("open");
+      }
       setSelectedId(res.poll.id);
       await Promise.all([loadPolls(), loadDetail(res.poll.id)]);
       setMessage("Poll created.");
