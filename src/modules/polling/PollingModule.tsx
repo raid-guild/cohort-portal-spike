@@ -47,8 +47,13 @@ type PollDetail = {
 };
 
 type PollListResponse = { items: PollListItem[] };
+type CreatePollResponse = { poll: { id: string } };
 
 type TabKey = "upcoming" | "open" | "closed";
+
+function toInputDateTimeValue(date: Date) {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
 
 export function PollingModule() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
@@ -61,6 +66,13 @@ export function PollingModule() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [createTitle, setCreateTitle] = useState("");
+  const [createDescription, setCreateDescription] = useState("");
+  const [createOpensAt, setCreateOpensAt] = useState(() => toInputDateTimeValue(new Date()));
+  const [createClosesAt, setCreateClosesAt] = useState(() => toInputDateTimeValue(new Date(Date.now() + 24 * 60 * 60 * 1000)));
+  const [createAllowVoteChange, setCreateAllowVoteChange] = useState(false);
+  const [createResultsVisibility, setCreateResultsVisibility] = useState<"live" | "after_close">("live");
+  const [createOptions, setCreateOptions] = useState<string[]>(["", ""]);
 
   useEffect(() => {
     const load = async () => {
@@ -188,6 +200,62 @@ export function PollingModule() {
     }
   }
 
+  async function createPoll() {
+    const options = createOptions.map((value) => value.trim()).filter(Boolean);
+    if (!createTitle.trim()) {
+      setError("Title is required.");
+      return;
+    }
+    if (options.length < 2) {
+      setError("At least two options are required.");
+      return;
+    }
+    const opensDate = new Date(createOpensAt);
+    const closesDate = new Date(createClosesAt);
+    if (Number.isNaN(opensDate.getTime()) || Number.isNaN(closesDate.getTime())) {
+      setError("Invalid open or close date.");
+      return;
+    }
+    if (closesDate <= opensDate) {
+      setError("Close date must be after open date.");
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await authedFetch<CreatePollResponse>("/api/modules/polling", {
+        method: "POST",
+        body: JSON.stringify({
+          title: createTitle.trim(),
+          description: createDescription.trim() || null,
+          opens_at: opensDate.toISOString(),
+          closes_at: closesDate.toISOString(),
+          allow_vote_change: createAllowVoteChange,
+          results_visibility: createResultsVisibility,
+          options: options.map((label) => ({ label })),
+        }),
+      });
+
+      setCreateTitle("");
+      setCreateDescription("");
+      setCreateOptions(["", ""]);
+      setCreateAllowVoteChange(false);
+      setCreateResultsVisibility("live");
+      setCreateOpensAt(toInputDateTimeValue(new Date()));
+      setCreateClosesAt(toInputDateTimeValue(new Date(Date.now() + 24 * 60 * 60 * 1000)));
+      setTab("open");
+      setSelectedId(res.poll.id);
+      await Promise.all([loadPolls(), loadDetail(res.poll.id)]);
+      setMessage("Poll created.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create poll.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!token) {
     return (
       <div className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">
@@ -199,6 +267,92 @@ export function PollingModule() {
   return (
     <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
       <div className="space-y-3">
+        <div className="rounded-xl border border-border bg-card p-3">
+          <div className="mb-2 text-sm font-medium">Create poll</div>
+          <div className="space-y-2">
+            <input
+              value={createTitle}
+              onChange={(event) => setCreateTitle(event.target.value)}
+              placeholder="Title"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            />
+            <textarea
+              value={createDescription}
+              onChange={(event) => setCreateDescription(event.target.value)}
+              placeholder="Description (optional)"
+              rows={2}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            />
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label className="text-xs text-muted-foreground">
+                Opens
+                <input
+                  type="datetime-local"
+                  value={createOpensAt}
+                  onChange={(event) => setCreateOpensAt(event.target.value)}
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-2 py-1.5 text-sm"
+                />
+              </label>
+              <label className="text-xs text-muted-foreground">
+                Closes
+                <input
+                  type="datetime-local"
+                  value={createClosesAt}
+                  onChange={(event) => setCreateClosesAt(event.target.value)}
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-2 py-1.5 text-sm"
+                />
+              </label>
+            </div>
+            <div className="space-y-1">
+              {createOptions.map((option, index) => (
+                <input
+                  key={index}
+                  value={option}
+                  onChange={(event) =>
+                    setCreateOptions((current) => current.map((item, itemIndex) => (itemIndex === index ? event.target.value : item)))
+                  }
+                  placeholder={`Option ${index + 1}`}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              ))}
+              <button
+                type="button"
+                className="rounded-lg border border-border px-2 py-1 text-xs"
+                onClick={() => setCreateOptions((current) => [...current, ""])}
+              >
+                Add option
+              </button>
+            </div>
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={createAllowVoteChange}
+                onChange={(event) => setCreateAllowVoteChange(event.target.checked)}
+              />
+              Allow vote changes
+            </label>
+            <label className="text-xs text-muted-foreground">
+              Results visibility
+              <select
+                value={createResultsVisibility}
+                onChange={(event) => setCreateResultsVisibility(event.target.value as "live" | "after_close")}
+                className="mt-1 w-full rounded-lg border border-border bg-background px-2 py-1.5 text-sm"
+              >
+                <option value="live">Live</option>
+                <option value="after_close">After close</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+              onClick={() => void createPoll()}
+              disabled={busy}
+            >
+              Create poll
+            </button>
+          </div>
+        </div>
+
         <div className="flex gap-2">
           {(["upcoming", "open", "closed"] as const).map((item) => (
             <button
