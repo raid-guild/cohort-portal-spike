@@ -2,7 +2,6 @@ import { NextRequest } from "next/server";
 import type { Json } from "@/lib/types/db";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
 import {
-  hasCohortAccess,
   isHost,
   parseParticipants,
   parsePartners,
@@ -15,23 +14,6 @@ export async function GET(request: NextRequest) {
   const result = await requireUser(request);
   if ("error" in result) {
     return Response.json({ error: result.error }, { status: 401 });
-  }
-
-  let host = false;
-  let access = false;
-  try {
-    [host, access] = await Promise.all([
-      isHost(result.user.id),
-      hasCohortAccess(result.user.id),
-    ]);
-  } catch (err) {
-    return Response.json(
-      { error: err instanceof Error ? err.message : "Unable to verify access." },
-      { status: 500 },
-    );
-  }
-  if (!host && !access) {
-    return Response.json({ error: "Access required." }, { status: 403 });
   }
 
   const admin = supabaseAdminClient();

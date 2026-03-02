@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { hasCohortAccess, isHost, requireUser } from "@/app/api/cohorts/lib";
+import { requireUser } from "@/app/api/cohorts/lib";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
 
 const formatRange = (startAt: string | null, endAt: string | null) => {
@@ -15,18 +15,6 @@ export async function GET(request: NextRequest) {
     return Response.json({
       title: "Cohort Hub",
       items: [{ label: "Status", value: "Sign in" }],
-    });
-  }
-
-  const [host, access] = await Promise.all([
-    isHost(result.user.id),
-    hasCohortAccess(result.user.id),
-  ]);
-
-  if (!host && !access) {
-    return Response.json({
-      title: "Cohort Hub",
-      items: [{ label: "Status", value: "Access required" }],
     });
   }
 
