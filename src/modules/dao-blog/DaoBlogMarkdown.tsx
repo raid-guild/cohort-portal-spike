@@ -6,5 +6,11 @@ type DaoBlogMarkdownProps = {
 };
 
 export function DaoBlogMarkdown({ markdown, className }: DaoBlogMarkdownProps) {
-  return <MarkdownRenderer markdown={markdown} className={className} />;
+  const baseClass = "space-y-4 text-sm leading-7 font-sans";
+  return (
+    <MarkdownRenderer
+      markdown={markdown}
+      className={className ? `${baseClass} ${className}` : baseClass}
+    />
+  );
 }
