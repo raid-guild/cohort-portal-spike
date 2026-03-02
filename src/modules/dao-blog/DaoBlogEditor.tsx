@@ -33,8 +33,10 @@ export function DaoBlogEditor({ postId }: { postId?: string }) {
   const [loading, setLoading] = useState(Boolean(postId));
   const [saving, setSaving] = useState(false);
   const [uploadingHeaderImage, setUploadingHeaderImage] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [importUrl, setImportUrl] = useState("");
 
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
@@ -221,6 +223,71 @@ export function DaoBlogEditor({ postId }: { postId?: string }) {
     }
   }
 
+  async function importFromUrl() {
+    if (!token) {
+      setError("You must be signed in to import content.");
+      return;
+    }
+    const nextUrl = importUrl.trim();
+    if (!nextUrl) {
+      setError("Enter an .eth.link or .eth.limo URL to import.");
+      return;
+    }
+
+    setImporting(true);
+    setError(null);
+    setStatus(null);
+    try {
+      const res = await fetch("/api/modules/dao-blog/import", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url: nextUrl }),
+      });
+      const json = (await res.json()) as {
+        imported?: {
+          title?: string;
+          summary?: string;
+          body_md?: string;
+          header_image_url?: string | null;
+          source_url?: string;
+        };
+        error?: string;
+      };
+      if (!res.ok || !json.imported) {
+        throw new Error(json.error || "Failed to import content.");
+      }
+
+      const imported = json.imported;
+      setTitle(imported.title?.trim() ?? "");
+      if (!postId) {
+        setSlug(toKebabCase(imported.title?.trim() ?? ""));
+      }
+      setSummary((imported.summary ?? "").slice(0, 280));
+      setBodyMd(appendImportAttribution(imported.body_md ?? "", imported.source_url ?? nextUrl));
+      if (imported.header_image_url?.trim()) {
+        setHeaderImageUrl(imported.header_image_url);
+        setHeaderImagePreviewUrl(imported.header_image_url);
+        setHeaderImageMimeType(null);
+        setHeaderImageSizeBytes(null);
+      } else {
+        setHeaderImageUrl("");
+        setHeaderImagePreviewUrl(null);
+        setHeaderImageMimeType(null);
+        setHeaderImageSizeBytes(null);
+      }
+      setStatus(
+        `Imported content from ${imported.source_url ?? nextUrl}. Review the draft and save when ready.`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to import content.");
+    } finally {
+      setImporting(false);
+    }
+  }
+
   function insertText(before: string, after = "", placeholder = "") {
     const target = bodyRef.current;
     if (!target) return;
@@ -249,6 +316,29 @@ export function DaoBlogEditor({ postId }: { postId?: string }) {
     <div className="space-y-4">
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       {status ? <p className="text-sm text-muted-foreground">Status: {status}</p> : null}
+
+      <div className="space-y-2 rounded border border-border bg-card p-3">
+        <div className="text-sm font-medium">Import from ENS-hosted URL</div>
+        <p className="text-xs text-muted-foreground">
+          Supports .eth.link and .eth.limo URLs. We will import title, summary, markdown body, and the first image as header.
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            value={importUrl}
+            onChange={(event) => setImportUrl(event.target.value)}
+            className="w-full rounded border border-border bg-background px-3 py-2 text-sm"
+            placeholder="https://name.eth.link/path/"
+          />
+          <button
+            type="button"
+            onClick={importFromUrl}
+            disabled={importing || saving || uploadingHeaderImage}
+            className="rounded border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-60"
+          >
+            {importing ? "Importing..." : "Import"}
+          </button>
+        </div>
+      </div>
 
       <label className="block space-y-1">
         <span className="text-sm">Title</span>
@@ -422,4 +512,17 @@ export function DaoBlogEditor({ postId }: { postId?: string }) {
       </button>
     </div>
   );
+}
+
+function appendImportAttribution(markdown: string, sourceUrl: string) {
+  const trimmedMarkdown = markdown.trim();
+  const trimmedUrl = sourceUrl.trim();
+  if (!trimmedUrl) {
+    return trimmedMarkdown;
+  }
+  if (trimmedMarkdown.includes(trimmedUrl)) {
+    return trimmedMarkdown;
+  }
+  const separator = trimmedMarkdown ? "\n\n" : "";
+  return `${trimmedMarkdown}${separator}---\n\n_Imported from: [${trimmedUrl}](${trimmedUrl})_`;
 }

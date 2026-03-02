@@ -20,6 +20,7 @@ export function MarkdownRenderer({ markdown, className }: MarkdownRendererProps)
           ul: (props) => <ul className="mb-4 list-disc space-y-1 pl-6" {...props} />,
           ol: (props) => <ol className="mb-4 list-decimal space-y-1 pl-6" {...props} />,
           li: (props) => <li className="leading-7" {...props} />,
+          hr: (props) => <hr className="my-8 border-0 border-t border-border" {...props} />,
           blockquote: (props) => (
             <blockquote className="mb-4 border-l-2 border-border pl-4 italic text-muted-foreground" {...props} />
           ),
