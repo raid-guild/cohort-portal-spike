@@ -158,7 +158,9 @@ export function AuthModal({
 
     return () => {
       dialog.removeEventListener("keydown", handleKeyDown);
-      cleanupBackground.forEach((cleanup) => cleanup());
+      cleanupBackground.forEach((cleanup) => {
+        cleanup();
+      });
       document.body.style.overflow = bodyOverflow;
       previousActive?.focus();
     };
