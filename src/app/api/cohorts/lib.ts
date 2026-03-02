@@ -216,28 +216,57 @@ async function resolveParticipantRows(participants: CohortParticipantInput[]) {
 
 export async function syncCohortRelationships(input: SyncCohortRelationshipsInput) {
   const admin = supabaseAdminClient();
-  const participantRows = input.syncParticipants
-    ? await resolveParticipantRows(input.participants ?? [])
-    : [];
-  const partnerRows = (input.partners ?? []).map((partner, index) => ({
-    name: partner.name,
-    logo_url: partner.logoUrl ?? null,
-    description: partner.description ?? "",
-    website_url: partner.websiteUrl ?? null,
-    crm_account_id: partner.crmAccountId ?? null,
-    display_order: partner.displayOrder ?? index,
-  }));
+  if (input.syncParticipants) {
+    const participantRows = await resolveParticipantRows(input.participants ?? []);
+    const { error: deleteError } = await admin
+      .from("cohort_participants")
+      .delete()
+      .eq("cohort_id", input.cohortId);
+    if (deleteError) {
+      throw new Error(`Failed to clear participants: ${deleteError.message}`);
+    }
 
-  const { error } = await admin.rpc("sync_cohort_relationships", {
-    p_cohort_id: input.cohortId,
-    p_sync_participants: Boolean(input.syncParticipants),
-    p_participants: participantRows,
-    p_sync_partners: Boolean(input.syncPartners),
-    p_partners: input.syncPartners ? partnerRows : [],
-  });
+    if (participantRows.length) {
+      const { error: insertError } = await admin.from("cohort_participants").insert(
+        participantRows.map((participant) => ({
+          cohort_id: input.cohortId,
+          user_id: participant.user_id,
+          role: participant.role,
+          status: participant.status,
+          sort_order: participant.sort_order,
+        })),
+      );
+      if (insertError) {
+        throw new Error(`Failed to save participants: ${insertError.message}`);
+      }
+    }
+  }
 
-  if (error) {
-    throw new Error(`Failed to save cohort relationships: ${error.message}`);
+  if (input.syncPartners) {
+    const partnerRows = (input.partners ?? []).map((partner, index) => ({
+      cohort_id: input.cohortId,
+      name: partner.name,
+      logo_url: partner.logoUrl ?? null,
+      description: partner.description ?? "",
+      website_url: partner.websiteUrl ?? null,
+      crm_account_id: partner.crmAccountId ?? null,
+      display_order: partner.displayOrder ?? index,
+    }));
+
+    const { error: deleteError } = await admin
+      .from("cohort_partners")
+      .delete()
+      .eq("cohort_id", input.cohortId);
+    if (deleteError) {
+      throw new Error(`Failed to clear partners: ${deleteError.message}`);
+    }
+
+    if (partnerRows.length) {
+      const { error: insertError } = await admin.from("cohort_partners").insert(partnerRows);
+      if (insertError) {
+        throw new Error(`Failed to save partners: ${insertError.message}`);
+      }
+    }
   }
 }
 

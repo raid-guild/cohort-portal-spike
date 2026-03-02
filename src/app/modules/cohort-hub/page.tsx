@@ -72,6 +72,11 @@ type CohortParticipantDraft = {
   sortOrder?: number | null;
 };
 
+type PersonLookupOption = {
+  handle: string;
+  displayName: string;
+};
+
 type EditMode = "edit" | "create";
 
 const emptyContent: CohortContent = {
@@ -149,6 +154,8 @@ export default function CohortHubPage() {
   const [draftNotes, setDraftNotes] = useState<NoteItem[]>([]);
   const [draftParticipants, setDraftParticipants] = useState<CohortParticipantDraft[]>([]);
   const [draftPartners, setDraftPartners] = useState<CohortPartner[]>([]);
+  const [peopleLookup, setPeopleLookup] = useState<PersonLookupOption[]>([]);
+  const [loadingPeopleLookup, setLoadingPeopleLookup] = useState(false);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
 
   const selectedCohort = useMemo(
@@ -227,6 +234,32 @@ export default function CohortHubPage() {
     seedDraftFrom(cohort, loadedContent, loadedParticipants, loadedPartners);
   }, []);
 
+  const loadPeopleLookup = useCallback(async () => {
+    if (loadingPeopleLookup || peopleLookup.length) return;
+    setLoadingPeopleLookup(true);
+    try {
+      const res = await fetch("/api/people");
+      const json = (await res.json().catch(() => ({}))) as {
+        people?: Array<{ handle?: string; displayName?: string }>;
+      };
+      if (!res.ok) {
+        throw new Error("Unable to load people.");
+      }
+      const options = (json.people ?? [])
+        .map((person) => ({
+          handle: (person.handle ?? "").trim(),
+          displayName: (person.displayName ?? person.handle ?? "").trim(),
+        }))
+        .filter((person): person is PersonLookupOption => Boolean(person.handle))
+        .sort((a, b) => a.handle.localeCompare(b.handle));
+      setPeopleLookup(options);
+    } catch {
+      setPeopleLookup([]);
+    } finally {
+      setLoadingPeopleLookup(false);
+    }
+  }, [loadingPeopleLookup, peopleLookup.length]);
+
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
       const session = data.session;
@@ -269,12 +302,14 @@ export default function CohortHubPage() {
     setEditMode("create");
     seedDraftFrom(null, emptyContent, [], []);
     setEditorOpen(true);
+    void loadPeopleLookup();
   };
 
   const openEditEditor = () => {
     setEditMode("edit");
     seedDraftFrom(selectedCohort, content, participants, partners);
     setEditorOpen(true);
+    void loadPeopleLookup();
   };
 
   const buildPayload = () => ({
@@ -717,12 +752,14 @@ export default function CohortHubPage() {
                     >
                       <div className="flex items-start gap-3">
                         {partner.logoUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={partner.logoUrl}
-                            alt={`${partner.name} logo`}
-                            className="h-10 w-10 rounded-md border border-border object-cover"
-                          />
+                          <div className="flex h-14 w-32 items-center justify-center rounded-md border border-border bg-muted/30 p-2">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={partner.logoUrl}
+                              alt={`${partner.name} logo`}
+                              className="max-h-full max-w-full object-contain"
+                            />
+                          </div>
                         ) : null}
                         <div className="min-w-0">
                           <h3 className="text-sm font-semibold text-foreground">{partner.name}</h3>
@@ -1178,6 +1215,14 @@ export default function CohortHubPage() {
                   </button>
                 </div>
                 <div className="space-y-3">
+                  <datalist id="participant-handle-options">
+                    {peopleLookup.map((person) => (
+                      <option
+                        key={person.handle}
+                        value={person.handle}
+                      >{`${person.displayName} (@${person.handle})`}</option>
+                    ))}
+                  </datalist>
                   {draftParticipants.map((participant, index) => (
                     <div
                       key={`participant-${index}`}
@@ -1195,8 +1240,42 @@ export default function CohortHubPage() {
                             )
                           }
                           placeholder="dekanbro"
+                          list="participant-handle-options"
+                          autoComplete="off"
                           className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
                         />
+                        {participant.handle.trim().length >= 1 ? (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {peopleLookup
+                              .filter((person) => {
+                                const query = participant.handle.trim().toLowerCase();
+                                return (
+                                  person.handle.toLowerCase().includes(query) ||
+                                  person.displayName.toLowerCase().includes(query)
+                                );
+                              })
+                              .slice(0, 4)
+                              .map((person) => (
+                                <button
+                                  key={person.handle}
+                                  type="button"
+                                  className="rounded-full border border-border px-2 py-0.5 text-[11px] hover:bg-muted"
+                                  onClick={() =>
+                                    setDraftParticipants((prev) =>
+                                      prev.map((row, rowIndex) =>
+                                        rowIndex === index ? { ...row, handle: person.handle } : row,
+                                      ),
+                                    )
+                                  }
+                                >
+                                  {person.displayName} (@{person.handle})
+                                </button>
+                              ))}
+                          </div>
+                        ) : null}
+                        {loadingPeopleLookup ? (
+                          <p className="mt-1 text-[11px] text-muted-foreground">Loading handles...</p>
+                        ) : null}
                       </label>
                       <label className="text-xs">
                         Role
@@ -1326,12 +1405,14 @@ export default function CohortHubPage() {
                           className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
                         />
                         {partner.logoUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={partner.logoUrl}
-                            alt={`${partner.name || "Partner"} logo preview`}
-                            className="mt-2 h-16 w-16 rounded-md border border-border object-cover"
-                          />
+                          <div className="mt-2 flex h-16 w-36 items-center justify-center rounded-md border border-border bg-muted/30 p-2">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={partner.logoUrl}
+                              alt={`${partner.name || "Partner"} logo preview`}
+                              className="max-h-full max-w-full object-contain"
+                            />
+                          </div>
                         ) : null}
                       </label>
                       <label className="text-xs">

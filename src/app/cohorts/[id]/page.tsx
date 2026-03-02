@@ -398,12 +398,14 @@ export default async function CohortLandingPage({
                 <div key={partner.id} className="rounded-lg border p-3">
                   <div className="flex items-start gap-3">
                     {partner.logo_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={partner.logo_url}
-                        alt={`${partner.name} logo`}
-                        className="h-10 w-10 rounded-md border border-border object-cover"
-                      />
+                      <div className="flex h-14 w-32 items-center justify-center rounded-md border border-border bg-muted/30 p-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={partner.logo_url}
+                          alt={`${partner.name} logo`}
+                          className="max-h-full max-w-full object-contain"
+                        />
+                      </div>
                     ) : null}
                     <div>
                       <p className="font-medium">{partner.name}</p>

@@ -18,6 +18,8 @@ export function PeopleDirectory({
 }) {
   const [query, setQuery] = useState("");
   const [skill, setSkill] = useState("all");
+  const [remoteResults, setRemoteResults] = useState<Profile[] | null>(null);
+  const [remoteLoading, setRemoteLoading] = useState(false);
   const paidSet = useMemo(() => new Set(paidUserIds), [paidUserIds]);
   const daoMemberSet = useMemo(() => new Set(daoMemberUserIds), [daoMemberUserIds]);
 
@@ -27,7 +29,7 @@ export function PeopleDirectory({
     return Array.from(set).sort();
   }, [people]);
 
-  const filtered = useMemo(() => {
+  const filteredLocal = useMemo(() => {
     const normalized = query.toLowerCase();
     return people.filter((person) => {
       const matchesQuery =
@@ -38,6 +40,54 @@ export function PeopleDirectory({
       return matchesQuery && matchesSkill;
     });
   }, [people, query, skill]);
+
+  const shouldUseRemote = query.trim().length >= 2;
+
+  useEffect(() => {
+    if (!shouldUseRemote) {
+      setRemoteResults(null);
+      setRemoteLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const controller = new AbortController();
+    setRemoteLoading(true);
+
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams();
+      params.set("q", query.trim());
+      params.set("limit", "80");
+      if (skill !== "all") {
+        params.set("skill", skill);
+      }
+
+      fetch(`/api/people/search?${params.toString()}`, {
+        signal: controller.signal,
+      })
+        .then((res) => res.json())
+        .then((payload: { people?: Profile[] }) => {
+          if (cancelled) return;
+          setRemoteResults(payload.people ?? []);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setRemoteResults([]);
+        })
+        .finally(() => {
+          if (cancelled) return;
+          setRemoteLoading(false);
+        });
+    }, 180);
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [query, shouldUseRemote, skill]);
+
+  const filtered = shouldUseRemote ? (remoteResults ?? []) : filteredLocal;
 
   const roleIconMap = useMemo(() => {
     return new Map(RAID_GUILD_ROLES.map((role) => [role.name, role.icon]));
@@ -129,6 +179,9 @@ export function PeopleDirectory({
           </Link>
         ))}
       </div>
+      {remoteLoading ? (
+        <p className="text-sm text-muted-foreground">Searching people...</p>
+      ) : null}
       {!filtered.length ? (
         <p className="text-sm text-muted-foreground">No matches. Try another search.</p>
       ) : null}
