@@ -117,6 +117,8 @@ export function ModuleSurfaceList({
   const gated = filtered.filter((module) => {
     const entitlement = module.access?.entitlement;
     if (!entitlement) return true;
+    const hostBypass = roles.includes("host") && module.tags?.includes("host-tools");
+    if (hostBypass) return true;
     return entitlements.includes(entitlement);
   });
 

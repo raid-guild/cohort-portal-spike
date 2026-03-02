@@ -497,11 +497,11 @@
       },
       "requiresAuth": true,
       "access": {
-        "requiresAuth": true,
-        "entitlement": "cohort-access"
+        "requiresAuth": true
       },
       "tags": [
-        "start-here"
+        "start-here",
+        "host-tools"
       ],
       "url": "/modules/cohort-hub",
       "presentation": {
