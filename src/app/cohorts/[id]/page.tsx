@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
 import { CohortLandingReferralForm } from "@/modules/cohort-hub/CohortLandingReferralForm";
+import { CohortLandingHostLink } from "@/modules/cohort-hub/CohortLandingHostLink";
 
 type CohortRow = {
   id: string;
@@ -252,6 +253,7 @@ export default async function CohortLandingPage({
   const projects = content?.projects ?? [];
   const resources = content?.resources ?? [];
   const schedule = content?.schedule ?? [];
+  const landingPath = `/cohorts/${cohort.slug ?? cohort.id}`;
 
   return (
     <article className="mx-auto max-w-4xl space-y-6">
@@ -274,6 +276,8 @@ export default async function CohortLandingPage({
         </p>
         {cohort.theme_long ? <p className="text-base text-foreground">{cohort.theme_long}</p> : null}
       </header>
+
+      <CohortLandingHostLink landingPath={landingPath} />
 
       <CohortLandingReferralForm cohortId={cohort.id} cohortName={cohort.name} />
 

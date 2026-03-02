@@ -18,6 +18,25 @@ export type SummaryPayload = {
   widget?: SummaryWidget;
 };
 
+function renderValueWithLink(value: string) {
+  const trimmed = value.trim();
+  const isInternalPath = /^\/[^\s]*$/.test(trimmed);
+  const isHttpUrl = /^https?:\/\/[^\s]+$/i.test(trimmed);
+  if (isInternalPath || isHttpUrl) {
+    return (
+      <a
+        href={trimmed}
+        target={isHttpUrl ? "_blank" : undefined}
+        rel={isHttpUrl ? "noreferrer" : undefined}
+        className="underline-offset-4 hover:underline"
+      >
+        {trimmed}
+      </a>
+    );
+  }
+  return <span>{value}</span>;
+}
+
 type SummaryConfig = {
   source: "static" | "api";
   title?: string;
@@ -190,7 +209,7 @@ function renderSummary(
                   {item.label}
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {truncateValue(item.value)}
+                  {renderValueWithLink(truncateValue(item.value))}
                 </p>
               </div>
             ))}
@@ -258,7 +277,7 @@ function renderSummary(
             <li key={item.label}>
               <div className="flex items-center justify-between">
                 <span>{item.label}</span>
-                <span>{truncateValue(item.value)}</span>
+                <span>{renderValueWithLink(truncateValue(item.value))}</span>
               </div>
               {progressKey && item.label === progressKey ? (
                 <ProgressBar value={item.value} />
