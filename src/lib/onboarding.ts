@@ -12,8 +12,8 @@ export function isOnboardingComplete(
   profile: OnboardingProfile,
   rolesLimit: number = ONBOARDING_ROLES_LIMIT,
 ) {
-  const roles = profile.roles ?? [];
-  const skills = profile.skills ?? [];
+  const roles = (profile.roles ?? []).filter((role) => Boolean(role?.trim()));
+  const skills = (profile.skills ?? []).filter((skill) => Boolean(skill?.trim()));
   return (
     Boolean(profile.handle?.trim()) &&
     Boolean(profile.displayName?.trim()) &&

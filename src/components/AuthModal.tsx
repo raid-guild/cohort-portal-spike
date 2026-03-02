@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
@@ -32,6 +32,7 @@ export function AuthModal({
   const [emailCooldown, setEmailCooldown] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [currentUrl, setCurrentUrl] = useState("");
+  const dialogRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -94,6 +95,75 @@ export function AuthModal({
     };
   }, [open, routeAfterSession, supabase]);
 
+  useEffect(() => {
+    if (!open) return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    const previousActive = document.activeElement as HTMLElement | null;
+    const bodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const siblings = Array.from(document.body.children).filter(
+      (child) => !child.contains(dialog),
+    );
+    const cleanupBackground = siblings.map((element) => {
+      const htmlElement = element as HTMLElement;
+      const previousAriaHidden = htmlElement.getAttribute("aria-hidden");
+      const previousInert = htmlElement.inert;
+      htmlElement.inert = true;
+      htmlElement.setAttribute("aria-hidden", "true");
+      return () => {
+        htmlElement.inert = previousInert;
+        if (previousAriaHidden === null) {
+          htmlElement.removeAttribute("aria-hidden");
+        } else {
+          htmlElement.setAttribute("aria-hidden", previousAriaHidden);
+        }
+      };
+    });
+
+    const focusable = getFocusableElements(dialog);
+    (focusable[0] ?? dialog).focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const items = getFocusableElements(dialog);
+      if (items.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+
+      const first = items[0];
+      const last = items[items.length - 1];
+      const activeElement = document.activeElement;
+
+      if (event.shiftKey && activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    dialog.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      dialog.removeEventListener("keydown", handleKeyDown);
+      cleanupBackground.forEach((cleanup) => cleanup());
+      document.body.style.overflow = bodyOverflow;
+      previousActive?.focus();
+    };
+  }, [onClose, open]);
+
   const handleEmailSignIn = async () => {
     const nextEmail = email.trim();
     if (!nextEmail) {
@@ -106,23 +176,28 @@ export function AuthModal({
     setAuthAction("email");
     setLoading(true);
     setFeedback({ tone: "info", text: "Sending magic link..." });
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
-    const { error } = await supabase.auth.signInWithOtp({
-      email: nextEmail,
-      options: { emailRedirectTo: redirectTo },
-    });
-    setAuthAction(null);
-    setLoading(false);
-    if (error) {
-      setFeedback({ tone: "error", text: error.message });
-      return;
+    try {
+      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+      const { error } = await supabase.auth.signInWithOtp({
+        email: nextEmail,
+        options: { emailRedirectTo: redirectTo },
+      });
+      if (error) {
+        setFeedback({ tone: "error", text: error.message });
+        return;
+      }
+      setMagicLinkEmail(nextEmail);
+      setEmailCooldown(30);
+      setFeedback({
+        tone: "success",
+        text: `Magic link sent to ${nextEmail}. Check inbox and spam, then click the link to finish sign-in.`,
+      });
+    } catch (error) {
+      setFeedback({ tone: "error", text: toErrorMessage(error) });
+    } finally {
+      setAuthAction(null);
+      setLoading(false);
     }
-    setMagicLinkEmail(nextEmail);
-    setEmailCooldown(30);
-    setFeedback({
-      tone: "success",
-      text: `Magic link sent to ${nextEmail}. Check inbox and spam, then click the link to finish sign-in.`,
-    });
   };
 
   const handleWeb3SignIn = async (chain: "ethereum" | "solana") => {
@@ -130,55 +205,68 @@ export function AuthModal({
     setAuthAction(action);
     setLoading(true);
     setFeedback({ tone: "info", text: "Opening wallet request..." });
-    const wallet = chain === "ethereum" ? resolveEthereumWallet() : null;
-    if (chain === "ethereum" && !wallet) {
-      setLoading(false);
-      setAuthAction(null);
-      setFeedback({
-        tone: "error",
-        text:
-        isMobileBrowser()
-          ? "No Ethereum wallet was detected in this browser. Open this page in your wallet app browser (MetaMask/Coinbase Wallet) and try again."
-          : "No Ethereum wallet was detected. Install or unlock MetaMask/Coinbase Wallet and try again.",
-      });
-      return;
-    }
+    try {
+      const wallet = chain === "ethereum" ? resolveEthereumWallet() : null;
+      if (chain === "ethereum" && !wallet) {
+        setFeedback({
+          tone: "error",
+          text: isMobileBrowser()
+            ? "No Ethereum wallet was detected in this browser. Open this page in your wallet app browser (MetaMask/Coinbase Wallet) and try again."
+            : "No Ethereum wallet was detected. Install or unlock MetaMask/Coinbase Wallet and try again.",
+        });
+        return;
+      }
 
-    // @ts-ignore - Supabase types are out of date for this helper.
-    const { error } = await supabase.auth.signInWithWeb3({
-      chain,
-      statement: "I accept the RaidGuild Cohort Portal terms of service.",
-      options: {
-        url: window.location.href,
-      },
-      ...(wallet ? { wallet } : {}),
-    });
-    setAuthAction(null);
-    setLoading(false);
-    if (error) {
-      setFeedback({ tone: "error", text: error.message });
-      return;
+      // @ts-ignore - Supabase types are out of date for this helper.
+      const { error } = await supabase.auth.signInWithWeb3({
+        chain,
+        statement: "I accept the RaidGuild Cohort Portal terms of service.",
+        options: {
+          url: window.location.href,
+        },
+        ...(wallet ? { wallet } : {}),
+      });
+      if (error) {
+        setFeedback({ tone: "error", text: error.message });
+        return;
+      }
+      setFeedback({
+        tone: "info",
+        text: "Wallet request opened. Approve it in your wallet to continue.",
+      });
+    } catch (error) {
+      setFeedback({ tone: "error", text: toErrorMessage(error) });
+    } finally {
+      setAuthAction(null);
+      setLoading(false);
     }
-    setFeedback({
-      tone: "info",
-      text: "Wallet request opened. Approve it in your wallet to continue.",
-    });
   };
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="auth-modal-title"
+    >
       <button
         type="button"
         aria-label="Close sign in"
         className="absolute inset-0 bg-black/50"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-md space-y-4 rounded-xl border border-border bg-card p-6 shadow-2xl">
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        className="relative w-full max-w-md space-y-4 rounded-xl border border-border bg-card p-6 shadow-2xl"
+      >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold">Sign in</h2>
+            <h2 id="auth-modal-title" className="text-lg font-semibold">
+              Sign in
+            </h2>
             <p className="text-sm text-muted-foreground">
               Use email magic link or a Web3 wallet.
             </p>
@@ -323,6 +411,27 @@ function resolveEthereumWallet() {
     null;
 
   return provider;
+}
+
+function toErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  if (typeof error === "string" && error.trim()) {
+    return error;
+  }
+  return "Something went wrong. Please try again.";
+}
+
+function getFocusableElements(container: HTMLElement) {
+  const nodes = container.querySelectorAll<HTMLElement>(
+    'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',
+  );
+  return Array.from(nodes).filter((node) => {
+    if (node.hasAttribute("disabled")) return false;
+    if (node.getAttribute("aria-hidden") === "true") return false;
+    return node.tabIndex >= 0;
+  });
 }
 
 function isMobileBrowser() {

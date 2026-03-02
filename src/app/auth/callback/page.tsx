@@ -22,44 +22,55 @@ export default function AuthCallbackPage() {
     let cancelled = false;
 
     const run = async () => {
-      const code = searchParams.get("code");
-      const next = sanitizeNext(searchParams.get("next"));
+      try {
+        const code = searchParams.get("code");
+        const next = sanitizeNext(searchParams.get("next"));
 
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error && !cancelled) {
-          setMessage(error.message);
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error && !cancelled) {
+            setMessage(error.message);
+            return;
+          }
+        }
+
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session?.user?.id) {
+          if (!cancelled) {
+            router.replace("/me");
+          }
           return;
         }
-      }
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("handle, display_name, bio, skills, roles")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
 
-      if (!session?.user?.id) {
-        if (!cancelled) {
-          router.replace("/me");
+        if (error) {
+          throw error;
         }
-        return;
+
+        const complete = isOnboardingComplete({
+          handle: data?.handle ?? "",
+          displayName: data?.display_name ?? "",
+          bio: data?.bio ?? "",
+          skills: data?.skills ?? [],
+          roles: data?.roles ?? [],
+        });
+
+        if (cancelled) return;
+        router.replace(complete ? next : "/me?onboarding=1");
+      } catch (error) {
+        if (cancelled) return;
+        console.error("Auth callback failed", error);
+        setMessage("Unable to complete sign-in. Please try again.");
+        router.replace("/me");
       }
-
-      const { data } = await supabase
-        .from("profiles")
-        .select("handle, display_name, bio, skills, roles")
-        .eq("user_id", session.user.id)
-        .maybeSingle();
-
-      const complete = isOnboardingComplete({
-        handle: data?.handle ?? "",
-        displayName: data?.display_name ?? "",
-        bio: data?.bio ?? "",
-        skills: data?.skills ?? [],
-        roles: data?.roles ?? [],
-      });
-
-      if (cancelled) return;
-      router.replace(complete ? next : "/me?onboarding=1");
     };
 
     void run();
