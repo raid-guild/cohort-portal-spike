@@ -38,6 +38,21 @@ type CohortContentRow = {
   resources: ResourceItem[] | null;
 };
 
+type CohortParticipantRow = {
+  user_id: string;
+  role: string | null;
+  status: string;
+};
+
+type CohortPartnerRow = {
+  id: string;
+  name: string;
+  logo_url: string | null;
+  description: string;
+  website_url: string | null;
+  crm_account_id: string | null;
+};
+
 function getSiteOrigin() {
   if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
@@ -81,16 +96,18 @@ function getYouTubeVideoId(url?: string) {
 
 async function loadCohort(
   id: string,
-): Promise<{ cohort: CohortRow; content: CohortContentRow | null } | null> {
-  const admin = supabaseAdminClient() as unknown as {
-    from: (table: string) => {
-      select: (columns: string) => {
-        eq: (column: string, value: string) => {
-          maybeSingle: () => Promise<{ data: unknown; error: { message: string } | null }>;
-        };
-      };
-    };
-  };
+): Promise<{
+  cohort: CohortRow;
+  content: CohortContentRow | null;
+  participants: {
+    handle: string;
+    displayName: string;
+    role: string | null;
+    status: string;
+  }[];
+  partners: CohortPartnerRow[];
+} | null> {
+  const admin = supabaseAdminClient();
 
   const { data: bySlug, error: bySlugError } = await admin
     .from("cohorts")
@@ -118,19 +135,65 @@ async function loadCohort(
 
   if (!cohortData) return null;
 
-  const { data: contentData, error: contentError } = await admin
-    .from("cohort_content")
-    .select("schedule,projects,resources")
-    .eq("cohort_id", (cohortData as { id: string }).id)
-    .maybeSingle();
+  const cohortId = (cohortData as { id: string }).id;
+  const [contentResult, participantResult, partnerResult] = await Promise.all([
+    admin
+      .from("cohort_content")
+      .select("schedule,projects,resources")
+      .eq("cohort_id", cohortId)
+      .maybeSingle(),
+    admin
+      .from("cohort_participants")
+      .select("user_id, role, status")
+      .eq("cohort_id", cohortId)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true }),
+    admin
+      .from("cohort_partners")
+      .select("id,name,logo_url,description,website_url,crm_account_id")
+      .eq("cohort_id", cohortId)
+      .order("display_order", { ascending: true })
+      .order("created_at", { ascending: true }),
+  ]);
 
-  if (contentError) {
-    throw new Error(contentError.message);
+  if (contentResult.error) throw new Error(contentResult.error.message);
+  if (participantResult.error) throw new Error(participantResult.error.message);
+  if (partnerResult.error) throw new Error(partnerResult.error.message);
+
+  const participantRows = (participantResult.data as CohortParticipantRow[] | null) ?? [];
+  const participantUserIds = [...new Set(participantRows.map((row) => row.user_id))];
+  const { data: profileRows, error: profileError } = participantUserIds.length
+    ? await admin
+        .from("profiles")
+        .select("user_id, handle, display_name")
+        .in("user_id", participantUserIds)
+    : { data: [], error: null };
+
+  if (profileError) {
+    throw new Error(profileError.message);
   }
+  const profileByUserId = new Map(
+    (profileRows ?? []).map((profile) => [profile.user_id, profile]),
+  );
+
+  const participants = participantRows
+    .map((row) => {
+      const profile = profileByUserId.get(row.user_id);
+      if (!profile?.handle) return null;
+      return {
+        handle: profile.handle,
+        displayName: profile.display_name ?? profile.handle,
+        role: row.role,
+        status: row.status,
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => Boolean(row));
 
   return {
     cohort: cohortData as CohortRow,
-    content: (contentData as CohortContentRow | null) ?? null,
+    content: (contentResult.data as CohortContentRow | null) ?? null,
+    participants,
+    partners: (partnerResult.data as CohortPartnerRow[] | null) ?? [],
   };
 }
 
@@ -185,6 +248,7 @@ export default async function CohortLandingPage({
   if (!record) notFound();
 
   const { cohort, content } = record;
+  const { participants, partners } = record;
   const projects = content?.projects ?? [];
   const resources = content?.resources ?? [];
   const schedule = content?.schedule ?? [];
@@ -293,6 +357,73 @@ export default async function CohortLandingPage({
           ) : (
             <p className="text-sm text-muted-foreground">Resources coming soon.</p>
           )}
+        </div>
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-xl border border-border bg-card p-5">
+          <h2 className="text-sm font-semibold">Participants</h2>
+          <div className="mt-3 space-y-3 text-sm">
+            {participants.length ? (
+              participants.map((participant, index) => (
+                <div key={`${participant.handle}-${index}`} className="rounded-lg border p-3">
+                  <a
+                    href={`/people/${participant.handle}`}
+                    className="font-medium underline-offset-4 hover:underline"
+                  >
+                    {participant.displayName}
+                  </a>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    @{participant.handle}
+                    {participant.role ? ` · ${participant.role}` : ""}
+                    {participant.status ? ` · ${participant.status}` : ""}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">Participant list coming soon.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-5">
+          <h2 className="text-sm font-semibold">Partners</h2>
+          <div className="mt-3 space-y-3 text-sm">
+            {partners.length ? (
+              partners.map((partner) => (
+                <div key={partner.id} className="rounded-lg border p-3">
+                  <div className="flex items-start gap-3">
+                    {partner.logo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={partner.logo_url}
+                        alt={`${partner.name} logo`}
+                        className="h-10 w-10 rounded-md border border-border object-cover"
+                      />
+                    ) : null}
+                    <div>
+                      <p className="font-medium">{partner.name}</p>
+                      {partner.description ? (
+                        <p className="mt-1 text-sm text-muted-foreground">{partner.description}</p>
+                      ) : null}
+                    </div>
+                  </div>
+                  {partner.website_url ? (
+                    <a
+                      href={partner.website_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 inline-block text-sm underline-offset-4 hover:underline"
+                    >
+                      Visit website
+                    </a>
+                  ) : null}
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">Partners coming soon.</p>
+            )}
+          </div>
         </div>
       </section>
     </article>

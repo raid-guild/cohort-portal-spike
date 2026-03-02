@@ -45,6 +45,33 @@ type CohortContent = {
   notes?: NoteItem[];
 };
 
+type CohortParticipant = {
+  userId: string;
+  handle: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  role?: string | null;
+  status?: string | null;
+  sortOrder?: number | null;
+};
+
+type CohortPartner = {
+  id?: string;
+  name: string;
+  logoUrl?: string | null;
+  description?: string | null;
+  websiteUrl?: string | null;
+  crmAccountId?: string | null;
+  displayOrder?: number | null;
+};
+
+type CohortParticipantDraft = {
+  handle: string;
+  role?: string | null;
+  status?: string | null;
+  sortOrder?: number | null;
+};
+
 type EditMode = "edit" | "create";
 
 const emptyContent: CohortContent = {
@@ -97,11 +124,14 @@ export default function CohortHubPage() {
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [content, setContent] = useState<CohortContent>(emptyContent);
+  const [participants, setParticipants] = useState<CohortParticipant[]>([]);
+  const [partners, setPartners] = useState<CohortPartner[]>([]);
   const [loading, setLoading] = useState(true);
   const [isHost, setIsHost] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingHeaderImage, setUploadingHeaderImage] = useState(false);
+  const [uploadingPartnerLogoIndex, setUploadingPartnerLogoIndex] = useState<number | null>(null);
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editMode, setEditMode] = useState<EditMode>("edit");
@@ -117,6 +147,8 @@ export default function CohortHubPage() {
   const [draftProjects, setDraftProjects] = useState<ProjectItem[]>([]);
   const [draftResources, setDraftResources] = useState<ResourceItem[]>([]);
   const [draftNotes, setDraftNotes] = useState<NoteItem[]>([]);
+  const [draftParticipants, setDraftParticipants] = useState<CohortParticipantDraft[]>([]);
+  const [draftPartners, setDraftPartners] = useState<CohortPartner[]>([]);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
 
   const selectedCohort = useMemo(
@@ -124,7 +156,12 @@ export default function CohortHubPage() {
     [cohorts, selectedId],
   );
 
-  const seedDraftFrom = (cohort: Cohort | null, data: CohortContent | null) => {
+  const seedDraftFrom = (
+    cohort: Cohort | null,
+    data: CohortContent | null,
+    participantRows: CohortParticipant[] = [],
+    partnerRows: CohortPartner[] = [],
+  ) => {
     setDraftName(cohort?.name ?? "");
     setDraftSlug(cohort?.slug ?? "");
     setDraftStatus(cohort?.status ?? "upcoming");
@@ -136,6 +173,24 @@ export default function CohortHubPage() {
     setDraftProjects(data?.projects ?? []);
     setDraftResources(data?.resources ?? []);
     setDraftNotes(data?.notes ?? []);
+    setDraftParticipants(
+      participantRows.map((participant, index) => ({
+        handle: participant.handle,
+        role: participant.role ?? "",
+        status: participant.status ?? "active",
+        sortOrder: participant.sortOrder ?? index,
+      })),
+    );
+    setDraftPartners(
+      partnerRows.map((partner, index) => ({
+        name: partner.name,
+        logoUrl: partner.logoUrl ?? "",
+        description: partner.description ?? "",
+        websiteUrl: partner.websiteUrl ?? "",
+        crmAccountId: partner.crmAccountId ?? "",
+        displayOrder: partner.displayOrder ?? index,
+      })),
+    );
   };
 
   const loadCohorts = useCallback(async (token: string) => {
@@ -162,10 +217,14 @@ export default function CohortHubPage() {
     }
 
     const loadedContent = (json.content ?? emptyContent) as CohortContent;
+    const loadedParticipants = (json.participants ?? []) as CohortParticipant[];
+    const loadedPartners = (json.partners ?? []) as CohortPartner[];
     setContent(loadedContent);
+    setParticipants(loadedParticipants);
+    setPartners(loadedPartners);
 
     const cohort = (json.cohort ?? null) as Cohort | null;
-    seedDraftFrom(cohort, loadedContent);
+    seedDraftFrom(cohort, loadedContent, loadedParticipants, loadedPartners);
   }, []);
 
   useEffect(() => {
@@ -208,13 +267,13 @@ export default function CohortHubPage() {
 
   const openCreateEditor = () => {
     setEditMode("create");
-    seedDraftFrom(null, emptyContent);
+    seedDraftFrom(null, emptyContent, [], []);
     setEditorOpen(true);
   };
 
   const openEditEditor = () => {
     setEditMode("edit");
-    seedDraftFrom(selectedCohort, content);
+    seedDraftFrom(selectedCohort, content, participants, partners);
     setEditorOpen(true);
   };
 
@@ -232,6 +291,8 @@ export default function CohortHubPage() {
       resources: draftResources,
       notes: draftNotes,
     },
+    participants: draftParticipants,
+    partners: draftPartners,
   });
 
   const saveDraft = async () => {
@@ -256,10 +317,12 @@ export default function CohortHubPage() {
         if (!res.ok) {
           throw new Error(json.error ?? "Unable to create cohort.");
         }
-        await loadCohorts(authToken);
-        if (json.cohort?.id) {
-          setSelectedId(json.cohort.id as string);
-          await loadCohortDetail(authToken, json.cohort.id as string);
+        const nextSelectedId = json.cohort?.id as string | undefined;
+        const firstId = await loadCohorts(authToken);
+        const targetId = nextSelectedId ?? firstId;
+        if (targetId) {
+          setSelectedId(targetId);
+          await loadCohortDetail(authToken, targetId);
         }
       } else {
         if (!selectedId) {
@@ -278,24 +341,8 @@ export default function CohortHubPage() {
         if (!res.ok) {
           throw new Error(json.error ?? "Unable to save cohort.");
         }
-
-        setContent(payload.content);
-        setCohorts((prev) =>
-          prev.map((cohort) =>
-            cohort.id === selectedId
-              ? {
-                  ...cohort,
-                  name: payload.name,
-                  slug: payload.slug,
-                  status: payload.status,
-                  start_at: payload.startAt,
-                  end_at: payload.endAt,
-                  theme_long: payload.themeLong,
-                  header_image_url: payload.headerImageUrl,
-                }
-              : cohort,
-          ),
-        );
+        await loadCohorts(authToken);
+        await loadCohortDetail(authToken, selectedId);
       }
 
       setEditorOpen(false);
@@ -342,6 +389,46 @@ export default function CohortHubPage() {
       setError(err instanceof Error ? err.message : "Failed to upload header image.");
     } finally {
       setUploadingHeaderImage(false);
+    }
+  };
+
+  const uploadPartnerLogo = async (file: File, index: number) => {
+    if (!authToken) {
+      setError("You must be signed in to upload a partner logo.");
+      return;
+    }
+    if (!ALLOWED_HEADER_IMAGE_MIME_TYPES.has(file.type)) {
+      setError("Partner logo must be JPEG, PNG, or WebP.");
+      return;
+    }
+    if (file.size > MAX_HEADER_IMAGE_BYTES) {
+      setError("Partner logo must be 5MB or smaller.");
+      return;
+    }
+
+    setUploadingPartnerLogoIndex(index);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/cohorts/partner-logo", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: formData,
+      });
+      const json = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !json.url) {
+        throw new Error(json.error || "Failed to upload partner logo.");
+      }
+      setDraftPartners((prev) =>
+        prev.map((row, rowIndex) => (rowIndex === index ? { ...row, logoUrl: json.url } : row)),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to upload partner logo.");
+    } finally {
+      setUploadingPartnerLogoIndex(null);
     }
   };
 
@@ -563,6 +650,111 @@ export default function CohortHubPage() {
                   })
                 ) : (
                   <p className="text-xs text-muted-foreground">Resources will show up here.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold text-foreground">Participants</div>
+                {isHost ? (
+                  <button
+                    type="button"
+                    className="rounded-lg border border-border px-3 py-1 text-xs hover:bg-muted"
+                    onClick={openEditEditor}
+                    disabled={!selectedId}
+                  >
+                    Manage
+                  </button>
+                ) : null}
+              </div>
+              <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+                {participants.length ? (
+                  participants.map((participant) => (
+                    <div
+                      key={`${participant.userId}-${participant.handle}`}
+                      className="rounded-lg border p-3"
+                    >
+                      <a
+                        href={`/people/${participant.handle}`}
+                        className="text-xs font-semibold text-foreground underline-offset-4 hover:underline"
+                      >
+                        {participant.displayName}
+                      </a>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        @{participant.handle}
+                        {participant.role ? ` · ${participant.role}` : ""}
+                        {participant.status ? ` · ${participant.status}` : ""}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground">Participants will show up here.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground md:col-span-2">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold text-foreground">Partners</div>
+                {isHost ? (
+                  <button
+                    type="button"
+                    className="rounded-lg border border-border px-3 py-1 text-xs hover:bg-muted"
+                    onClick={openEditEditor}
+                    disabled={!selectedId}
+                  >
+                    Manage
+                  </button>
+                ) : null}
+              </div>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                {partners.length ? (
+                  partners.map((partner, index) => (
+                    <article
+                      key={`${partner.name}-${index}`}
+                      className="rounded-lg border border-border bg-background p-4"
+                    >
+                      <div className="flex items-start gap-3">
+                        {partner.logoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={partner.logoUrl}
+                            alt={`${partner.name} logo`}
+                            className="h-10 w-10 rounded-md border border-border object-cover"
+                          />
+                        ) : null}
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-semibold text-foreground">{partner.name}</h3>
+                          {partner.description ? (
+                            <p className="mt-1 text-xs text-muted-foreground">{partner.description}</p>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {partner.websiteUrl ? (
+                          <a
+                            href={partner.websiteUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs underline-offset-4 hover:underline"
+                          >
+                            Visit website
+                          </a>
+                        ) : null}
+                        {partner.crmAccountId ? (
+                          <a
+                            href="/modules/relationship-crm"
+                            className="text-xs underline-offset-4 hover:underline"
+                          >
+                            Open in CRM
+                          </a>
+                        ) : null}
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground">Partners will show up here.</p>
                 )}
               </div>
             </div>
@@ -960,6 +1152,253 @@ export default function CohortHubPage() {
                   ))}
                   {!draftResources.length ? (
                     <p className="text-xs text-muted-foreground">No resources yet.</p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="text-xs font-semibold text-foreground">Participants</div>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-muted"
+                    onClick={() =>
+                      setDraftParticipants((prev) => [
+                        ...prev,
+                        {
+                          handle: "",
+                          role: "",
+                          status: "active",
+                          sortOrder: prev.length,
+                        },
+                      ])
+                    }
+                  >
+                    Add participant
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {draftParticipants.map((participant, index) => (
+                    <div
+                      key={`participant-${index}`}
+                      className="grid gap-2 rounded-md border border-border p-3 md:grid-cols-4"
+                    >
+                      <label className="text-xs">
+                        Handle
+                        <input
+                          value={participant.handle}
+                          onChange={(event) =>
+                            setDraftParticipants((prev) =>
+                              prev.map((row, rowIndex) =>
+                                rowIndex === index ? { ...row, handle: event.target.value } : row,
+                              ),
+                            )
+                          }
+                          placeholder="dekanbro"
+                          className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
+                        />
+                      </label>
+                      <label className="text-xs">
+                        Role
+                        <input
+                          value={participant.role ?? ""}
+                          onChange={(event) =>
+                            setDraftParticipants((prev) =>
+                              prev.map((row, rowIndex) =>
+                                rowIndex === index ? { ...row, role: event.target.value } : row,
+                              ),
+                            )
+                          }
+                          className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
+                        />
+                      </label>
+                      <label className="text-xs">
+                        Status
+                        <select
+                          value={participant.status ?? "active"}
+                          onChange={(event) =>
+                            setDraftParticipants((prev) =>
+                              prev.map((row, rowIndex) =>
+                                rowIndex === index ? { ...row, status: event.target.value } : row,
+                              ),
+                            )
+                          }
+                          className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
+                        >
+                          <option value="active">active</option>
+                          <option value="alumni">alumni</option>
+                          <option value="inactive">inactive</option>
+                        </select>
+                      </label>
+                      <div className="flex items-end">
+                        <button
+                          type="button"
+                          className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-muted"
+                          onClick={() =>
+                            setDraftParticipants((prev) =>
+                              prev.filter((_, rowIndex) => rowIndex !== index),
+                            )
+                          }
+                        >
+                          Remove participant
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {!draftParticipants.length ? (
+                    <p className="text-xs text-muted-foreground">No participants yet.</p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="text-xs font-semibold text-foreground">Partners</div>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-muted"
+                    onClick={() =>
+                      setDraftPartners((prev) => [
+                        ...prev,
+                        {
+                          name: "",
+                          logoUrl: "",
+                          description: "",
+                          websiteUrl: "",
+                          crmAccountId: "",
+                          displayOrder: prev.length,
+                        },
+                      ])
+                    }
+                  >
+                    Add partner
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {draftPartners.map((partner, index) => (
+                    <div key={`partner-${index}`} className="grid gap-2 rounded-md border border-border p-3">
+                      <label className="text-xs">
+                        Name
+                        <input
+                          value={partner.name}
+                          onChange={(event) =>
+                            setDraftPartners((prev) =>
+                              prev.map((row, rowIndex) =>
+                                rowIndex === index ? { ...row, name: event.target.value } : row,
+                              ),
+                            )
+                          }
+                          className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
+                        />
+                      </label>
+                      <label className="text-xs">
+                        Logo URL
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <label className="cursor-pointer rounded-md border border-border px-2 py-1 text-xs hover:bg-muted">
+                            {uploadingPartnerLogoIndex === index ? "Uploading..." : "Upload logo"}
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp"
+                              className="sr-only"
+                              disabled={uploadingPartnerLogoIndex === index}
+                              onChange={(event) => {
+                                const file = event.target.files?.[0];
+                                if (file) void uploadPartnerLogo(file, index);
+                                event.currentTarget.value = "";
+                              }}
+                            />
+                          </label>
+                          <span className="text-xs text-muted-foreground">
+                            JPEG, PNG, or WebP. Max 5MB.
+                          </span>
+                        </div>
+                        <input
+                          value={partner.logoUrl ?? ""}
+                          onChange={(event) =>
+                            setDraftPartners((prev) =>
+                              prev.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? { ...row, logoUrl: event.target.value }
+                                  : row,
+                              ),
+                            )
+                          }
+                          className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
+                        />
+                        {partner.logoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={partner.logoUrl}
+                            alt={`${partner.name || "Partner"} logo preview`}
+                            className="mt-2 h-16 w-16 rounded-md border border-border object-cover"
+                          />
+                        ) : null}
+                      </label>
+                      <label className="text-xs">
+                        Description
+                        <textarea
+                          value={partner.description ?? ""}
+                          onChange={(event) =>
+                            setDraftPartners((prev) =>
+                              prev.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? { ...row, description: event.target.value }
+                                  : row,
+                              ),
+                            )
+                          }
+                          className="mt-1 min-h-[80px] w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
+                        />
+                      </label>
+                      <div className="grid gap-2 md:grid-cols-2">
+                        <label className="text-xs">
+                          Website URL
+                          <input
+                            value={partner.websiteUrl ?? ""}
+                            onChange={(event) =>
+                              setDraftPartners((prev) =>
+                                prev.map((row, rowIndex) =>
+                                  rowIndex === index
+                                    ? { ...row, websiteUrl: event.target.value }
+                                    : row,
+                                ),
+                              )
+                            }
+                            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
+                          />
+                        </label>
+                        <label className="text-xs">
+                          CRM account ID (optional)
+                          <input
+                            value={partner.crmAccountId ?? ""}
+                            onChange={(event) =>
+                              setDraftPartners((prev) =>
+                                prev.map((row, rowIndex) =>
+                                  rowIndex === index
+                                    ? { ...row, crmAccountId: event.target.value }
+                                    : row,
+                                ),
+                              )
+                            }
+                            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
+                          />
+                        </label>
+                      </div>
+                      <div>
+                        <button
+                          type="button"
+                          className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-muted"
+                          onClick={() =>
+                            setDraftPartners((prev) => prev.filter((_, rowIndex) => rowIndex !== index))
+                          }
+                        >
+                          Remove partner
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {!draftPartners.length ? (
+                    <p className="text-xs text-muted-foreground">No partners yet.</p>
                   ) : null}
                 </div>
               </div>
