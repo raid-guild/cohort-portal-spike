@@ -266,7 +266,7 @@ export function DaoBlogEditor({ postId }: { postId?: string }) {
         setSlug(toKebabCase(imported.title?.trim() ?? ""));
       }
       setSummary((imported.summary ?? "").slice(0, 280));
-      setBodyMd(imported.body_md ?? "");
+      setBodyMd(appendImportAttribution(imported.body_md ?? "", imported.source_url ?? nextUrl));
       if (imported.header_image_url?.trim()) {
         setHeaderImageUrl(imported.header_image_url);
         setHeaderImagePreviewUrl(imported.header_image_url);
@@ -507,4 +507,17 @@ export function DaoBlogEditor({ postId }: { postId?: string }) {
       </button>
     </div>
   );
+}
+
+function appendImportAttribution(markdown: string, sourceUrl: string) {
+  const trimmedMarkdown = markdown.trim();
+  const trimmedUrl = sourceUrl.trim();
+  if (!trimmedUrl) {
+    return trimmedMarkdown;
+  }
+  if (trimmedMarkdown.includes(trimmedUrl)) {
+    return trimmedMarkdown;
+  }
+  const separator = trimmedMarkdown ? "\n\n" : "";
+  return `${trimmedMarkdown}${separator}---\n\n_Imported from: [${trimmedUrl}](${trimmedUrl})_`;
 }
