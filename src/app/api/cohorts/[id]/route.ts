@@ -9,8 +9,7 @@ import {
   parseParticipants,
   parsePartners,
   requireUser,
-  syncCohortParticipants,
-  syncCohortPartners,
+  syncCohortRelationships,
   toSlug,
 } from "../lib";
 
@@ -23,10 +22,19 @@ export async function GET(
     return Response.json({ error: result.error }, { status: 401 });
   }
 
-  const [host, access] = await Promise.all([
-    isHost(result.user.id),
-    hasCohortAccess(result.user.id),
-  ]);
+  let host = false;
+  let access = false;
+  try {
+    [host, access] = await Promise.all([
+      isHost(result.user.id),
+      hasCohortAccess(result.user.id),
+    ]);
+  } catch (err) {
+    return Response.json(
+      { error: err instanceof Error ? err.message : "Unable to verify access." },
+      { status: 500 },
+    );
+  }
   if (!host && !access) {
     return Response.json({ error: "Access required." }, { status: 403 });
   }
@@ -44,7 +52,7 @@ export async function GET(
   }
 
   try {
-    const [{ data: content }, participants, partners] = await Promise.all([
+    const [contentResult, participants, partners] = await Promise.all([
       admin
         .from("cohort_content")
         .select("schedule, projects, resources, notes")
@@ -53,10 +61,13 @@ export async function GET(
       loadCohortParticipants(id),
       loadCohortPartners(id),
     ]);
+    if (contentResult.error) {
+      throw new Error(`Failed to load cohort content: ${contentResult.error.message}`);
+    }
 
     return Response.json({
       cohort,
-      content: content ?? null,
+      content: contentResult.data ?? null,
       participants,
       partners,
     });
@@ -76,7 +87,16 @@ export async function PUT(
   if ("error" in result) {
     return Response.json({ error: result.error }, { status: 401 });
   }
-  if (!(await isHost(result.user.id))) {
+  let host = false;
+  try {
+    host = await isHost(result.user.id);
+  } catch (err) {
+    return Response.json(
+      { error: err instanceof Error ? err.message : "Unable to verify host access." },
+      { status: 500 },
+    );
+  }
+  if (!host) {
     return Response.json({ error: "Host access required." }, { status: 403 });
   }
 
@@ -137,15 +157,26 @@ export async function PUT(
       resources: (payload.content.resources ?? null) as Json | null,
       notes: (payload.content.notes ?? null) as Json | null,
     };
-    await admin.from("cohort_content").upsert(contentRow);
+    const { error: contentError } = await admin.from("cohort_content").upsert(contentRow);
+    if (contentError) {
+      return Response.json(
+        { error: `Unable to save cohort content: ${contentError.message}` },
+        { status: 500 },
+      );
+    }
   }
 
   try {
-    if (Object.prototype.hasOwnProperty.call(payload ?? {}, "participants")) {
-      await syncCohortParticipants(id, parseParticipants(payload.participants));
-    }
-    if (Object.prototype.hasOwnProperty.call(payload ?? {}, "partners")) {
-      await syncCohortPartners(id, parsePartners(payload.partners));
+    const syncParticipants = Object.prototype.hasOwnProperty.call(payload ?? {}, "participants");
+    const syncPartners = Object.prototype.hasOwnProperty.call(payload ?? {}, "partners");
+    if (syncParticipants || syncPartners) {
+      await syncCohortRelationships({
+        cohortId: id,
+        participants: syncParticipants ? parseParticipants(payload.participants) : [],
+        partners: syncPartners ? parsePartners(payload.partners) : [],
+        syncParticipants,
+        syncPartners,
+      });
     }
   } catch (err) {
     return Response.json(

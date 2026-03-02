@@ -1,37 +1,12 @@
 import { NextRequest } from "next/server";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
-import { supabaseServerClient } from "@/lib/supabase/server";
+import { isHost, requireUser } from "../lib";
 
 const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"]);
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 const jsonError = (error: string, status = 400) => Response.json({ error }, { status });
-
-const requireUser = async (request: NextRequest) => {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return { error: "Missing auth token.", status: 401 } as const;
-  }
-  const token = authHeader.replace("Bearer ", "");
-  const supabase = supabaseServerClient();
-  const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data.user) {
-    return { error: "Invalid auth token.", status: 401 } as const;
-  }
-  return { user: data.user } as const;
-};
-
-const isHost = async (userId: string) => {
-  const admin = supabaseAdminClient();
-  const { data } = await admin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "host")
-    .maybeSingle();
-  return Boolean(data);
-};
 
 function normalizeMimeType(input: string | null) {
   if (!input) return null;
@@ -86,10 +61,20 @@ export async function POST(request: NextRequest) {
   try {
     const userResult = await requireUser(request);
     if ("error" in userResult) {
-      return jsonError(userResult.error ?? "Unauthorized.", userResult.status ?? 401);
+      return jsonError(userResult.error ?? "Unauthorized.", 401);
     }
 
-    if (!(await isHost(userResult.user.id))) {
+    let host = false;
+    try {
+      host = await isHost(userResult.user.id);
+    } catch (err) {
+      console.error("[cohort-hub] partner logo auth error:", err);
+      return jsonError(
+        err instanceof Error ? err.message : "Unable to verify host access.",
+        500,
+      );
+    }
+    if (!host) {
       return jsonError("Host access required.", 403);
     }
 

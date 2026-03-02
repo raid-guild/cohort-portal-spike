@@ -36,19 +36,22 @@ export const requireUser = async (request: NextRequest) => {
 
 export const isHost = async (userId: string) => {
   const admin = supabaseAdminClient();
-  const { data } = await admin
+  const { data, error } = await admin
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
     .in("role", ["host", "admin"])
     .maybeSingle();
+  if (error) {
+    throw new Error(`Failed to verify host access: ${error.message}`);
+  }
   return Boolean(data);
 };
 
 export const hasCohortAccess = async (userId: string) => {
   const admin = supabaseAdminClient();
   const now = new Date().toISOString();
-  const { data } = await admin
+  const { data, error } = await admin
     .from("entitlements")
     .select("entitlement")
     .eq("user_id", userId)
@@ -56,6 +59,9 @@ export const hasCohortAccess = async (userId: string) => {
     .eq("status", "active")
     .or(`expires_at.is.null,expires_at.gt.${now}`)
     .maybeSingle();
+  if (error) {
+    throw new Error(`Failed to verify cohort access: ${error.message}`);
+  }
   return Boolean(data);
 };
 
@@ -71,6 +77,21 @@ const asString = (value: unknown) => (typeof value === "string" ? value.trim() :
 const asNullableString = (value: unknown) => {
   const parsed = asString(value);
   return parsed.length ? parsed : null;
+};
+
+const asHttpUrl = (value: unknown) => {
+  const parsed = asNullableString(value);
+  if (!parsed) return null;
+  let url: URL;
+  try {
+    url = new URL(parsed);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    return null;
+  }
+  return url.toString();
 };
 
 const asStatus = (value: unknown) => {
@@ -127,7 +148,7 @@ export function parsePartners(value: unknown): CohortPartnerInput[] {
       name,
       logoUrl: asNullableString(record.logoUrl),
       description: asNullableString(record.description),
-      websiteUrl: asNullableString(record.websiteUrl),
+      websiteUrl: asHttpUrl(record.websiteUrl),
       crmAccountId: asUuid(record.crmAccountId),
       displayOrder: asNumber(record.displayOrder, index),
     });
@@ -135,10 +156,15 @@ export function parsePartners(value: unknown): CohortPartnerInput[] {
   return rows;
 }
 
-export async function syncCohortParticipants(
-  cohortId: string,
-  participants: CohortParticipantInput[],
-) {
+type SyncCohortRelationshipsInput = {
+  cohortId: string;
+  participants?: CohortParticipantInput[];
+  partners?: CohortPartnerInput[];
+  syncParticipants?: boolean;
+  syncPartners?: boolean;
+};
+
+async function resolveParticipantRows(participants: CohortParticipantInput[]) {
   const admin = supabaseAdminClient();
   const uniqueHandles = [...new Set(participants.map((participant) => participant.handle))];
   const { data: profileRows, error: profileError } = uniqueHandles.length
@@ -165,18 +191,7 @@ export async function syncCohortParticipants(
     throw new Error(`Unknown participant handle(s): ${missingHandles.join(", ")}`);
   }
 
-  const { error: deleteError } = await admin
-    .from("cohort_participants")
-    .delete()
-    .eq("cohort_id", cohortId);
-  if (deleteError) {
-    throw new Error(`Failed to update participants: ${deleteError.message}`);
-  }
-
-  if (!participants.length) return;
-
   const rows: {
-    cohort_id: string;
     user_id: string;
     role: string | null;
     status: string;
@@ -189,7 +204,6 @@ export async function syncCohortParticipants(
       throw new Error(`Unknown participant handle: ${participant.handle}`);
     }
     rows.push({
-      cohort_id: cohortId,
       user_id: userId,
       role: participant.role ?? null,
       status: participant.status ?? "active",
@@ -197,26 +211,15 @@ export async function syncCohortParticipants(
     });
   }
 
-  const { error: insertError } = await admin.from("cohort_participants").insert(rows);
-  if (insertError) {
-    throw new Error(`Failed to save participants: ${insertError.message}`);
-  }
+  return rows;
 }
 
-export async function syncCohortPartners(cohortId: string, partners: CohortPartnerInput[]) {
+export async function syncCohortRelationships(input: SyncCohortRelationshipsInput) {
   const admin = supabaseAdminClient();
-  const { error: deleteError } = await admin
-    .from("cohort_partners")
-    .delete()
-    .eq("cohort_id", cohortId);
-  if (deleteError) {
-    throw new Error(`Failed to update partners: ${deleteError.message}`);
-  }
-
-  if (!partners.length) return;
-
-  const rows = partners.map((partner, index) => ({
-    cohort_id: cohortId,
+  const participantRows = input.syncParticipants
+    ? await resolveParticipantRows(input.participants ?? [])
+    : [];
+  const partnerRows = (input.partners ?? []).map((partner, index) => ({
     name: partner.name,
     logo_url: partner.logoUrl ?? null,
     description: partner.description ?? "",
@@ -225,9 +228,16 @@ export async function syncCohortPartners(cohortId: string, partners: CohortPartn
     display_order: partner.displayOrder ?? index,
   }));
 
-  const { error: insertError } = await admin.from("cohort_partners").insert(rows);
-  if (insertError) {
-    throw new Error(`Failed to save partners: ${insertError.message}`);
+  const { error } = await admin.rpc("sync_cohort_relationships", {
+    p_cohort_id: input.cohortId,
+    p_sync_participants: Boolean(input.syncParticipants),
+    p_participants: participantRows,
+    p_sync_partners: Boolean(input.syncPartners),
+    p_partners: input.syncPartners ? partnerRows : [],
+  });
+
+  if (error) {
+    throw new Error(`Failed to save cohort relationships: ${error.message}`);
   }
 }
 

@@ -7,8 +7,7 @@ import {
   parseParticipants,
   parsePartners,
   requireUser,
-  syncCohortParticipants,
-  syncCohortPartners,
+  syncCohortRelationships,
   toSlug,
 } from "./lib";
 
@@ -18,10 +17,19 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: result.error }, { status: 401 });
   }
 
-  const [host, access] = await Promise.all([
-    isHost(result.user.id),
-    hasCohortAccess(result.user.id),
-  ]);
+  let host = false;
+  let access = false;
+  try {
+    [host, access] = await Promise.all([
+      isHost(result.user.id),
+      hasCohortAccess(result.user.id),
+    ]);
+  } catch (err) {
+    return Response.json(
+      { error: err instanceof Error ? err.message : "Unable to verify access." },
+      { status: 500 },
+    );
+  }
   if (!host && !access) {
     return Response.json({ error: "Access required." }, { status: 403 });
   }
@@ -57,7 +65,16 @@ export async function POST(request: NextRequest) {
   if ("error" in result) {
     return Response.json({ error: result.error }, { status: 401 });
   }
-  if (!(await isHost(result.user.id))) {
+  let host = false;
+  try {
+    host = await isHost(result.user.id);
+  } catch (err) {
+    return Response.json(
+      { error: err instanceof Error ? err.message : "Unable to verify host access." },
+      { status: 500 },
+    );
+  }
+  if (!host) {
     return Response.json({ error: "Host access required." }, { status: 403 });
   }
 
@@ -112,24 +129,35 @@ export async function POST(request: NextRequest) {
   }
 
   if (payload.content) {
-    await admin.from("cohort_content").upsert({
+    const { error: contentError } = await admin.from("cohort_content").upsert({
       cohort_id: cohort.id,
       schedule: (payload.content.schedule ?? null) as Json | null,
       projects: (payload.content.projects ?? null) as Json | null,
       resources: (payload.content.resources ?? null) as Json | null,
       notes: (payload.content.notes ?? null) as Json | null,
     });
+    if (contentError) {
+      await admin.from("cohorts").delete().eq("id", cohort.id);
+      return Response.json(
+        { error: `Unable to save cohort content: ${contentError.message}` },
+        { status: 500 },
+      );
+    }
   }
 
   const participants = parseParticipants(payload.participants);
   const partners = parsePartners(payload.partners);
 
   try {
-    await Promise.all([
-      syncCohortParticipants(cohort.id, participants),
-      syncCohortPartners(cohort.id, partners),
-    ]);
+    await syncCohortRelationships({
+      cohortId: cohort.id,
+      participants,
+      partners,
+      syncParticipants: true,
+      syncPartners: true,
+    });
   } catch (err) {
+    await admin.from("cohorts").delete().eq("id", cohort.id);
     return Response.json(
       { error: err instanceof Error ? err.message : "Unable to save cohort relationships." },
       { status: 400 },

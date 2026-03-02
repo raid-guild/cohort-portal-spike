@@ -1409,6 +1409,16 @@ export type Database = {
         }
         Returns: number
       }
+      sync_cohort_relationships: {
+        Args: {
+          p_cohort_id: string
+          p_sync_participants?: boolean
+          p_participants?: Json
+          p_sync_partners?: boolean
+          p_partners?: Json
+        }
+        Returns: undefined
+      }
       signup_referrals_list: {
         Args: {
           p_limit: number
