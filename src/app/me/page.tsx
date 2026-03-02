@@ -7,11 +7,13 @@ import { ModuleSurfaceList } from "@/components/ModuleSurfaceList";
 import { ModuleViewsEditor } from "@/components/ModuleViewsEditor";
 import { RolePicker } from "@/components/RolePicker";
 import { AvatarEditorModal } from "@/components/profile/AvatarEditorModal";
+import { AuthModal } from "@/components/AuthModal";
 import type { ModuleEntry } from "@/lib/types";
 import type { ModuleViewsConfig } from "@/lib/module-views";
 import { getWalletFromUser } from "@/lib/wallet-address";
 import { PaidStar } from "@/components/PaidStar";
 import { RAID_GUILD_ROLES } from "@/lib/raidguild-roles";
+import { isOnboardingComplete, ONBOARDING_ROLES_LIMIT } from "@/lib/onboarding";
 
 type ProfileForm = {
   handle: string;
@@ -42,14 +44,9 @@ export default function MePage() {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
-  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [authAction, setAuthAction] = useState<"email" | "ethereum" | "solana" | null>(
-    null,
-  );
-  const [isMobile, setIsMobile] = useState(false);
-  const [currentUrl, setCurrentUrl] = useState("");
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [profile, setProfile] = useState<ProfileForm>(emptyProfile);
   const [profileExists, setProfileExists] = useState(false);
   const [avatarEditorOpen, setAvatarEditorOpen] = useState(false);
@@ -95,11 +92,6 @@ export default function MePage() {
       listener.subscription.unsubscribe();
     };
   }, [supabase]);
-
-  useEffect(() => {
-    setIsMobile(isMobileBrowser());
-    setCurrentUrl(window.location.href);
-  }, []);
 
   useEffect(() => {
     fetch("/api/modules")
@@ -381,14 +373,17 @@ export default function MePage() {
     };
   }, [profileEditorOpen]);
 
-  const rolesLimit = 2;
-  const isProfileComplete =
-    Boolean(profile.handle.trim()) &&
-    Boolean(profile.displayName.trim()) &&
-    Boolean(profile.bio.trim()) &&
-    profile.roles.length > 0 &&
-    profile.roles.length <= rolesLimit &&
-    profile.skills.length > 0;
+  const rolesLimit = ONBOARDING_ROLES_LIMIT;
+  const isProfileComplete = isOnboardingComplete(
+    {
+      handle: profile.handle,
+      displayName: profile.displayName,
+      bio: profile.bio,
+      roles: profile.roles,
+      skills: profile.skills,
+    },
+    rolesLimit,
+  );
   const showWizard = Boolean(session) && wizardOpen;
 
   const wizardSteps = [
@@ -444,63 +439,6 @@ export default function MePage() {
     wizardAutoOpened,
     wizardOpen,
   ]);
-
-  const handleEmailSignIn = async () => {
-    const nextEmail = email.trim();
-    if (!nextEmail) {
-      setMessage("Enter an email address to continue.");
-      return;
-    }
-    setAuthAction("email");
-    setLoading(true);
-    setMessage("");
-    const redirectTo = `${window.location.origin}/me`;
-    const { error } = await supabase.auth.signInWithOtp({
-      email: nextEmail,
-      options: { emailRedirectTo: redirectTo },
-    });
-    setAuthAction(null);
-    setLoading(false);
-    setMessage(
-      error
-        ? error.message
-        : `Magic link sent to ${nextEmail}. Check your inbox (and spam) to finish sign-in.`,
-    );
-  };
-
-  const handleWeb3SignIn = async (chain: "ethereum" | "solana") => {
-    const action = chain === "ethereum" ? "ethereum" : "solana";
-    setAuthAction(action);
-    setLoading(true);
-    setMessage("");
-    const wallet = chain === "ethereum" ? resolveEthereumWallet() : null;
-    if (chain === "ethereum" && !wallet) {
-      setLoading(false);
-      setAuthAction(null);
-      setMessage(
-        isMobileBrowser()
-          ? "No Ethereum wallet was detected in this browser. Open this page in your wallet app browser (MetaMask/Coinbase Wallet) and try again."
-          : "No Ethereum wallet was detected. Install or unlock MetaMask/Coinbase Wallet and try again.",
-      );
-      return;
-    }
-    // @ts-ignore – supabase types are out of date
-    const { error } = await supabase.auth.signInWithWeb3({
-      chain,
-      statement: "I accept the RaidGuild Cohort Portal terms of service.",
-      options: {
-        url: window.location.href,
-      },
-      ...(wallet ? { wallet } : {}),
-    });
-    setAuthAction(null);
-    setLoading(false);
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
-    setMessage("Wallet request opened. Approve it in your wallet to continue.");
-  };
 
   const handleProfileSave = useCallback(async (options?: { silent?: boolean }) => {
     if (!user) {
@@ -595,7 +533,7 @@ export default function MePage() {
       window.postMessage({ type: "profile-updated" }, window.location.origin);
     }
     return !error;
-  }, [profile, profileExists, supabase, user]);
+  }, [profile, profileExists, rolesLimit, supabase, user]);
 
   useEffect(() => {
     if (!session) return;
@@ -884,81 +822,14 @@ export default function MePage() {
       {!session ? (
         <div className="space-y-4 rounded-xl border border-border bg-card p-6">
           <div className="space-y-2">
-            <label className="text-sm font-semibold">Email</label>
-            <input
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@example.com"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            />
-            <button
-              type="button"
-              onClick={handleEmailSignIn}
-              className={mutedButtonClass}
-              disabled={loading || !email}
-            >
-              {authAction === "email" ? "Sending..." : "Send magic link"}
+            <p className="text-sm text-muted-foreground">
+              Continue with email magic link or your Web3 wallet.
+            </p>
+            <button type="button" onClick={() => setAuthModalOpen(true)} className={mutedButtonClass}>
+              Sign in
             </button>
           </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-semibold">Web3 Wallet</label>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => handleWeb3SignIn("ethereum")}
-                className={mutedButtonClass}
-                disabled={loading}
-              >
-                {authAction === "ethereum" ? "Opening wallet..." : "Sign in with Ethereum"}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleWeb3SignIn("solana")}
-                className={mutedButtonClass}
-                disabled={loading}
-              >
-                {authAction === "solana" ? "Opening wallet..." : "Sign in with Solana"}
-              </button>
-            </div>
-            {isMobile ? (
-              <div className="text-xs text-muted-foreground">
-                Ethereum mobile sign-in works best inside a wallet browser:
-                {" "}
-                {currentUrl ? (
-                  <>
-                    <a
-                      href={buildMetaMaskDappLink(currentUrl)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="underline underline-offset-2 hover:text-foreground"
-                    >
-                      Open in MetaMask
-                    </a>
-                    {" · "}
-                    <a
-                      href={buildCoinbaseDappLink(currentUrl)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="underline underline-offset-2 hover:text-foreground"
-                    >
-                      Open in Coinbase Wallet
-                    </a>
-                  </>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-
-          {message ? (
-            <div
-              role="status"
-              aria-live="polite"
-              className={statusClass}
-            >
-              {message}
-            </div>
-          ) : null}
+          <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} nextPath="/me" />
         </div>
       ) : (
         <div className="space-y-4">
@@ -1369,48 +1240,6 @@ export default function MePage() {
       )}
     </div>
   );
-}
-
-type Eip1193Provider = {
-  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-  providers?: Eip1193Provider[];
-  isMetaMask?: boolean;
-  isCoinbaseWallet?: boolean;
-};
-
-function resolveEthereumWallet() {
-  if (typeof window === "undefined") return null;
-  const injected = (window as Window & { ethereum?: Eip1193Provider }).ethereum;
-  if (!injected) return null;
-
-  const providers = Array.isArray(injected.providers)
-    ? injected.providers
-    : [injected];
-  const provider =
-    providers.find((item) => typeof item?.request === "function" && item.isMetaMask) ??
-    providers.find(
-      (item) => typeof item?.request === "function" && item.isCoinbaseWallet,
-    ) ??
-    providers.find((item) => typeof item?.request === "function") ??
-    null;
-
-  return provider;
-}
-
-function isMobileBrowser() {
-  if (typeof navigator === "undefined") return false;
-  return /android|iphone|ipad|ipod/i.test(navigator.userAgent);
-}
-
-function buildMetaMaskDappLink(url: string) {
-  if (!url) return "https://metamask.app.link/";
-  const stripped = url.replace(/^https?:\/\//, "");
-  return `https://metamask.app.link/dapp/${stripped}`;
-}
-
-function buildCoinbaseDappLink(url: string) {
-  if (!url) return "https://go.cb-w.com/";
-  return `https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(url)}`;
 }
 
 function withCacheBuster(url: string, version?: number) {

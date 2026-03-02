@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { PaidStar } from "./PaidStar";
+import { AuthModal } from "./AuthModal";
 
 export function AuthLink() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
@@ -12,6 +14,10 @@ export function AuthLink() {
   const [avatarVersion, setAvatarVersion] = useState<number>(0);
   const [initials, setInitials] = useState<string>("RG");
   const [isPaid, setIsPaid] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const nextPath = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
 
   const loadProfile = useCallback(
     async (userId: string) => {
@@ -100,30 +106,43 @@ export function AuthLink() {
     };
   }, [loadProfile, supabase]);
 
-  return (
+  return signedIn ? (
     <Link
       href="/me"
       className="rounded-full border border-border px-3 py-2 text-xs hover:bg-muted"
     >
       <span className="inline-flex items-center gap-2">
-        {signedIn ? (
-          <span className="relative inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-[10px] font-semibold text-muted-foreground">
-            {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={withCacheBuster(avatarUrl, avatarVersion)}
-                alt=""
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              initials
-            )}
-            {isPaid ? <PaidStar className="absolute -right-1 -top-1 h-3 w-3" /> : null}
-          </span>
-        ) : null}
-        <span>{signedIn ? "Profile" : "Sign in"}</span>
+        <span className="relative inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-[10px] font-semibold text-muted-foreground">
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={withCacheBuster(avatarUrl, avatarVersion)}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            initials
+          )}
+          {isPaid ? <PaidStar className="absolute -right-1 -top-1 h-3 w-3" /> : null}
+        </span>
+        <span>Profile</span>
       </span>
     </Link>
+  ) : (
+    <>
+      <button
+        type="button"
+        className="rounded-full border border-border px-3 py-2 text-xs hover:bg-muted"
+        onClick={() => setShowAuthModal(true)}
+      >
+        Sign in
+      </button>
+      <AuthModal
+        open={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        nextPath={nextPath}
+      />
+    </>
   );
 }
 
