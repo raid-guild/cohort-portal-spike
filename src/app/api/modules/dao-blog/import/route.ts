@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     const pageTitle = extractTitle(html);
     const mainHtml = extractMainContent(html);
-    const markdown = htmlToMarkdown(mainHtml).trim();
+    const markdown = htmlToMarkdown(mainHtml, finalUrl).trim();
     const summary = extractSummary(html, mainHtml, markdown);
     const headerImageUrl = extractHeaderImageUrl(html, mainHtml, finalUrl);
 
@@ -188,16 +188,35 @@ async function assertPublicHostname(hostname: string) {
 
 function isPrivateIp(address: string) {
   const version = isIP(address);
+  if (version === 6) {
+    const normalized = address.toLowerCase();
+    const mapped = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+    if (mapped?.[1]) {
+      return isPrivateIp(mapped[1]);
+    }
+  }
+
   if (version === 4) {
     const parts = address.split(".").map((part) => Number.parseInt(part, 10));
-    if (parts.length !== 4 || parts.some((part) => !Number.isFinite(part))) return true;
-    const [a, b] = parts;
+    if (
+      parts.length !== 4 ||
+      parts.some((part) => !Number.isFinite(part) || part < 0 || part > 255)
+    ) {
+      return true;
+    }
+    const [a, b, c, d] = parts;
     if (a === 10 || a === 127 || a === 0) return true;
     if (a === 169 && b === 254) return true;
     if (a === 172 && b >= 16 && b <= 31) return true;
     if (a === 192 && b === 168) return true;
+    if (a === 192 && b === 0) return true;
+    if (a === 192 && b === 88 && c === 99) return true;
+    if (a === 192 && b === 0 && c === 2) return true;
     if (a === 100 && b >= 64 && b <= 127) return true;
-    if (a === 198 && (b === 18 || b === 19)) return true;
+    if (a === 198 && (b === 18 || b === 19 || b === 51)) return true;
+    if (a === 203 && b === 0 && c === 113) return true;
+    if (a >= 224) return true;
+    if (a === 255 && b === 255 && c === 255 && d === 255) return true;
     return false;
   }
   if (version === 6) {
@@ -258,7 +277,7 @@ function extractMainContent(html: string) {
   return normalized;
 }
 
-function htmlToMarkdown(html: string) {
+function htmlToMarkdown(html: string, baseUrl: string) {
   let output = html;
   output = output.replace(/\r/g, "");
   output = output.replace(/<br\s*\/?>/gi, "\n");
@@ -280,18 +299,30 @@ function htmlToMarkdown(html: string) {
 
   output = output.replace(
     /<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi,
-    (_, href, text) => `[${cleanText(text)}](${href})`,
+    (_, href, text) => {
+      const resolvedHref = toAbsoluteHttpUrl(href, baseUrl) ?? href;
+      return `[${cleanText(text)}](${resolvedHref})`;
+    },
   );
 
   output = output.replace(
     /<img[^>]*src=["']([^"']+)["'][^>]*alt=["']([^"']*)["'][^>]*>/gi,
-    (_, src, alt) => `\n\n![${cleanText(alt)}](${src})\n\n`,
+    (_, src, alt) => {
+      const resolvedSrc = toAbsoluteHttpUrl(src, baseUrl) ?? src;
+      return `\n\n![${cleanText(alt)}](${resolvedSrc})\n\n`;
+    },
   );
   output = output.replace(
     /<img[^>]*alt=["']([^"']*)["'][^>]*src=["']([^"']+)["'][^>]*>/gi,
-    (_, alt, src) => `\n\n![${cleanText(alt)}](${src})\n\n`,
+    (_, alt, src) => {
+      const resolvedSrc = toAbsoluteHttpUrl(src, baseUrl) ?? src;
+      return `\n\n![${cleanText(alt)}](${resolvedSrc})\n\n`;
+    },
   );
-  output = output.replace(/<img[^>]*src=["']([^"']+)["'][^>]*>/gi, (_, src) => `\n\n![](${src})\n\n`);
+  output = output.replace(/<img[^>]*src=["']([^"']+)["'][^>]*>/gi, (_, src) => {
+    const resolvedSrc = toAbsoluteHttpUrl(src, baseUrl) ?? src;
+    return `\n\n![](${resolvedSrc})\n\n`;
+  });
 
   output = output.replace(/<\/?(p|div|section|article|header|footer|figure|figcaption)[^>]*>/gi, "\n\n");
   output = output.replace(/<[^>]+>/g, "");

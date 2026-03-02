@@ -272,6 +272,11 @@ export function DaoBlogEditor({ postId }: { postId?: string }) {
         setHeaderImagePreviewUrl(imported.header_image_url);
         setHeaderImageMimeType(null);
         setHeaderImageSizeBytes(null);
+      } else {
+        setHeaderImageUrl("");
+        setHeaderImagePreviewUrl(null);
+        setHeaderImageMimeType(null);
+        setHeaderImageSizeBytes(null);
       }
       setStatus(
         `Imported content from ${imported.source_url ?? nextUrl}. Review the draft and save when ready.`,
