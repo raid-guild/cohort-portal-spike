@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Session } from "@supabase/supabase-js";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
@@ -56,18 +57,24 @@ export function AuthModal({
 
   const routeAfterSession = useCallback(
     async (session: Session) => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .select("handle, display_name, bio, skills, roles")
         .eq("user_id", session.user.id)
         .maybeSingle();
 
+      if (error || !data) {
+        onClose();
+        router.replace("/me?onboarding=1");
+        return;
+      }
+
       const complete = isOnboardingComplete({
-        handle: data?.handle ?? "",
-        displayName: data?.display_name ?? "",
-        bio: data?.bio ?? "",
-        skills: data?.skills ?? [],
-        roles: data?.roles ?? [],
+        handle: data.handle ?? "",
+        displayName: data.display_name ?? "",
+        bio: data.bio ?? "",
+        skills: data.skills ?? [],
+        roles: data.roles ?? [],
       });
 
       const target = complete ? sanitizeNext(nextPath) : "/me?onboarding=1";
@@ -246,7 +253,7 @@ export function AuthModal({
 
   if (!open) return null;
 
-  return (
+  const modal = (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
@@ -283,8 +290,11 @@ export function AuthModal({
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-semibold">Email</label>
+          <label htmlFor="auth-email" className="text-sm font-semibold">
+            Email
+          </label>
           <input
+            id="auth-email"
             value={email}
             onChange={(event) => {
               setEmail(event.target.value);
@@ -381,6 +391,8 @@ export function AuthModal({
       </div>
     </div>
   );
+
+  return createPortal(modal, document.body);
 }
 
 const buttonClass =
