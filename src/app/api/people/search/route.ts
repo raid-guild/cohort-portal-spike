@@ -18,15 +18,16 @@ function sanitizeSearchTerm(raw: string) {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const q = sanitizeSearchTerm(url.searchParams.get("q") ?? "");
-  const skill = (url.searchParams.get("skill") ?? "").trim();
+  const skill = sanitizeSearchTerm(url.searchParams.get("skill") ?? "");
   const limit = parseLimit(url.searchParams.get("limit"));
+  if (q.length < 2 && !skill) {
+    return Response.json({ error: "Query must be at least 2 characters." }, { status: 400 });
+  }
 
   const supabase = supabaseServerClient();
   let query = supabase
     .from("profiles")
-    .select(
-      "user_id, handle, display_name, bio, avatar_url, wallet_address, email, links, cohorts, skills, roles, location, contact",
-    )
+    .select("user_id, handle, display_name, bio, avatar_url, skills, roles, location")
     .order("display_name")
     .limit(limit);
 
@@ -48,14 +49,9 @@ export async function GET(request: Request) {
     displayName: row.display_name,
     bio: row.bio ?? undefined,
     avatarUrl: row.avatar_url ?? undefined,
-    walletAddress: row.wallet_address ?? undefined,
-    email: row.email ?? undefined,
-    links: (row.links as Profile["links"]) ?? undefined,
-    cohorts: (row.cohorts as Profile["cohorts"]) ?? undefined,
     skills: row.skills ?? undefined,
     roles: row.roles ?? undefined,
     location: row.location ?? undefined,
-    contact: (row.contact as Profile["contact"]) ?? undefined,
   }));
 
   return Response.json({ people });

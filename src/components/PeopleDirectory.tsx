@@ -182,7 +182,7 @@ export function PeopleDirectory({
       {remoteLoading ? (
         <p className="text-sm text-muted-foreground">Searching people...</p>
       ) : null}
-      {!filtered.length ? (
+      {!remoteLoading && !filtered.length ? (
         <p className="text-sm text-muted-foreground">No matches. Try another search.</p>
       ) : null}
     </div>
