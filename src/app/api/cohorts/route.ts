@@ -1,53 +1,16 @@
 import { NextRequest } from "next/server";
 import type { Json } from "@/lib/types/db";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
-import { supabaseServerClient } from "@/lib/supabase/server";
-
-const requireUser = async (request: NextRequest) => {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return { error: "Missing auth token." } as const;
-  }
-  const token = authHeader.replace("Bearer ", "");
-  const supabase = supabaseServerClient();
-  const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data.user) {
-    return { error: "Invalid auth token." } as const;
-  }
-  return { user: data.user } as const;
-};
-
-const isHost = async (userId: string) => {
-  const admin = supabaseAdminClient();
-  const { data } = await admin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "host")
-    .maybeSingle();
-  return Boolean(data);
-};
-
-const hasCohortAccess = async (userId: string) => {
-  const admin = supabaseAdminClient();
-  const now = new Date().toISOString();
-  const { data } = await admin
-    .from("entitlements")
-    .select("entitlement")
-    .eq("user_id", userId)
-    .eq("entitlement", "cohort-access")
-    .eq("status", "active")
-    .or(`expires_at.is.null,expires_at.gt.${now}`)
-    .maybeSingle();
-  return Boolean(data);
-};
-
-const toSlug = (value: string) =>
-  value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+import {
+  hasCohortAccess,
+  isHost,
+  parseParticipants,
+  parsePartners,
+  requireUser,
+  syncCohortParticipants,
+  syncCohortPartners,
+  toSlug,
+} from "./lib";
 
 export async function GET(request: NextRequest) {
   const result = await requireUser(request);
@@ -112,6 +75,8 @@ export async function POST(request: NextRequest) {
       resources?: unknown;
       notes?: unknown;
     };
+    participants?: unknown;
+    partners?: unknown;
   };
 
   if (!payload?.name) {
@@ -154,6 +119,21 @@ export async function POST(request: NextRequest) {
       resources: (payload.content.resources ?? null) as Json | null,
       notes: (payload.content.notes ?? null) as Json | null,
     });
+  }
+
+  const participants = parseParticipants(payload.participants);
+  const partners = parsePartners(payload.partners);
+
+  try {
+    await Promise.all([
+      syncCohortParticipants(cohort.id, participants),
+      syncCohortPartners(cohort.id, partners),
+    ]);
+  } catch (err) {
+    return Response.json(
+      { error: err instanceof Error ? err.message : "Unable to save cohort relationships." },
+      { status: 400 },
+    );
   }
 
   return Response.json({ cohort });

@@ -179,6 +179,98 @@ export type Database = {
         }
         Relationships: []
       }
+      cohort_participants: {
+        Row: {
+          cohort_id: string
+          created_at: string
+          role: string | null
+          sort_order: number
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cohort_id: string
+          created_at?: string
+          role?: string | null
+          sort_order?: number
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cohort_id?: string
+          created_at?: string
+          role?: string | null
+          sort_order?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cohort_participants_cohort_id_fkey"
+            columns: ["cohort_id"]
+            isOneToOne: false
+            referencedRelation: "cohorts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cohort_partners: {
+        Row: {
+          cohort_id: string
+          created_at: string
+          crm_account_id: string | null
+          description: string
+          display_order: number
+          id: string
+          logo_url: string | null
+          name: string
+          updated_at: string
+          website_url: string | null
+        }
+        Insert: {
+          cohort_id: string
+          created_at?: string
+          crm_account_id?: string | null
+          description?: string
+          display_order?: number
+          id?: string
+          logo_url?: string | null
+          name: string
+          updated_at?: string
+          website_url?: string | null
+        }
+        Update: {
+          cohort_id?: string
+          created_at?: string
+          crm_account_id?: string | null
+          description?: string
+          display_order?: number
+          id?: string
+          logo_url?: string | null
+          name?: string
+          updated_at?: string
+          website_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cohort_partners_cohort_id_fkey"
+            columns: ["cohort_id"]
+            isOneToOne: false
+            referencedRelation: "cohorts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cohort_partners_crm_account_id_fkey"
+            columns: ["crm_account_id"]
+            isOneToOne: false
+            referencedRelation: "relationship_crm_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dao_memberships: {
         Row: {
           chain_id: string
