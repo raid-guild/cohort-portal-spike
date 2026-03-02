@@ -1,5 +1,6 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import { Agent } from "undici";
 import { NextRequest } from "next/server";
 import { asString, canAuthor, jsonError, requireViewer } from "@/app/api/modules/dao-blog/lib";
 
@@ -96,21 +97,35 @@ function isAllowedHost(hostname: string) {
 async function fetchAllowedHtmlWithRedirects(url: URL) {
   let current = url;
   for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
-    await assertPublicHostname(current.hostname);
+    const pinnedAddress = await resolvePublicHostname(current.hostname);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    const dispatcher = new Agent({
+      connect: {
+        lookup(hostname, _options, callback) {
+          if (hostname !== current.hostname) {
+            callback(new Error("Unexpected hostname lookup during fetch."));
+            return;
+          }
+          callback(null, pinnedAddress, isIP(pinnedAddress));
+        },
+        servername: current.hostname,
+      },
+    });
 
     const response = await fetch(current.toString(), {
       method: "GET",
       redirect: "manual",
       signal: controller.signal,
+      dispatcher,
       headers: {
         "user-agent": "RaidGuildPortalDaoBlogImporter/1.0",
         accept: "text/html,application/xhtml+xml",
       },
-    }).finally(() => {
+    }).finally(async () => {
       clearTimeout(timeout);
+      await dispatcher.close();
     });
 
     if (response.status >= 300 && response.status < 400) {
@@ -174,16 +189,24 @@ async function readResponseText(response: Response, maxBytes: number) {
   return text;
 }
 
-async function assertPublicHostname(hostname: string) {
+async function resolvePublicHostname(hostname: string) {
   const records = await lookup(hostname, { all: true, verbatim: true });
   if (!records.length) {
     throw new Error("Unable to resolve source hostname.");
   }
+  let firstPublicAddress: string | null = null;
   for (const record of records) {
     if (isPrivateIp(record.address)) {
       throw new Error("Resolved source host is not publicly routable.");
     }
+    if (!firstPublicAddress) {
+      firstPublicAddress = record.address;
+    }
   }
+  if (!firstPublicAddress) {
+    throw new Error("Unable to resolve source hostname.");
+  }
+  return firstPublicAddress;
 }
 
 function isPrivateIp(address: string) {
@@ -300,28 +323,28 @@ function htmlToMarkdown(html: string, baseUrl: string) {
   output = output.replace(
     /<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi,
     (_, href, text) => {
-      const resolvedHref = toAbsoluteHttpUrl(href, baseUrl) ?? href;
-      return `[${cleanText(text)}](${resolvedHref})`;
+      const resolvedHref = toAbsoluteHttpUrl(href, baseUrl);
+      return resolvedHref ? `[${cleanText(text)}](${resolvedHref})` : cleanText(text);
     },
   );
 
   output = output.replace(
     /<img[^>]*src=["']([^"']+)["'][^>]*alt=["']([^"']*)["'][^>]*>/gi,
     (_, src, alt) => {
-      const resolvedSrc = toAbsoluteHttpUrl(src, baseUrl) ?? src;
-      return `\n\n![${cleanText(alt)}](${resolvedSrc})\n\n`;
+      const resolvedSrc = toAbsoluteHttpUrl(src, baseUrl);
+      return resolvedSrc ? `\n\n![${cleanText(alt)}](${resolvedSrc})\n\n` : "";
     },
   );
   output = output.replace(
     /<img[^>]*alt=["']([^"']*)["'][^>]*src=["']([^"']+)["'][^>]*>/gi,
     (_, alt, src) => {
-      const resolvedSrc = toAbsoluteHttpUrl(src, baseUrl) ?? src;
-      return `\n\n![${cleanText(alt)}](${resolvedSrc})\n\n`;
+      const resolvedSrc = toAbsoluteHttpUrl(src, baseUrl);
+      return resolvedSrc ? `\n\n![${cleanText(alt)}](${resolvedSrc})\n\n` : "";
     },
   );
   output = output.replace(/<img[^>]*src=["']([^"']+)["'][^>]*>/gi, (_, src) => {
-    const resolvedSrc = toAbsoluteHttpUrl(src, baseUrl) ?? src;
-    return `\n\n![](${resolvedSrc})\n\n`;
+    const resolvedSrc = toAbsoluteHttpUrl(src, baseUrl);
+    return resolvedSrc ? `\n\n![](${resolvedSrc})\n\n` : "";
   });
 
   output = output.replace(/<\/?(p|div|section|article|header|footer|figure|figcaption)[^>]*>/gi, "\n\n");
