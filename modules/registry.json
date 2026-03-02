@@ -20,7 +20,8 @@
       },
       "requiresAuth": false,
       "tags": [
-        "start-here"
+        "start-here",
+        "host-tools"
       ],
       "presentation": {
         "mode": "dialog",
@@ -510,22 +511,9 @@
         "layout": "default"
       },
       "summary": {
-        "source": "static",
+        "source": "api",
         "title": "Cohort Hub",
-        "items": [
-          {
-            "label": "Schedule",
-            "value": "Daily agenda and notes."
-          },
-          {
-            "label": "Projects",
-            "value": "Teams, goals, and updates."
-          },
-          {
-            "label": "Resources",
-            "value": "Docs, links, and assets."
-          }
-        ],
+        "endpoint": "/api/modules/cohort-hub/summary",
         "layout": "list",
         "maxItems": 3,
         "showTitle": true
