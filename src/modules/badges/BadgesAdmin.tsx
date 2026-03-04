@@ -64,6 +64,11 @@ export function BadgesAdmin() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string>("");
 
+  const closeCreateModal = useCallback(() => {
+    setCreateModalOpen(false);
+    setUploadFile(null);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     const loadRoles = async () => {

@@ -163,10 +163,28 @@ export async function POST(request: NextRequest) {
           .from("timeline_entries")
           .upsert(payload, { onConflict: "user_id,source_kind,source_ref", ignoreDuplicates: true })
       : supabase.from("timeline_entries").insert(payload);
-
   const { data, error } = await writeQuery.select(selectColumns).maybeSingle();
 
   if (error) {
+    if (error.code === "23505" && sourceKind && sourceRef) {
+      const { data: existing, error: lookupError } = await supabase
+        .from("timeline_entries")
+        .select(
+          "id, kind, title, body, visibility, occurred_at, pinned, created_by, created_via_role",
+        )
+        .eq("user_id", viewerId)
+        .eq("source_kind", sourceKind)
+        .eq("source_ref", sourceRef)
+        .is("deleted_at", null)
+        .order("occurred_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!lookupError && existing) {
+        return Response.json({ item: toPayload(existing) });
+      }
+    }
+
     return Response.json({ error: error.message }, { status: 500 });
   }
 
