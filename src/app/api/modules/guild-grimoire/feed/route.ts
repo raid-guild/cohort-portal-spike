@@ -65,6 +65,12 @@ export async function GET(request: NextRequest) {
 
   type TagRow = { id: string; slug: string; label: string };
   type LinkRow = { tag_id: string; guild_grimoire_tags: TagRow | null };
+  type AuthorRow = {
+    user_id: string;
+    handle: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  };
   type NoteRow = {
     id: string;
     user_id: string;
@@ -81,7 +87,29 @@ export async function GET(request: NextRequest) {
     guild_grimoire_note_tags: LinkRow[] | null;
   };
 
-  const notes = ((data ?? []) as NoteRow[]).map((row) => {
+  const rows = (data ?? []) as NoteRow[];
+  const userIds = Array.from(new Set(rows.map((row) => row.user_id).filter(Boolean)));
+
+  const authorByUserId = new Map<string, AuthorRow>();
+  if (userIds.length) {
+    const profilesRes = await auth.admin
+      .from("profiles")
+      .select("user_id,handle,display_name,avatar_url")
+      .in("user_id", userIds);
+
+    if (profilesRes.error) {
+      console.error("[guild-grimoire] profiles query error:", profilesRes.error.message);
+      return jsonError("Failed to load feed.", 500);
+    }
+
+    for (const author of (profilesRes.data ?? []) as AuthorRow[]) {
+      if (author.user_id) {
+        authorByUserId.set(author.user_id, author);
+      }
+    }
+  }
+
+  const notes = rows.map((row) => {
     const links = row.guild_grimoire_note_tags ?? [];
     const tags = links
       .map((l) => l.guild_grimoire_tags)
@@ -101,6 +129,7 @@ export async function GET(request: NextRequest) {
       visibility: row.visibility,
       created_at: row.created_at,
       deleted_at: row.deleted_at,
+      author: authorByUserId.get(row.user_id) ?? null,
       tags,
     };
   });

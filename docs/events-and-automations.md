@@ -18,6 +18,13 @@ This document tracks portal-owned automations powered by `public.portal_events`.
   - `user_badges` primary key `(user_id, badge_id)`
   - `portal_event_consumptions` primary key `(consumer_id, event_id)`
 
+### Timeline consumer: badge bulk awards
+- Consumer id: `timeline:badges-bulk-awarded`
+- Source event kind: `core.badges.bulk_awarded`
+- Effect: writes `timeline_entries` milestone rows for awarded users
+- Idempotency:
+  - `portal_event_consumptions` primary key `(consumer_id, event_id)`
+
 Cron endpoint:
 - `GET /api/integrations/events/process`
 - Auth: `Authorization: Bearer ${CRON_SECRET}`
@@ -54,6 +61,7 @@ Behavior:
 - Pulls matching events from `portal_events`
 - Writes `notification.digest.ready` rows to `integration_outbox`
 - Uses `digest_key` for dedupe
+- Includes `core.badges.bulk_awarded` when the target user is in `data.userIds`
 
 ### SendGrid processing
 Existing processor now supports:

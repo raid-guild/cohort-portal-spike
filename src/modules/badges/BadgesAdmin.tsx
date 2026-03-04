@@ -2,6 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
+import { ProfileMultiSelect } from "@/components/profile/ProfileMultiSelect";
+
+type BadgeDefinition = {
+  id: string;
+  title: string;
+};
+
+type PersonLookup = {
+  handle: string;
+  displayName: string;
+  avatarUrl?: string | null;
+};
 
 type CreateBadgeForm = {
   id: string;
@@ -11,9 +23,10 @@ type CreateBadgeForm = {
 };
 
 type AwardForm = {
-  handle: string;
   badgeId: string;
   note: string;
+  handleInput: string;
+  handles: string[];
 };
 
 const emptyCreate: CreateBadgeForm = {
@@ -24,16 +37,25 @@ const emptyCreate: CreateBadgeForm = {
 };
 
 const emptyAward: AwardForm = {
-  handle: "",
   badgeId: "",
   note: "",
+  handleInput: "",
+  handles: [],
 };
+
+function normalizeHandle(value: string) {
+  return value.trim().replace(/^@+/, "").toLowerCase();
+}
 
 export function BadgesAdmin() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
   const [roles, setRoles] = useState<string[]>([]);
   const [rolesLoaded, setRolesLoaded] = useState(false);
   const isHost = roles.includes("host");
+
+  const [badges, setBadges] = useState<BadgeDefinition[]>([]);
+  const [peopleLookup, setPeopleLookup] = useState<PersonLookup[]>([]);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   const [createForm, setCreateForm] = useState<CreateBadgeForm>(emptyCreate);
   const [awardForm, setAwardForm] = useState<AwardForm>(emptyAward);
@@ -64,9 +86,38 @@ export function BadgesAdmin() {
       }
     };
 
-    loadRoles();
+    const loadLookups = async () => {
+      const [badgesRes, peopleRes] = await Promise.all([
+        fetch("/api/badges"),
+        fetch("/api/people?limit=500"),
+      ]);
+      const badgesJson = (await badgesRes.json().catch(() => ({}))) as {
+        badges?: Array<{ id: string; title: string }>;
+      };
+      const peopleJson = (await peopleRes.json().catch(() => ({}))) as {
+        people?: Array<{ handle: string; displayName: string; avatarUrl?: string | null }>;
+      };
+      if (!cancelled) {
+        setBadges(
+          (badgesJson.badges ?? [])
+            .map((badge) => ({ id: badge.id, title: badge.title }))
+            .sort((a, b) => a.title.localeCompare(b.title)),
+        );
+        setPeopleLookup(
+          (peopleJson.people ?? [])
+            .map((person) => ({
+              handle: person.handle,
+              displayName: person.displayName || person.handle,
+              avatarUrl: person.avatarUrl ?? null,
+            }))
+            .sort((a, b) => a.handle.localeCompare(b.handle)),
+        );
+      }
+    };
+
+    void Promise.all([loadRoles(), loadLookups()]);
     const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      loadRoles();
+      void Promise.all([loadRoles(), loadLookups()]);
     });
     return () => {
       cancelled = true;
@@ -124,7 +175,6 @@ export function BadgesAdmin() {
         throw new Error("Badge ID (or title) and title are required.");
       }
 
-      // Create/update the badge first to avoid orphaned uploads.
       const createRes = await fetch("/api/badges", {
         method: "POST",
         headers: {
@@ -169,6 +219,16 @@ export function BadgesAdmin() {
       setMessage("Badge saved.");
       setCreateForm(emptyCreate);
       setUploadFile(null);
+      setCreateModalOpen(false);
+      const refresh = await fetch("/api/badges");
+      const refreshJson = (await refresh.json().catch(() => ({}))) as {
+        badges?: Array<{ id: string; title: string }>;
+      };
+      setBadges(
+        (refreshJson.badges ?? [])
+          .map((badge) => ({ id: badge.id, title: badge.title }))
+          .sort((a, b) => a.title.localeCompare(b.title)),
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed.");
     } finally {
@@ -176,29 +236,59 @@ export function BadgesAdmin() {
     }
   };
 
+  const addHandleToSelection = (value: string) => {
+    const normalized = normalizeHandle(value);
+    if (!normalized) return;
+    setAwardForm((current) => {
+      if (current.handles.includes(normalized)) {
+        return { ...current, handleInput: "" };
+      }
+      return {
+        ...current,
+        handles: [...current.handles, normalized],
+        handleInput: "",
+      };
+    });
+  };
+
+  const removeHandleFromSelection = (handle: string) => {
+    setAwardForm((current) => ({
+      ...current,
+      handles: current.handles.filter((value) => value !== handle),
+    }));
+  };
+
   const handleAward = async () => {
     setMessage("");
     setLoading(true);
     try {
       const token = await ensureSession();
-      const res = await fetch("/api/badges/award", {
+      if (!awardForm.badgeId.trim()) {
+        throw new Error("Select a badge first.");
+      }
+      if (!awardForm.handles.length) {
+        throw new Error("Select at least one handle.");
+      }
+
+      const res = await fetch("/api/badges/award/bulk", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          handle: awardForm.handle,
+          handles: awardForm.handles,
           badgeId: awardForm.badgeId,
           note: awardForm.note,
+          source: "badges-admin",
         }),
       });
       const json = await res.json();
       if (!res.ok) {
         throw new Error(json.error || "Failed to award badge.");
       }
-      setMessage("Badge awarded.");
-      setAwardForm(emptyAward);
+      setMessage(`Badge awarded to ${json.awarded ?? awardForm.handles.length} user(s).`);
+      setAwardForm((current) => ({ ...emptyAward, badgeId: current.badgeId }));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed.");
     } finally {
@@ -208,170 +298,190 @@ export function BadgesAdmin() {
 
   return (
     <div className="space-y-4 rounded-xl border border-border bg-card p-6">
-      <div>
-        <h2 className="text-lg font-semibold">Host tools</h2>
-        <p className="text-sm text-muted-foreground">
-          Create badges, upload images, and award badges to profiles.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">Host tools</h2>
+          <p className="text-sm text-muted-foreground">
+            Create badges and issue a badge to multiple users at once.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted"
+          onClick={() => setCreateModalOpen(true)}
+        >
+          Create / edit badge
+        </button>
       </div>
 
-      {message ? (
-        <div className="text-sm text-muted-foreground">{message}</div>
-      ) : null}
+      {message ? <div className="text-sm text-muted-foreground">{message}</div> : null}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-3">
-          <div className="text-sm font-medium">Create / update badge</div>
+      <div className="space-y-3">
+        <div className="text-sm font-medium">Issue badge</div>
+        <label className="block text-xs text-muted-foreground" htmlFor="badge-award-id">
+          Badge
+        </label>
+        <select
+          id="badge-award-id"
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          value={awardForm.badgeId}
+          onChange={(event) =>
+            setAwardForm((current) => ({ ...current, badgeId: event.target.value }))
+          }
+        >
+          <option value="">Select a badge</option>
+          {badges.map((badge) => (
+            <option key={badge.id} value={badge.id}>
+              {badge.title} ({badge.id})
+            </option>
+          ))}
+        </select>
 
-          <label
-            htmlFor="badge-create-id"
-            className="block text-xs text-muted-foreground"
-          >
-            Badge ID
-          </label>
-          <input
-            id="badge-create-id"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            value={createForm.id}
-            onChange={(e) =>
-              setCreateForm((s) => ({ ...s, id: e.target.value }))
-            }
-            placeholder="shipper"
-          />
+        <ProfileMultiSelect
+          label="Add handles"
+          options={peopleLookup}
+          selectedHandles={awardForm.handles}
+          inputValue={awardForm.handleInput}
+          onInputValueChange={(value) =>
+            setAwardForm((current) => ({ ...current, handleInput: value }))
+          }
+          onAddHandle={addHandleToSelection}
+          onRemoveHandle={removeHandleFromSelection}
+          placeholder="Type handle and press Enter"
+          datalistId="badge-handle-options"
+          disabled={loading}
+        />
 
-          <label
-            htmlFor="badge-create-title"
-            className="block text-xs text-muted-foreground"
-          >
-            Title
-          </label>
-          <input
-            id="badge-create-title"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            value={createForm.title}
-            onChange={(e) =>
-              setCreateForm((s) => ({ ...s, title: e.target.value }))
-            }
-            placeholder="Shipper"
-          />
+        <label className="block text-xs text-muted-foreground" htmlFor="badge-award-note">
+          Note
+        </label>
+        <input
+          id="badge-award-note"
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          value={awardForm.note}
+          onChange={(event) =>
+            setAwardForm((current) => ({ ...current, note: event.target.value }))
+          }
+          placeholder="Awarded for shipping v0"
+        />
 
-          <label
-            htmlFor="badge-create-description"
-            className="block text-xs text-muted-foreground"
-          >
-            Description
-          </label>
-          <input
-            id="badge-create-description"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            value={createForm.description}
-            onChange={(e) =>
-              setCreateForm((s) => ({ ...s, description: e.target.value }))
-            }
-            placeholder="Consistently delivers work"
-          />
-
-          <label
-            htmlFor="badge-create-sort"
-            className="block text-xs text-muted-foreground"
-          >
-            Sort order
-          </label>
-          <input
-            id="badge-create-sort"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            value={createForm.sortOrder}
-            onChange={(e) =>
-              setCreateForm((s) => ({ ...s, sortOrder: e.target.value }))
-            }
-            inputMode="numeric"
-          />
-
-          <label
-            htmlFor="badge-create-image"
-            className="block text-xs text-muted-foreground"
-          >
-            Image
-          </label>
-          <input
-            id="badge-create-image"
-            type="file"
-            accept="image/*"
-            onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-sm"
-          />
-
-          <button
-            disabled={loading}
-            onClick={handleCreate}
-            className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-60"
-          >
-            Save badge
-          </button>
-        </div>
-
-        <div className="space-y-3">
-          <div className="text-sm font-medium">Award badge</div>
-
-          <label
-            htmlFor="badge-award-handle"
-            className="block text-xs text-muted-foreground"
-          >
-            Profile handle
-          </label>
-          <input
-            id="badge-award-handle"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            value={awardForm.handle}
-            onChange={(e) =>
-              setAwardForm((s) => ({ ...s, handle: e.target.value }))
-            }
-            placeholder="deke"
-          />
-
-          <label
-            htmlFor="badge-award-id"
-            className="block text-xs text-muted-foreground"
-          >
-            Badge ID
-          </label>
-          <input
-            id="badge-award-id"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            value={awardForm.badgeId}
-            onChange={(e) =>
-              setAwardForm((s) => ({ ...s, badgeId: e.target.value }))
-            }
-            placeholder="shipper"
-          />
-
-          <label
-            htmlFor="badge-award-note"
-            className="block text-xs text-muted-foreground"
-          >
-            Note
-          </label>
-          <input
-            id="badge-award-note"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            value={awardForm.note}
-            onChange={(e) => setAwardForm((s) => ({ ...s, note: e.target.value }))}
-            placeholder="Awarded for shipping v0"
-          />
-
-          <button
-            disabled={loading}
-            onClick={handleAward}
-            className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-60"
-          >
-            Award
-          </button>
-        </div>
+        <button
+          disabled={loading}
+          onClick={handleAward}
+          className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-60"
+        >
+          Issue badge
+        </button>
       </div>
 
       <div className="text-xs text-muted-foreground">
-        Note: awarding by handle requires that profile to have a linked user_id.
+        Note: handle-based awards require the profile to have a linked `user_id`.
       </div>
+
+      {createModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <section className="w-full max-w-xl rounded-xl border border-border bg-card p-5 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-base font-semibold">Create / update badge</h3>
+              <button
+                type="button"
+                className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-muted"
+                onClick={() => setCreateModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <label htmlFor="badge-create-id" className="block text-xs text-muted-foreground">
+                Badge ID
+              </label>
+              <input
+                id="badge-create-id"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                value={createForm.id}
+                onChange={(event) =>
+                  setCreateForm((current) => ({ ...current, id: event.target.value }))
+                }
+                placeholder="shipper"
+              />
+
+              <label htmlFor="badge-create-title" className="block text-xs text-muted-foreground">
+                Title
+              </label>
+              <input
+                id="badge-create-title"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                value={createForm.title}
+                onChange={(event) =>
+                  setCreateForm((current) => ({ ...current, title: event.target.value }))
+                }
+                placeholder="Shipper"
+              />
+
+              <label
+                htmlFor="badge-create-description"
+                className="block text-xs text-muted-foreground"
+              >
+                Description
+              </label>
+              <input
+                id="badge-create-description"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                value={createForm.description}
+                onChange={(event) =>
+                  setCreateForm((current) => ({
+                    ...current,
+                    description: event.target.value,
+                  }))
+                }
+                placeholder="Consistently delivers work"
+              />
+
+              <label htmlFor="badge-create-sort" className="block text-xs text-muted-foreground">
+                Sort order
+              </label>
+              <input
+                id="badge-create-sort"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                value={createForm.sortOrder}
+                onChange={(event) =>
+                  setCreateForm((current) => ({ ...current, sortOrder: event.target.value }))
+                }
+                inputMode="numeric"
+              />
+
+              <label htmlFor="badge-create-image" className="block text-xs text-muted-foreground">
+                Image
+              </label>
+              <input
+                id="badge-create-image"
+                type="file"
+                accept="image/*"
+                onChange={(event) => setUploadFile(event.target.files?.[0] ?? null)}
+                className="block w-full text-sm"
+              />
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <button
+                disabled={loading}
+                onClick={handleCreate}
+                className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-60"
+              >
+                Save badge
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted"
+                onClick={() => setCreateModalOpen(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

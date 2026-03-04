@@ -584,6 +584,16 @@
       ],
       "presentation": {
         "layout": "default"
+      },
+      "capabilities": {
+        "events": {
+          "emit": {
+            "kinds": [
+              "core.badges.bulk_awarded"
+            ],
+            "requiresUserAuth": true
+          }
+        }
       }
     },
     {

@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import type { Profile } from "@/lib/types";
+import type { BadgeDefinition, UserBadgePreview } from "@/lib/badges";
+import { ProfileIdentity } from "@/components/profile/ProfileIdentity";
 import { RAID_GUILD_ROLES } from "@/lib/raidguild-roles";
 import { BadgePill } from "./BadgePill";
 import { PaidStar } from "./PaidStar";
@@ -11,13 +14,18 @@ export function PeopleDirectory({
   people,
   paidUserIds = [],
   daoMemberUserIds = [],
+  userBadgesByUserId = {},
+  badgeOptions = [],
 }: {
   people: Profile[];
   paidUserIds?: string[];
   daoMemberUserIds?: string[];
+  userBadgesByUserId?: Record<string, UserBadgePreview[]>;
+  badgeOptions?: BadgeDefinition[];
 }) {
   const [query, setQuery] = useState("");
   const [skill, setSkill] = useState("all");
+  const [badgeId, setBadgeId] = useState("all");
   const [remoteResults, setRemoteResults] = useState<Profile[] | null>(null);
   const [remoteLoading, setRemoteLoading] = useState(false);
   const paidSet = useMemo(() => new Set(paidUserIds), [paidUserIds]);
@@ -37,9 +45,14 @@ export function PeopleDirectory({
         person.displayName.toLowerCase().includes(normalized) ||
         person.handle.toLowerCase().includes(normalized);
       const matchesSkill = skill === "all" || person.skills?.includes(skill);
-      return matchesQuery && matchesSkill;
+      const userBadgeIds =
+        person.userId && userBadgesByUserId[person.userId]
+          ? userBadgesByUserId[person.userId].map((badge) => badge.id)
+          : [];
+      const matchesBadge = badgeId === "all" || userBadgeIds.includes(badgeId);
+      return matchesQuery && matchesSkill && matchesBadge;
     });
-  }, [people, query, skill]);
+  }, [badgeId, people, query, skill, userBadgesByUserId]);
 
   const shouldUseRemote = query.trim().length >= 2;
 
@@ -60,6 +73,9 @@ export function PeopleDirectory({
       params.set("limit", "80");
       if (skill !== "all") {
         params.set("skill", skill);
+      }
+      if (badgeId !== "all") {
+        params.set("badge", badgeId);
       }
 
       fetch(`/api/people/search?${params.toString()}`, {
@@ -85,7 +101,7 @@ export function PeopleDirectory({
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [query, shouldUseRemote, skill]);
+  }, [badgeId, query, shouldUseRemote, skill]);
 
   const filtered = shouldUseRemote ? (remoteResults ?? []) : filteredLocal;
 
@@ -114,6 +130,18 @@ export function PeopleDirectory({
             </option>
           ))}
         </select>
+        <select
+          value={badgeId}
+          onChange={(event) => setBadgeId(event.target.value)}
+          className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
+        >
+          <option value="all">All badges</option>
+          {badgeOptions.map((badge) => (
+            <option key={badge.id} value={badge.id}>
+              {badge.title}
+            </option>
+          ))}
+        </select>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         {filtered.map((person) => (
@@ -124,13 +152,15 @@ export function PeopleDirectory({
           >
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <AvatarBubble
-                  name={person.displayName || person.handle}
-                  url={person.avatarUrl}
-                />
                 <div>
-                  <div className="flex items-center gap-2 text-lg font-semibold">
-                    <span>{person.displayName}</span>
+                  <div className="flex items-start gap-2">
+                    <ProfileIdentity
+                      handle={person.handle}
+                      displayName={person.displayName}
+                      avatarUrl={person.avatarUrl}
+                    />
+                  </div>
+                  <div className="mt-1 flex items-center gap-2 text-lg font-semibold">
                     {person.userId && paidSet.has(person.userId) ? (
                       <PaidStar className="h-4 w-4" />
                     ) : null}
@@ -138,7 +168,6 @@ export function PeopleDirectory({
                       <BadgePill>DAO</BadgePill>
                     ) : null}
                   </div>
-                  <div className="text-sm text-muted-foreground">@{person.handle}</div>
                   {person.roles?.length ? (
                     <div className="mt-2 flex flex-wrap gap-2">
                       {person.roles.map((role) => {
@@ -160,6 +189,27 @@ export function PeopleDirectory({
                           </div>
                         );
                       })}
+                    </div>
+                  ) : null}
+                  {person.userId && userBadgesByUserId[person.userId]?.length ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {userBadgesByUserId[person.userId].slice(0, 3).map((badge) => (
+                        <span
+                          key={badge.id}
+                          className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[11px]"
+                        >
+                          {badge.image_url ? (
+                            <Image
+                              src={badge.image_url}
+                              alt={badge.title}
+                              width={14}
+                              height={14}
+                              className="h-3.5 w-3.5 rounded"
+                            />
+                          ) : null}
+                          <span>{badge.title}</span>
+                        </span>
+                      ))}
                     </div>
                   ) : null}
                 </div>
@@ -184,42 +234,6 @@ export function PeopleDirectory({
       ) : null}
       {!filtered.length ? (
         <p className="text-sm text-muted-foreground">No matches. Try another search.</p>
-      ) : null}
-    </div>
-  );
-}
-
-function getInitials(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) return "RG";
-  const parts = trimmed.split(/\s+/).slice(0, 2);
-  return parts.map((part) => part[0]?.toUpperCase()).join("");
-}
-
-function AvatarBubble({ name, url }: { name: string; url?: string }) {
-  const [status, setStatus] = useState<"idle" | "loaded" | "error">("idle");
-  const showAvatar = Boolean(url) && status === "loaded";
-
-  useEffect(() => {
-    setStatus("idle");
-  }, [url]);
-
-  return (
-    <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-[10px] font-semibold text-muted-foreground">
-      <span className={showAvatar ? "opacity-0" : "opacity-100"}>
-        {getInitials(name)}
-      </span>
-      {url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={url}
-          alt={name}
-          className={`absolute inset-0 h-full w-full object-cover ${
-            showAvatar ? "opacity-100" : "opacity-0"
-          }`}
-          onLoad={() => setStatus("loaded")}
-          onError={() => setStatus("error")}
-        />
       ) : null}
     </div>
   );

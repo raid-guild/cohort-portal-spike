@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { ProfileIdentity } from "@/components/profile/ProfileIdentity";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 type Account = {
@@ -10,6 +11,12 @@ type Account = {
   stage: string;
   status: string;
   owner_user_id: string;
+  owner: {
+    user_id: string;
+    handle: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
   next_follow_up_at: string | null;
   notes?: string | null;
 };
@@ -29,6 +36,12 @@ type Interaction = {
   interaction_type: string;
   summary: string;
   interaction_at: string;
+  author: {
+    user_id: string;
+    handle: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
 };
 
 type Task = {
@@ -36,6 +49,12 @@ type Task = {
   title: string;
   due_at: string | null;
   status: string;
+  assignee: {
+    user_id: string;
+    handle: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
 };
 
 type AccountDetail = {
@@ -444,6 +463,15 @@ export function RelationshipCrm() {
                 <h2 className="text-lg font-semibold">{selectedAccount.name}</h2>
                 <span className="rounded-md bg-muted px-2 py-0.5 text-xs">{selectedAccount.relationship_type}</span>
                 <span className="rounded-md bg-muted px-2 py-0.5 text-xs">{selectedAccount.stage}</span>
+                {selectedAccount.owner ? (
+                  <ProfileIdentity
+                    handle={selectedAccount.owner.handle}
+                    displayName={selectedAccount.owner.display_name || selectedAccount.owner.handle}
+                    avatarUrl={selectedAccount.owner.avatar_url}
+                    avatarSize={24}
+                    compact
+                  />
+                ) : null}
               </div>
               <div className="grid gap-2 md:grid-cols-3">
                 <select
@@ -601,6 +629,17 @@ export function RelationshipCrm() {
                   <div className="space-y-2 text-sm">
                     {detail.interactions.map((interaction) => (
                       <div key={interaction.id} className="rounded-md border border-border p-2">
+                        {interaction.author ? (
+                          <div className="mb-1">
+                            <ProfileIdentity
+                              handle={interaction.author.handle}
+                              displayName={interaction.author.display_name || interaction.author.handle}
+                              avatarUrl={interaction.author.avatar_url}
+                              avatarSize={22}
+                              compact
+                            />
+                          </div>
+                        ) : null}
                         <div className="font-medium">{interaction.summary}</div>
                         <div className="text-xs text-muted-foreground">
                           {interaction.interaction_type} • {new Date(interaction.interaction_at).toLocaleString()}
@@ -619,6 +658,17 @@ export function RelationshipCrm() {
                     {detail.tasks.map((task) => (
                       <div key={task.id} className="rounded-md border border-border p-2">
                         <div className="font-medium">{task.title}</div>
+                        {task.assignee ? (
+                          <div className="my-1">
+                            <ProfileIdentity
+                              handle={task.assignee.handle}
+                              displayName={task.assignee.display_name || task.assignee.handle}
+                              avatarUrl={task.assignee.avatar_url}
+                              avatarSize={22}
+                              compact
+                            />
+                          </div>
+                        ) : null}
                         <div className="text-xs text-muted-foreground">
                           {task.status} • {task.due_at ? new Date(task.due_at).toLocaleString() : "No due date"}
                         </div>

@@ -3,6 +3,7 @@ import {
   asUntypedAdmin,
   evaluateEligibility,
   jsonError,
+  loadPollProfileMap,
   requirePollViewer,
   stateForPoll,
   summarizePollCounts,
@@ -114,6 +115,10 @@ export async function GET(
   }
 
   const counts = summarizePollCounts(options, votes);
+  const profileByUserId = await loadPollProfileMap(viewer.admin, [
+    poll.created_by,
+    ...options.map((option) => option.subject_user_id ?? ""),
+  ]);
 
   return Response.json({
     poll: {
@@ -125,6 +130,7 @@ export async function GET(
         can_view_results: canViewByRule,
         can_close: canClose,
       },
+      creator: profileByUserId.get(poll.created_by) ?? null,
       totals: {
         total_votes: canSeeResults ? votes.length : null,
       },
@@ -132,6 +138,9 @@ export async function GET(
     options: options.map((option) => ({
       ...option,
       votes_count: canSeeResults ? counts.get(option.id) ?? 0 : null,
+      subject_profile: option.subject_user_id
+        ? profileByUserId.get(option.subject_user_id) ?? null
+        : null,
     })),
     eligibility_rules: rules,
     viewer_vote: myVote,

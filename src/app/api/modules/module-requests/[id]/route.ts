@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import type { TablesUpdate } from "@/lib/types/db";
 import { requireAuth } from "../_auth";
-import type { ModuleRequestSpec } from "../lib";
+import { type ModuleRequestSpec, withModuleRequestAuthors } from "../lib";
 
 export async function GET(
   request: NextRequest,
@@ -38,7 +38,10 @@ export async function GET(
     .eq("user_id", auth.userId)
     .maybeSingle();
 
-  return Response.json({ item: { ...data, viewer_has_voted: Boolean(voteRow) } });
+  const [item] = await withModuleRequestAuthors(auth.admin, [
+    { ...data, viewer_has_voted: Boolean(voteRow) },
+  ]);
+  return Response.json({ item: item ?? data });
 }
 
 type PatchBody = {
@@ -126,5 +129,6 @@ export async function PATCH(
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  return Response.json({ item: data });
+  const [item] = await withModuleRequestAuthors(admin, [data]);
+  return Response.json({ item: item ?? data });
 }

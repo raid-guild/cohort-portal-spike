@@ -6,6 +6,29 @@ const TYPE_VALUES = new Set(["looking_for", "offering"]);
 const STATUS_VALUES = new Set(["open", "fulfilled", "closed"]);
 const CONTACT_METHOD_VALUES = new Set(["profile", "dm", "external"]);
 
+type ListingRow = {
+  id: string;
+  type: "looking_for" | "offering";
+  title: string;
+  description: string;
+  category: string | null;
+  tags: string[] | null;
+  status: "open" | "fulfilled" | "closed";
+  created_by: string;
+  contact_method: "profile" | "dm" | "external";
+  external_contact: string | null;
+  created_at: string;
+  updated_at: string;
+  fulfilled_at: string | null;
+};
+
+type ListingAuthor = {
+  user_id: string;
+  handle: string;
+  display_name: string | null;
+  avatar_url: string | null;
+};
+
 async function loadListing(admin: ReturnType<typeof supabaseAdminClient>, id: string) {
   return admin
     .from("looking_for_listings")
@@ -14,6 +37,26 @@ async function loadListing(admin: ReturnType<typeof supabaseAdminClient>, id: st
     )
     .eq("id", id)
     .single();
+}
+
+async function withListingAuthor(
+  admin: ReturnType<typeof supabaseAdminClient>,
+  listing: ListingRow,
+) {
+  const { data: profile, error: profileError } = await admin
+    .from("profiles")
+    .select("user_id,handle,display_name,avatar_url")
+    .eq("user_id", listing.created_by)
+    .maybeSingle();
+
+  if (profileError) {
+    throw new Error(`Failed to load listing author for ${listing.created_by}: ${profileError.message}`);
+  }
+
+  return {
+    ...listing,
+    author: (profile as ListingAuthor | null) ?? null,
+  };
 }
 
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -28,7 +71,14 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     return Response.json({ error: error.message }, { status: 404 });
   }
 
-  return Response.json({ listing: data });
+  try {
+    return Response.json({ listing: await withListingAuthor(auth.admin, data as ListingRow) });
+  } catch (profileError) {
+    return Response.json(
+      { error: profileError instanceof Error ? profileError.message : "Failed to load listing author." },
+      { status: 500 },
+    );
+  }
 }
 
 export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -140,5 +190,5 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  return Response.json({ listing: data });
+  return Response.json({ listing: await withListingAuthor(auth.admin, data as ListingRow) });
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ProfileIdentity } from "@/components/profile/ProfileIdentity";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 type ModuleRequestStatus =
@@ -25,6 +26,12 @@ type ModuleRequest = {
   created_at: string;
   updated_at: string;
   viewer_has_voted?: boolean;
+  author: {
+    user_id: string;
+    handle: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
 };
 
 type ListSort = "new" | "trending" | "ready";
@@ -309,6 +316,17 @@ export function ModuleRequests() {
                           <span className="mx-2">·</span>
                           <span className="capitalize">{r.status.replaceAll("_", " ")}</span>
                         </div>
+                        {r.author ? (
+                          <div className="mt-2">
+                            <ProfileIdentity
+                              handle={r.author.handle}
+                              displayName={r.author.display_name || r.author.handle}
+                              avatarUrl={r.author.avatar_url}
+                              avatarSize={24}
+                              compact
+                            />
+                          </div>
+                        ) : null}
                       </div>
                       <div className="text-right">
                         <div className="text-sm font-semibold">{r.votes_count}</div>
@@ -422,6 +440,17 @@ export function ModuleRequests() {
                   <span className="mx-2">·</span>
                   <span className="capitalize">{selected.status.replaceAll("_", " ")}</span>
                 </div>
+                {selected.author ? (
+                  <div className="mt-2">
+                    <ProfileIdentity
+                      handle={selected.author.handle}
+                      displayName={selected.author.display_name || selected.author.handle}
+                      avatarUrl={selected.author.avatar_url}
+                      avatarSize={28}
+                      compact
+                    />
+                  </div>
+                ) : null}
               </div>
 
               <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm">

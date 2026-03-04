@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ProfileIdentity } from "@/components/profile/ProfileIdentity";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 type Bounty = {
@@ -18,6 +19,12 @@ type Bounty = {
   updated_at: string;
   due_at: string | null;
   tags: string[] | null;
+  author: {
+    user_id: string;
+    handle: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
 };
 
 type Claim = {
@@ -29,6 +36,12 @@ type Claim = {
   updated_at: string;
   submitted_at: string | null;
   resolved_at: string | null;
+  author: {
+    user_id: string;
+    handle: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
 };
 
 type Comment = {
@@ -37,6 +50,12 @@ type Comment = {
   user_id: string;
   body: string;
   created_at: string;
+  author: {
+    user_id: string;
+    handle: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
 };
 
 type DetailResponse = {
@@ -375,6 +394,17 @@ export function BountyBoard() {
                   <div className="mt-1 text-xs text-muted-foreground">
                     Status: {bounty?.status}
                   </div>
+                  {bounty?.author ? (
+                    <div className="mt-2">
+                      <ProfileIdentity
+                        handle={bounty.author.handle}
+                        displayName={bounty.author.display_name || bounty.author.handle}
+                        avatarUrl={bounty.author.avatar_url}
+                        avatarSize={30}
+                        compact
+                      />
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {canClaim ? (
@@ -469,7 +499,14 @@ export function BountyBoard() {
                   detail.comments.map((c) => (
                     <div key={c.id} className="rounded-lg border border-border p-3">
                       <div className="text-xs text-muted-foreground">
-                        {c.user_id.slice(0, 8)} · {new Date(c.created_at).toLocaleString()}
+                        <ProfileIdentity
+                          handle={c.author?.handle ?? "unknown"}
+                          displayName={c.author?.display_name || c.author?.handle || "Unknown user"}
+                          avatarUrl={c.author?.avatar_url}
+                          avatarSize={26}
+                          subtitle={new Date(c.created_at).toLocaleString()}
+                          compact
+                        />
                       </div>
                       <div className="mt-2 whitespace-pre-wrap text-sm">{c.body}</div>
                     </div>

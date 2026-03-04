@@ -3,6 +3,7 @@ import { PeopleDirectory } from "@/components/PeopleDirectory";
 import { loadPeople } from "@/lib/people";
 import { loadRegistry } from "@/lib/registry";
 import { loadActiveEntitledUserIds } from "@/lib/entitlements";
+import { loadActiveBadgeDefinitions, loadBadgePreviewsForUsers } from "@/lib/badges";
 
 export const revalidate = 30;
 
@@ -11,6 +12,10 @@ export default async function PeoplePage() {
   const userIds = people.map((person) => person.userId).filter(Boolean) as string[];
   const paidUserIds = await loadActiveEntitledUserIds("cohort-access", userIds);
   const daoMemberUserIds = await loadActiveEntitledUserIds("dao-member", userIds);
+  const [userBadgesByUserId, badgeOptions] = await Promise.all([
+    loadBadgePreviewsForUsers(userIds),
+    loadActiveBadgeDefinitions(),
+  ]);
   const registry = loadRegistry();
   const peopleTools = registry.modules.filter((mod) =>
     mod.tags?.includes("people-tools"),
@@ -36,6 +41,8 @@ export default async function PeoplePage() {
         people={people}
         paidUserIds={paidUserIds}
         daoMemberUserIds={daoMemberUserIds}
+        userBadgesByUserId={userBadgesByUserId}
+        badgeOptions={badgeOptions}
       />
     </div>
   );

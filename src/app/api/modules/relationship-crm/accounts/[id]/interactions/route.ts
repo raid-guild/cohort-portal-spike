@@ -7,6 +7,7 @@ import {
   includesValue,
   isUuid,
   jsonError,
+  loadCrmProfileMap,
   requireCrmAccess,
 } from "@/app/api/modules/relationship-crm/lib";
 
@@ -84,5 +85,21 @@ export async function POST(
     return jsonError(`Failed to add interaction: ${error.message}`, 500);
   }
 
-  return Response.json({ interaction: data }, { status: 201 });
+  let author = null;
+  try {
+    const profileByUserId = await loadCrmProfileMap(admin, [data.created_by]);
+    author = profileByUserId.get(data.created_by) ?? null;
+  } catch (profileError) {
+    console.error("[relationship-crm] interaction author enrichment failed:", profileError);
+  }
+
+  return Response.json(
+    {
+      interaction: {
+        ...data,
+        author,
+      },
+    },
+    { status: 201 },
+  );
 }

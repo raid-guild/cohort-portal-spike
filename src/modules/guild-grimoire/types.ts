@@ -8,6 +8,13 @@ export type GuildGrimoireTag = {
   label: string;
 };
 
+export type GuildGrimoireAuthor = {
+  user_id: string;
+  handle: string;
+  display_name: string | null;
+  avatar_url: string | null;
+};
+
 export type GuildGrimoireNote = {
   id: string;
   user_id: string;
@@ -21,5 +28,6 @@ export type GuildGrimoireNote = {
   visibility: GuildGrimoireVisibility;
   created_at: string;
   deleted_at: string | null;
+  author: GuildGrimoireAuthor | null;
   tags: GuildGrimoireTag[];
 };

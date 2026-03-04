@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ProfileIdentity } from "@/components/profile/ProfileIdentity";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 type Listing = {
@@ -17,6 +18,12 @@ type Listing = {
   created_at: string;
   updated_at: string;
   fulfilled_at: string | null;
+  author: {
+    user_id: string;
+    handle: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
 };
 
 async function readJsonSafe<T>(res: Response): Promise<T | null> {
@@ -411,7 +418,17 @@ export function ArcaneExchange() {
             <p className="whitespace-pre-wrap text-sm text-muted-foreground">{selected.description}</p>
 
             <div className="text-xs text-muted-foreground">
-              <div>Author: {selected.created_by.slice(0, 8)}</div>
+              <div className="mb-2">
+                <ProfileIdentity
+                  handle={selected.author?.handle ?? "unknown"}
+                  displayName={
+                    selected.author?.display_name || selected.author?.handle || "Unknown user"
+                  }
+                  avatarUrl={selected.author?.avatar_url}
+                  avatarSize={28}
+                  compact
+                />
+              </div>
               <div>
                 Tags: {(selected.tags ?? []).length ? (selected.tags ?? []).join(", ") : "(none)"}
               </div>

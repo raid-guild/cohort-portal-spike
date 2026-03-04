@@ -19,16 +19,32 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const q = sanitizeSearchTerm(url.searchParams.get("q") ?? "");
   const skill = (url.searchParams.get("skill") ?? "").trim();
+  const badge = (url.searchParams.get("badge") ?? "").trim();
   const limit = parseLimit(url.searchParams.get("limit"));
 
   const supabase = supabaseServerClient();
+  let badgeUserIds: string[] | null = null;
+  if (badge) {
+    const { data: badgeRows, error: badgeError } = await supabase
+      .from("user_badges")
+      .select("user_id")
+      .eq("badge_id", badge);
+    if (badgeError) {
+      return Response.json({ people: [] as Profile[] });
+    }
+
+    badgeUserIds = (badgeRows ?? []).map((row) => row.user_id).filter(Boolean) as string[];
+    if (!badgeUserIds.length) {
+      return Response.json({ people: [] as Profile[] });
+    }
+  }
+
   let query = supabase
     .from("profiles")
     .select(
       "user_id, handle, display_name, bio, avatar_url, wallet_address, email, links, cohorts, skills, roles, location, contact",
     )
-    .order("display_name")
-    .limit(limit);
+    .order("display_name");
 
   if (q) {
     query = query.or(`display_name.ilike.%${q}%,handle.ilike.%${q}%,bio.ilike.%${q}%`);
@@ -36,13 +52,18 @@ export async function GET(request: Request) {
   if (skill) {
     query = query.contains("skills", [skill]);
   }
+  if (badgeUserIds) {
+    query = query.in("user_id", badgeUserIds);
+  }
+  query = query.limit(limit);
 
   const { data, error } = await query;
   if (error || !data) {
     return Response.json({ people: [] as Profile[] });
   }
+  const rows = data;
 
-  const people: Profile[] = data.map((row) => ({
+  const people: Profile[] = rows.map((row) => ({
     userId: row.user_id ?? undefined,
     handle: row.handle,
     displayName: row.display_name,

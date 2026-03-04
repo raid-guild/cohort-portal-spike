@@ -1,4 +1,5 @@
 import type { Json } from "@/lib/types/db";
+import { supabaseAdminClient } from "@/lib/supabase/admin";
 
 export type ModuleRequestStatus =
   | "draft"
@@ -63,4 +64,50 @@ export function normalizeStatus(input: unknown): ModuleRequestStatus | null {
     "archived",
   ];
   return (allowed as string[]).includes(value) ? (value as ModuleRequestStatus) : null;
+}
+
+type ModuleRequestAuthor = {
+  user_id: string;
+  handle: string;
+  display_name: string | null;
+  avatar_url: string | null;
+};
+
+type ModuleRequestRow = {
+  created_by: string;
+  [key: string]: unknown;
+};
+
+export async function withModuleRequestAuthors<T extends ModuleRequestRow>(
+  admin: ReturnType<typeof supabaseAdminClient>,
+  items: T[],
+): Promise<Array<T & { author: ModuleRequestAuthor | null }>> {
+  const userIds = Array.from(new Set(items.map((item) => item.created_by).filter(Boolean)));
+  const authorByUserId = new Map<string, ModuleRequestAuthor>();
+
+  if (userIds.length) {
+    const { data: profiles, error } = await admin
+      .from("profiles")
+      .select("user_id,handle,display_name,avatar_url")
+      .in("user_id", userIds);
+
+    if (error) {
+      console.error("[module-requests] author enrichment failed:", error.message);
+      return items.map((item) => ({
+        ...item,
+        author: null,
+      }));
+    }
+
+    for (const profile of (profiles ?? []) as ModuleRequestAuthor[]) {
+      if (profile.user_id) {
+        authorByUserId.set(profile.user_id, profile);
+      }
+    }
+  }
+
+  return items.map((item) => ({
+    ...item,
+    author: authorByUserId.get(item.created_by) ?? null,
+  }));
 }

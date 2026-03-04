@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireAuth } from "../../_auth";
+import { withModuleRequestAuthors } from "../../lib";
 import type { Json } from "@/lib/types/db";
 
 export async function POST(
@@ -75,5 +76,6 @@ export async function POST(
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  return Response.json({ item: data });
+  const [item] = await withModuleRequestAuthors(admin, [data]);
+  return Response.json({ item: item ?? data });
 }

@@ -7,6 +7,7 @@ import {
   asString,
   includesValue,
   jsonError,
+  loadCrmProfileMap,
   requireCrmAccess,
 } from "@/app/api/modules/relationship-crm/lib";
 
@@ -62,12 +63,40 @@ export async function GET(
     return jsonError(`Failed to load account detail: ${error?.message ?? "Unknown error"}`, 500);
   }
 
-  return Response.json({
-    account: accountRes.data,
-    contacts: contactsRes.data ?? [],
-    interactions: interactionsRes.data ?? [],
-    tasks: tasksRes.data ?? [],
-  });
+  try {
+    const account = accountRes.data;
+    const interactions = interactionsRes.data ?? [];
+    const tasks = tasksRes.data ?? [];
+    const profileByUserId = await loadCrmProfileMap(admin, [
+      account.owner_user_id,
+      ...interactions.map((interaction) => interaction.created_by),
+      ...tasks.flatMap((task) => [task.assignee_user_id ?? "", task.created_by]),
+    ]);
+
+    return Response.json({
+      account: {
+        ...account,
+        owner: profileByUserId.get(account.owner_user_id) ?? null,
+      },
+      contacts: contactsRes.data ?? [],
+      interactions: interactions.map((interaction) => ({
+        ...interaction,
+        author: profileByUserId.get(interaction.created_by) ?? null,
+      })),
+      tasks: tasks.map((task) => ({
+        ...task,
+        assignee: task.assignee_user_id ? profileByUserId.get(task.assignee_user_id) ?? null : null,
+        author: profileByUserId.get(task.created_by) ?? null,
+      })),
+    });
+  } catch (profileError) {
+    return jsonError(
+      `Failed to resolve profile identities: ${
+        profileError instanceof Error ? profileError.message : "Unknown error"
+      }`,
+      500,
+    );
+  }
 }
 
 export async function PATCH(
@@ -144,5 +173,18 @@ export async function PATCH(
     return jsonError("Account not found.", 404);
   }
 
-  return Response.json({ account: data });
+  let owner = null;
+  try {
+    const profileByUserId = await loadCrmProfileMap(admin, [data.owner_user_id]);
+    owner = profileByUserId.get(data.owner_user_id) ?? null;
+  } catch (profileError) {
+    console.error("[relationship-crm] account owner enrichment failed:", profileError);
+  }
+
+  return Response.json({
+    account: {
+      ...data,
+      owner,
+    },
+  });
 }

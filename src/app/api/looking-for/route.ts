@@ -1,9 +1,63 @@
 import { NextRequest } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAuth } from "./_auth";
 
 const TYPE_VALUES = new Set(["looking_for", "offering"]);
 const STATUS_VALUES = new Set(["open", "fulfilled", "closed"]);
 const CONTACT_METHOD_VALUES = new Set(["profile", "dm", "external"]);
+
+type ListingRow = {
+  id: string;
+  type: "looking_for" | "offering";
+  title: string;
+  description: string;
+  category: string | null;
+  tags: string[] | null;
+  status: "open" | "fulfilled" | "closed";
+  created_by: string;
+  contact_method: "profile" | "dm" | "external";
+  external_contact: string | null;
+  created_at: string;
+  updated_at: string;
+  fulfilled_at: string | null;
+};
+
+type ListingAuthor = {
+  user_id: string;
+  handle: string;
+  display_name: string | null;
+  avatar_url: string | null;
+};
+
+async function withListingAuthors(
+  admin: SupabaseClient,
+  rows: ListingRow[],
+) {
+  const userIds = Array.from(new Set(rows.map((row) => row.created_by).filter(Boolean)));
+  const authorByUserId = new Map<string, ListingAuthor>();
+
+  if (userIds.length) {
+    const { data: profiles, error: profilesError } = await admin
+      .from("profiles")
+      .select("user_id,handle,display_name,avatar_url")
+      .in("user_id", userIds);
+
+    if (profilesError) {
+      throw new Error(profilesError.message);
+    }
+
+    for (const row of (profiles ?? []) as ListingAuthor[]) {
+      if (row.user_id) {
+        authorByUserId.set(row.user_id, row);
+      }
+    }
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    author: authorByUserId.get(row.created_by) ?? null,
+  }));
+}
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);
@@ -50,7 +104,14 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  return Response.json({ listings: data ?? [] });
+  try {
+    const listings = await withListingAuthors(auth.admin, (data ?? []) as ListingRow[]);
+    return Response.json({ listings });
+  } catch (profilesError) {
+    console.error("[looking-for] author enrichment failed:", profilesError);
+    const listings = ((data ?? []) as ListingRow[]).map((row) => ({ ...row, author: null }));
+    return Response.json({ listings });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -115,5 +176,11 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  return Response.json({ listing: data });
+  try {
+    const [listing] = await withListingAuthors(auth.admin, [data as ListingRow]);
+    return Response.json({ listing: listing ?? data });
+  } catch (profilesError) {
+    console.error("[looking-for] author enrichment failed:", profilesError);
+    return Response.json({ listing: { ...(data as ListingRow), author: null } });
+  }
 }

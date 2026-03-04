@@ -7,6 +7,7 @@ import {
   asString,
   includesValue,
   jsonError,
+  loadCrmProfileMap,
   parseLimit,
   requireCrmAccess,
 } from "@/app/api/modules/relationship-crm/lib";
@@ -58,7 +59,26 @@ export async function GET(request: NextRequest) {
     return jsonError(`Failed to load accounts: ${error.message}`, 500);
   }
 
-  return Response.json({ accounts: data ?? [] });
+  try {
+    const rows = data ?? [];
+    const profileByUserId = await loadCrmProfileMap(
+      admin,
+      rows.map((account) => account.owner_user_id),
+    );
+    return Response.json({
+      accounts: rows.map((account) => ({
+        ...account,
+        owner: profileByUserId.get(account.owner_user_id) ?? null,
+      })),
+    });
+  } catch (profileError) {
+    return jsonError(
+      `Failed to resolve account owners: ${
+        profileError instanceof Error ? profileError.message : "Unknown error"
+      }`,
+      500,
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -109,5 +129,23 @@ export async function POST(request: NextRequest) {
     return jsonError(`Failed to create account: ${error.message}`, 500);
   }
 
-  return Response.json({ account: data }, { status: 201 });
+  try {
+    const profileByUserId = await loadCrmProfileMap(admin, [data.owner_user_id]);
+    return Response.json(
+      {
+        account: {
+          ...data,
+          owner: profileByUserId.get(data.owner_user_id) ?? null,
+        },
+      },
+      { status: 201 },
+    );
+  } catch (profileError) {
+    return jsonError(
+      `Failed to resolve account owner: ${
+        profileError instanceof Error ? profileError.message : "Unknown error"
+      }`,
+      500,
+    );
+  }
 }

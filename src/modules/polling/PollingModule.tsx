@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ProfileIdentity } from "@/components/profile/ProfileIdentity";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 type PollListItem = {
@@ -17,6 +18,12 @@ type PollListItem = {
     can_view_results: boolean;
     can_close: boolean;
   };
+  creator: {
+    user_id: string;
+    handle: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
 };
 
 type PollOption = {
@@ -24,6 +31,12 @@ type PollOption = {
   label: string;
   subject_user_id: string | null;
   votes_count: number | null;
+  subject_profile: {
+    user_id: string;
+    handle: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
 };
 
 type PollDetail = {
@@ -41,6 +54,12 @@ type PollDetail = {
       can_vote: boolean;
       can_close: boolean;
     };
+    creator: {
+      user_id: string;
+      handle: string;
+      display_name: string | null;
+      avatar_url: string | null;
+    } | null;
   };
   options: PollOption[];
   viewer_vote: { option_id: string } | null;
@@ -389,6 +408,17 @@ export function PollingModule() {
               <div className="mt-1 text-xs text-muted-foreground">
                 {poll.votes_count === null ? "Votes hidden" : `${poll.votes_count} vote(s)`}
               </div>
+              {poll.creator ? (
+                <div className="mt-2">
+                  <ProfileIdentity
+                    handle={poll.creator.handle}
+                    displayName={poll.creator.display_name || poll.creator.handle}
+                    avatarUrl={poll.creator.avatar_url}
+                    avatarSize={20}
+                    compact
+                  />
+                </div>
+              ) : null}
             </button>
           ))}
         </div>
@@ -410,6 +440,17 @@ export function PollingModule() {
               <div className="mt-2 text-xs text-muted-foreground">
                 Opens: {new Date(detail.poll.opens_at).toLocaleString()} | Closes: {new Date(detail.poll.closes_at).toLocaleString()}
               </div>
+              {detail.poll.creator ? (
+                <div className="mt-2">
+                  <ProfileIdentity
+                    handle={detail.poll.creator.handle}
+                    displayName={detail.poll.creator.display_name || detail.poll.creator.handle}
+                    avatarUrl={detail.poll.creator.avatar_url}
+                    avatarSize={24}
+                    compact
+                  />
+                </div>
+              ) : null}
             </div>
 
             <div className="space-y-2">
@@ -424,6 +465,19 @@ export function PollingModule() {
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <div className="font-medium">{option.label}</div>
+                        {option.subject_profile ? (
+                          <div className="my-1">
+                            <ProfileIdentity
+                              handle={option.subject_profile.handle}
+                              displayName={
+                                option.subject_profile.display_name || option.subject_profile.handle
+                              }
+                              avatarUrl={option.subject_profile.avatar_url}
+                              avatarSize={22}
+                              compact
+                            />
+                          </div>
+                        ) : null}
                         {detail.poll.results_visible ? (
                           <div className="text-xs text-muted-foreground">{option.votes_count ?? 0} vote(s)</div>
                         ) : (

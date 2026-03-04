@@ -6,6 +6,7 @@ import {
   includesValue,
   isUuid,
   jsonError,
+  loadCrmProfileMap,
   requireCrmAccess,
 } from "@/app/api/modules/relationship-crm/lib";
 
@@ -74,5 +75,24 @@ export async function PATCH(
     return jsonError("Task not found.", 404);
   }
 
-  return Response.json({ task: data });
+  try {
+    const profileByUserId = await loadCrmProfileMap(admin, [
+      data.assignee_user_id ?? "",
+      data.created_by,
+    ]);
+    return Response.json({
+      task: {
+        ...data,
+        assignee: data.assignee_user_id ? profileByUserId.get(data.assignee_user_id) ?? null : null,
+        author: profileByUserId.get(data.created_by) ?? null,
+      },
+    });
+  } catch (profileError) {
+    return jsonError(
+      `Failed to resolve task profiles: ${
+        profileError instanceof Error ? profileError.message : "Unknown error"
+      }`,
+      500,
+    );
+  }
 }

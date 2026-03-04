@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ProfileIdentity } from "@/components/profile/ProfileIdentity";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 type ShowcasePost = {
@@ -11,6 +12,12 @@ type ShowcasePost = {
   impact_statement: string;
   boost_count: number;
   created_at: string;
+  author: {
+    user_id: string;
+    handle: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
 };
 
 export function RaidShowcaseFeed() {
@@ -237,6 +244,13 @@ export function RaidShowcaseFeed() {
                 </div>
                 <div className="space-y-2 p-4">
                   <div className="text-sm font-semibold">{post.title}</div>
+                  <ProfileIdentity
+                    handle={post.author?.handle ?? "unknown"}
+                    displayName={post.author?.display_name || post.author?.handle || "Unknown user"}
+                    avatarUrl={post.author?.avatar_url}
+                    avatarSize={26}
+                    compact
+                  />
                   <p className="text-sm text-muted-foreground">
                     {post.impact_statement}
                   </p>

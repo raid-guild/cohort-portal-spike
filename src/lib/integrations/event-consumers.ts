@@ -2,15 +2,20 @@ import { supabaseAdminClient } from "@/lib/supabase/admin";
 
 const DEFAULT_BATCH_SIZE = 100;
 const MAX_BATCH_SIZE = 500;
+
 const FIRST_GRIMOIRE_NOTE_CONSUMER_ID = "badges:first-grimoire-note";
 const FIRST_GRIMOIRE_BADGE_ID = "grimoire-first-note";
 const FIRST_GRIMOIRE_EVENT_KIND = "core.guild_grimoire.note_created";
+
+const BADGES_TIMELINE_CONSUMER_ID = "timeline:badges-bulk-awarded";
+const BADGES_BULK_AWARDED_EVENT_KIND = "core.badges.bulk_awarded";
 
 type EventRow = {
   id: string;
   kind: string;
   actor_id: string | null;
   occurred_at: string;
+  data: Record<string, unknown> | null;
 };
 
 type ConsumptionRow = {
@@ -45,6 +50,7 @@ function normalizeBatchSize(batchSize?: number) {
 
 async function markConsumed(
   admin: UntypedAdmin,
+  consumerId: string,
   eventId: string,
   status: "processed" | "failed",
   error?: string | null,
@@ -52,7 +58,7 @@ async function markConsumed(
 ) {
   const { error: insertError } = await admin.from("portal_event_consumptions").upsert(
     {
-      consumer_id: FIRST_GRIMOIRE_NOTE_CONSUMER_ID,
+      consumer_id: consumerId,
       event_id: eventId,
       status,
       error: error ?? null,
@@ -63,18 +69,25 @@ async function markConsumed(
   );
 
   if (insertError) {
-    console.error("[event-consumer] failed to persist consumption state:", eventId, insertError.message);
+    console.error(
+      "[event-consumer] failed to persist consumption state:",
+      consumerId,
+      eventId,
+      insertError.message,
+    );
   }
 }
 
-export async function processEventConsumersBatch(batchSize?: number) {
-  const limit = normalizeBatchSize(batchSize);
-  const untyped = asUntypedAdmin(supabaseAdminClient());
-
-  const { data: rawEvents, error: eventsError } = await untyped
+async function loadUnconsumedEvents(
+  admin: UntypedAdmin,
+  kind: string,
+  consumerId: string,
+  limit: number,
+) {
+  const { data: rawEvents, error: eventsError } = await admin
     .from("portal_events")
-    .select("id,kind,actor_id,occurred_at")
-    .eq("kind", FIRST_GRIMOIRE_EVENT_KIND)
+    .select("id,kind,actor_id,occurred_at,data")
+    .eq("kind", kind)
     .order("occurred_at", { ascending: true })
     .limit(limit * 2);
 
@@ -83,15 +96,13 @@ export async function processEventConsumersBatch(batchSize?: number) {
   }
 
   const events = ((rawEvents ?? []) as EventRow[]).slice(0, limit * 2);
-  if (!events.length) {
-    return { processed: 0, consumed: 0, awarded: 0, failed: 0 };
-  }
+  if (!events.length) return [];
 
   const eventIds = events.map((event) => event.id);
-  const { data: rawConsumptions, error: consumptionsError } = await untyped
+  const { data: rawConsumptions, error: consumptionsError } = await admin
     .from("portal_event_consumptions")
     .select("event_id")
-    .eq("consumer_id", FIRST_GRIMOIRE_NOTE_CONSUMER_ID)
+    .eq("consumer_id", consumerId)
     .in("event_id", eventIds);
 
   if (consumptionsError) {
@@ -101,8 +112,16 @@ export async function processEventConsumersBatch(batchSize?: number) {
   const consumedIds = new Set(
     ((rawConsumptions ?? []) as ConsumptionRow[]).map((row) => row.event_id),
   );
-  const queue = events.filter((event) => !consumedIds.has(event.id)).slice(0, limit);
+  return events.filter((event) => !consumedIds.has(event.id)).slice(0, limit);
+}
 
+async function processFirstGrimoireConsumer(admin: UntypedAdmin, limit: number) {
+  const queue = await loadUnconsumedEvents(
+    admin,
+    FIRST_GRIMOIRE_EVENT_KIND,
+    FIRST_GRIMOIRE_NOTE_CONSUMER_ID,
+    limit,
+  );
   let consumed = 0;
   let awarded = 0;
   let failed = 0;
@@ -111,12 +130,18 @@ export async function processEventConsumersBatch(batchSize?: number) {
     try {
       const userId = event.actor_id;
       if (!userId) {
-        await markConsumed(untyped, event.id, "failed", "Missing actor_id.");
+        await markConsumed(
+          admin,
+          FIRST_GRIMOIRE_NOTE_CONSUMER_ID,
+          event.id,
+          "failed",
+          "Missing actor_id.",
+        );
         failed += 1;
         continue;
       }
 
-      const { data: existingAward, error: existingAwardError } = await untyped
+      const { data: existingAward, error: existingAwardError } = await admin
         .from("user_badges")
         .select("user_id")
         .eq("user_id", userId)
@@ -127,7 +152,7 @@ export async function processEventConsumersBatch(batchSize?: number) {
         throw new Error(existingAwardError.message);
       }
 
-      const { error: upsertError } = await untyped.from("user_badges").upsert(
+      const { error: upsertError } = await admin.from("user_badges").upsert(
         {
           user_id: userId,
           badge_id: FIRST_GRIMOIRE_BADGE_ID,
@@ -149,14 +174,27 @@ export async function processEventConsumersBatch(batchSize?: number) {
       const awardedNow = !existingAward;
       if (awardedNow) awarded += 1;
 
-      await markConsumed(untyped, event.id, "processed", null, {
-        awarded: awardedNow,
-        badge_id: FIRST_GRIMOIRE_BADGE_ID,
-      });
+      await markConsumed(
+        admin,
+        FIRST_GRIMOIRE_NOTE_CONSUMER_ID,
+        event.id,
+        "processed",
+        null,
+        {
+          awarded: awardedNow,
+          badge_id: FIRST_GRIMOIRE_BADGE_ID,
+        },
+      );
       consumed += 1;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      await markConsumed(untyped, event.id, "failed", message.slice(0, 4000));
+      await markConsumed(
+        admin,
+        FIRST_GRIMOIRE_NOTE_CONSUMER_ID,
+        event.id,
+        "failed",
+        message.slice(0, 4000),
+      );
       failed += 1;
     }
   }
@@ -166,5 +204,124 @@ export async function processEventConsumersBatch(batchSize?: number) {
     consumed,
     awarded,
     failed,
+  };
+}
+
+function readUserIdsFromBadgeEvent(data: Record<string, unknown> | null): string[] {
+  const raw = data?.userIds;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((value): value is string => typeof value === "string" && Boolean(value));
+}
+
+function trimTitle(value: string, max = 120) {
+  if (value.length <= max) return value;
+  return `${value.slice(0, Math.max(0, max - 3))}...`;
+}
+
+async function processBadgesTimelineConsumer(admin: UntypedAdmin, limit: number) {
+  const queue = await loadUnconsumedEvents(
+    admin,
+    BADGES_BULK_AWARDED_EVENT_KIND,
+    BADGES_TIMELINE_CONSUMER_ID,
+    limit,
+  );
+
+  let consumed = 0;
+  let timelineEntries = 0;
+  let failed = 0;
+
+  for (const event of queue) {
+    try {
+      const userIds = readUserIdsFromBadgeEvent(event.data);
+      if (!userIds.length) {
+        await markConsumed(
+          admin,
+          BADGES_TIMELINE_CONSUMER_ID,
+          event.id,
+          "failed",
+          "Missing data.userIds.",
+        );
+        failed += 1;
+        continue;
+      }
+
+      const badgeTitle =
+        typeof event.data?.badgeTitle === "string" ? event.data.badgeTitle : "Community badge";
+      const badgeId = typeof event.data?.badgeId === "string" ? event.data.badgeId : null;
+      const note = typeof event.data?.note === "string" ? event.data.note : null;
+      const title = trimTitle(`Badge earned: ${badgeTitle}`);
+
+      const rows = userIds.map((userId) => ({
+        user_id: userId,
+        kind: "milestone",
+        title,
+        body: note || null,
+        visibility: "authenticated",
+        occurred_at: event.occurred_at,
+        created_by: event.actor_id,
+        created_via_role: "host",
+        source_kind: BADGES_BULK_AWARDED_EVENT_KIND,
+        source_ref: {
+          event_id: event.id,
+          badge_id: badgeId,
+        },
+      }));
+
+      const { error: insertError } = await admin
+        .from("timeline_entries")
+        .upsert(rows, { onConflict: "user_id,source_kind,source_ref", ignoreDuplicates: true });
+      if (insertError) {
+        throw new Error(insertError.message);
+      }
+
+      timelineEntries += rows.length;
+      consumed += 1;
+      await markConsumed(
+        admin,
+        BADGES_TIMELINE_CONSUMER_ID,
+        event.id,
+        "processed",
+        null,
+        {
+          timeline_entries: rows.length,
+          badge_id: badgeId,
+        },
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      await markConsumed(
+        admin,
+        BADGES_TIMELINE_CONSUMER_ID,
+        event.id,
+        "failed",
+        message.slice(0, 4000),
+      );
+      failed += 1;
+    }
+  }
+
+  return {
+    processed: queue.length,
+    consumed,
+    timelineEntries,
+    failed,
+  };
+}
+
+export async function processEventConsumersBatch(batchSize?: number) {
+  const limit = normalizeBatchSize(batchSize);
+  const untyped = asUntypedAdmin(supabaseAdminClient());
+
+  const [grimoire, badgesTimeline] = await Promise.all([
+    processFirstGrimoireConsumer(untyped, limit),
+    processBadgesTimelineConsumer(untyped, limit),
+  ]);
+
+  return {
+    processed: grimoire.processed + badgesTimeline.processed,
+    consumed: grimoire.consumed + badgesTimeline.consumed,
+    awarded: grimoire.awarded,
+    timelineEntries: badgesTimeline.timelineEntries,
+    failed: grimoire.failed + badgesTimeline.failed,
   };
 }

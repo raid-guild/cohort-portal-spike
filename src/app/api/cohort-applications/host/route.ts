@@ -44,5 +44,39 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  return Response.json({ applications: data ?? [] });
+  const applications = data ?? [];
+  const userIds = Array.from(new Set(applications.map((row) => row.user_id).filter(Boolean)));
+  const profileByUserId = new Map<
+    string,
+    { user_id: string; handle: string; display_name: string | null; avatar_url: string | null }
+  >();
+
+  if (userIds.length) {
+    const { data: profiles, error: profileError } = await result.admin
+      .from("profiles")
+      .select("user_id,handle,display_name,avatar_url")
+      .in("user_id", userIds);
+
+    if (profileError) {
+      console.error("[cohort-applications] profile enrichment failed:", profileError);
+    } else {
+      for (const profile of profiles ?? []) {
+        if (profile.user_id) {
+          profileByUserId.set(profile.user_id, {
+            user_id: profile.user_id,
+            handle: profile.handle,
+            display_name: profile.display_name,
+            avatar_url: profile.avatar_url,
+          });
+        }
+      }
+    }
+  }
+
+  return Response.json({
+    applications: applications.map((item) => ({
+      ...item,
+      profile: profileByUserId.get(item.user_id) ?? null,
+    })),
+  });
 }
