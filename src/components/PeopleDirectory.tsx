@@ -54,7 +54,7 @@ export function PeopleDirectory({
     });
   }, [badgeId, people, query, skill, userBadgesByUserId]);
 
-  const shouldUseRemote = query.trim().length >= 2 && badgeId === "all";
+  const shouldUseRemote = query.trim().length >= 2;
 
   useEffect(() => {
     if (!shouldUseRemote) {

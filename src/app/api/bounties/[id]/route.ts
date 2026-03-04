@@ -99,18 +99,26 @@ export async function GET(
     return Response.json({ error: "Not found." }, { status: 404 });
   }
 
-  const { data: activeClaim } = await auth.admin
+  const { data: activeClaim, error: activeClaimError } = await auth.admin
     .from("bounty_claims")
     .select("id, bounty_id, user_id, status, created_at, updated_at, submitted_at, resolved_at")
     .eq("bounty_id", id)
     .in("status", ["claimed", "submitted"])
     .maybeSingle();
 
-  const { data: comments } = await auth.admin
+  if (activeClaimError) {
+    return Response.json({ error: activeClaimError.message }, { status: 500 });
+  }
+
+  const { data: comments, error: commentsError } = await auth.admin
     .from("bounty_comments")
     .select("id, bounty_id, user_id, body, created_at")
     .eq("bounty_id", id)
     .order("created_at", { ascending: true });
+
+  if (commentsError) {
+    return Response.json({ error: commentsError.message }, { status: 500 });
+  }
 
   try {
     const profileByUserId = await getProfileMap(auth.admin, [

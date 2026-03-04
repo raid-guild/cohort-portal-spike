@@ -82,27 +82,27 @@ export async function POST(
     return jsonError(`Failed to add task: ${error.message}`, 500);
   }
 
+  let assignee = null;
+  let author = null;
   try {
     const profileByUserId = await loadCrmProfileMap(admin, [
       data.assignee_user_id ?? "",
       data.created_by,
     ]);
-    return Response.json(
-      {
-        task: {
-          ...data,
-          assignee: data.assignee_user_id ? profileByUserId.get(data.assignee_user_id) ?? null : null,
-          author: profileByUserId.get(data.created_by) ?? null,
-        },
-      },
-      { status: 201 },
-    );
+    assignee = data.assignee_user_id ? profileByUserId.get(data.assignee_user_id) ?? null : null;
+    author = profileByUserId.get(data.created_by) ?? null;
   } catch (profileError) {
-    return jsonError(
-      `Failed to resolve task profiles: ${
-        profileError instanceof Error ? profileError.message : "Unknown error"
-      }`,
-      500,
-    );
+    console.error("[relationship-crm] task profile enrichment failed:", profileError);
   }
+
+  return Response.json(
+    {
+      task: {
+        ...data,
+        assignee,
+        author,
+      },
+    },
+    { status: 201 },
+  );
 }

@@ -173,20 +173,18 @@ export async function PATCH(
     return jsonError("Account not found.", 404);
   }
 
+  let owner = null;
   try {
     const profileByUserId = await loadCrmProfileMap(admin, [data.owner_user_id]);
-    return Response.json({
-      account: {
-        ...data,
-        owner: profileByUserId.get(data.owner_user_id) ?? null,
-      },
-    });
+    owner = profileByUserId.get(data.owner_user_id) ?? null;
   } catch (profileError) {
-    return jsonError(
-      `Failed to resolve account owner: ${
-        profileError instanceof Error ? profileError.message : "Unknown error"
-      }`,
-      500,
-    );
+    console.error("[relationship-crm] account owner enrichment failed:", profileError);
   }
+
+  return Response.json({
+    account: {
+      ...data,
+      owner,
+    },
+  });
 }

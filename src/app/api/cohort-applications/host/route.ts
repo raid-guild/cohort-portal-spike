@@ -58,17 +58,17 @@ export async function GET(request: NextRequest) {
       .in("user_id", userIds);
 
     if (profileError) {
-      return Response.json({ error: profileError.message }, { status: 500 });
-    }
-
-    for (const profile of profiles ?? []) {
-      if (profile.user_id) {
-        profileByUserId.set(profile.user_id, {
-          user_id: profile.user_id,
-          handle: profile.handle,
-          display_name: profile.display_name,
-          avatar_url: profile.avatar_url,
-        });
+      console.error("[cohort-applications] profile enrichment failed:", profileError);
+    } else {
+      for (const profile of profiles ?? []) {
+        if (profile.user_id) {
+          profileByUserId.set(profile.user_id, {
+            user_id: profile.user_id,
+            handle: profile.handle,
+            display_name: profile.display_name,
+            avatar_url: profile.avatar_url,
+          });
+        }
       }
     }
   }

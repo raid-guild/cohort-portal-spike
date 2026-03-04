@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
         note: note ?? null,
         source: "badges-award-api",
       },
-      dedupeKey: `badge_award:${badgeId}:${[...resolvedUserIds].sort().join(",")}:${Date.now()}`,
+      dedupeKey: `badge_award:${badgeId}:${[...resolvedUserIds].sort().join(",")}`,
     });
   } catch (emitError) {
     console.error("[badges] emit bulk_awarded failed:", emitError);

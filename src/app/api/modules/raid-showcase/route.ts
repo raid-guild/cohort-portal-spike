@@ -138,7 +138,11 @@ export async function GET(request: NextRequest) {
     return Response.json({ posts });
   } catch (profileError) {
     console.error("[raid-showcase] author projection error:", profileError);
-    return Response.json({ error: "Failed to resolve post authors." }, { status: 500 });
+    const posts = ((data ?? []) as ShowcasePostRow[]).map((row) => ({
+      ...row,
+      author: null,
+    }));
+    return Response.json({ posts });
   }
 }
 
@@ -329,11 +333,14 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Failed to create post." }, { status: 500 });
   }
 
+  let post = inserted as ShowcasePostRow | (ShowcasePostRow & { author: ShowcaseAuthor | null });
   try {
-    const [post] = await withShowcaseAuthors(admin, [inserted as ShowcasePostRow]);
-    return Response.json({ post: post ?? inserted }, { status: 201 });
+    const [enriched] = await withShowcaseAuthors(admin, [inserted as ShowcasePostRow]);
+    post = enriched ?? inserted;
   } catch (profileError) {
     console.error("[raid-showcase] author projection error:", profileError);
-    return Response.json({ error: "Failed to resolve post author." }, { status: 500 });
+    post = { ...(inserted as ShowcasePostRow), author: null };
   }
+
+  return Response.json({ post }, { status: 201 });
 }

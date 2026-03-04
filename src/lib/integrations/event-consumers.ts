@@ -267,7 +267,9 @@ async function processBadgesTimelineConsumer(admin: UntypedAdmin, limit: number)
         },
       }));
 
-      const { error: insertError } = await admin.from("timeline_entries").insert(rows);
+      const { error: insertError } = await admin
+        .from("timeline_entries")
+        .upsert(rows, { onConflict: "user_id,source_kind,source_ref", ignoreDuplicates: true });
       if (insertError) {
         throw new Error(insertError.message);
       }

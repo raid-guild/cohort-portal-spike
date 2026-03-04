@@ -92,7 +92,11 @@ export async function withModuleRequestAuthors<T extends ModuleRequestRow>(
       .in("user_id", userIds);
 
     if (error) {
-      throw new Error(error.message);
+      console.error("[module-requests] author enrichment failed:", error.message);
+      return items.map((item) => ({
+        ...item,
+        author: null,
+      }));
     }
 
     for (const profile of (profiles ?? []) as ModuleRequestAuthor[]) {

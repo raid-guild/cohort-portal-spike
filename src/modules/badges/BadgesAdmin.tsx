@@ -117,7 +117,7 @@ export function BadgesAdmin() {
 
     void Promise.all([loadRoles(), loadLookups()]);
     const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      void loadRoles();
+      void Promise.all([loadRoles(), loadLookups()]);
     });
     return () => {
       cancelled = true;

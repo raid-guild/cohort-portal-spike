@@ -43,11 +43,15 @@ async function withListingAuthor(
   admin: ReturnType<typeof supabaseAdminClient>,
   listing: ListingRow,
 ) {
-  const { data: profile } = await admin
+  const { data: profile, error: profileError } = await admin
     .from("profiles")
     .select("user_id,handle,display_name,avatar_url")
     .eq("user_id", listing.created_by)
     .maybeSingle();
+
+  if (profileError) {
+    throw new Error(`Failed to load listing author for ${listing.created_by}: ${profileError.message}`);
+  }
 
   return {
     ...listing,
@@ -67,7 +71,14 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     return Response.json({ error: error.message }, { status: 404 });
   }
 
-  return Response.json({ listing: await withListingAuthor(auth.admin, data as ListingRow) });
+  try {
+    return Response.json({ listing: await withListingAuthor(auth.admin, data as ListingRow) });
+  } catch (profileError) {
+    return Response.json(
+      { error: profileError instanceof Error ? profileError.message : "Failed to load listing author." },
+      { status: 500 },
+    );
+  }
 }
 
 export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {

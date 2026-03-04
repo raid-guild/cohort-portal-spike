@@ -216,13 +216,11 @@ export async function enqueueNotificationDigests(maxUsers = DEFAULT_MAX_USERS) {
     if (!isDue(pref, nowMs)) continue;
 
     const topics = activeTopics(pref);
-    if (!topics.length) continue;
-    eligible += 1;
-
     const kinds = Array.from(
       new Set([...alwaysIncludedKinds(), ...topics.flatMap((topic) => topicKinds(topic))]),
     );
     if (!kinds.length) continue;
+    eligible += 1;
 
     const startMs = pref.last_digest_sent_at
       ? new Date(pref.last_digest_sent_at).valueOf()

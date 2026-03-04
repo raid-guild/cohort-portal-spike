@@ -108,13 +108,9 @@ export async function GET(request: NextRequest) {
     const listings = await withListingAuthors(auth.admin, (data ?? []) as ListingRow[]);
     return Response.json({ listings });
   } catch (profilesError) {
-    return Response.json(
-      {
-        error:
-          profilesError instanceof Error ? profilesError.message : "Failed to resolve listing authors.",
-      },
-      { status: 500 },
-    );
+    console.error("[looking-for] author enrichment failed:", profilesError);
+    const listings = ((data ?? []) as ListingRow[]).map((row) => ({ ...row, author: null }));
+    return Response.json({ listings });
   }
 }
 
@@ -184,12 +180,7 @@ export async function POST(request: NextRequest) {
     const [listing] = await withListingAuthors(auth.admin, [data as ListingRow]);
     return Response.json({ listing: listing ?? data });
   } catch (profilesError) {
-    return Response.json(
-      {
-        error:
-          profilesError instanceof Error ? profilesError.message : "Failed to resolve listing author.",
-      },
-      { status: 500 },
-    );
+    console.error("[looking-for] author enrichment failed:", profilesError);
+    return Response.json({ listing: { ...(data as ListingRow), author: null } });
   }
 }

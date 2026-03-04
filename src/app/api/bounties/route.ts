@@ -148,13 +148,13 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
+  let bounty = data;
   try {
-    const [bounty] = await withBountyAuthors(auth.admin, [data as BountyRow]);
-    return Response.json({ bounty: bounty ?? data });
+    const [enriched] = await withBountyAuthors(auth.admin, [data as BountyRow]);
+    bounty = enriched ?? data;
   } catch (profileError) {
-    return Response.json(
-      { error: profileError instanceof Error ? profileError.message : "Failed to resolve author." },
-      { status: 500 },
-    );
+    console.error("[bounties] author enrichment failed:", profileError);
   }
+
+  return Response.json({ bounty });
 }
