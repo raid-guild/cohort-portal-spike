@@ -227,7 +227,7 @@ export async function PUT(
     const profileByUserId = await getProfileMap(auth.admin, [baseBounty.created_by]);
     author = profileByUserId.get(baseBounty.created_by) ?? null;
   } catch (profileError) {
-    console.error("[bounties/:id] failed to enrich author", profileError);
+    console.error("[bounties/:id] author enrichment failed", { id, error: profileError });
   }
 
   return Response.json({

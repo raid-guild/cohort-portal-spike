@@ -50,7 +50,7 @@ async function withListingAuthor(
     .maybeSingle();
 
   if (profileError) {
-    throw new Error(`Failed to load listing author for ${listing.created_by}: ${profileError.message}`);
+    throw new Error(profileError.message);
   }
 
   return {

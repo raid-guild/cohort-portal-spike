@@ -274,7 +274,7 @@ async function processBadgesTimelineConsumer(admin: UntypedAdmin, limit: number)
         throw new Error(insertError.message);
       }
 
-      // Approximate metric: ignores rows skipped by ignoreDuplicates.
+      // Approximate count: ignoreDuplicates may skip existing rows.
       timelineEntries += rows.length;
       consumed += 1;
       await markConsumed(

@@ -140,7 +140,6 @@ export function BadgesAdmin() {
   if (rolesLoaded && !isHost) {
     return null;
   }
-
   const ensureSession = async () => {
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
@@ -154,7 +153,6 @@ export function BadgesAdmin() {
     setCreateModalOpen(false);
     setUploadFile(null);
   };
-
   const uploadImage = async (badgeId: string, token: string) => {
     if (!uploadFile) return null;
 

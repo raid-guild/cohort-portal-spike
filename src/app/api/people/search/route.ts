@@ -30,8 +30,8 @@ export async function GET(request: Request) {
       .select("user_id")
       .eq("badge_id", badge);
     if (badgeError) {
-      console.error("[people/search] badge lookup failed", badgeError);
-      return Response.json({ error: "Badge lookup failed", details: badgeError.message }, { status: 500 });
+      console.error("Failed to search people by badge", { badge, error: badgeError });
+      return Response.json({ error: "Failed to search people." }, { status: 500 });
     }
 
     badgeUserIds = [...new Set((badgeRows ?? []).map((row) => row.user_id).filter(Boolean))] as string[];
