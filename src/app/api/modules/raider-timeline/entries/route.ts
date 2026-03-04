@@ -136,33 +136,58 @@ export async function POST(request: NextRequest) {
   }
 
   const pinned = Boolean(body.pinned);
+  const sourceKind = typeof body.sourceKind === "string" ? body.sourceKind : null;
+  const sourceRef =
+    body.sourceRef && typeof body.sourceRef === "object" ? (body.sourceRef as Json) : null;
 
   const supabase = supabaseAdminClient();
-  const { data, error } = await supabase
-    .from("timeline_entries")
-    .insert({
-      user_id: viewerId,
-      kind,
-      title,
-      body: content,
-      visibility,
-      occurred_at: occurredAt,
-      pinned,
-      created_by: viewerId,
-      created_via_role: null,
-      source_kind: typeof body.sourceKind === "string" ? body.sourceKind : null,
-      source_ref:
-        body.sourceRef && typeof body.sourceRef === "object"
-          ? (body.sourceRef as Json)
-          : null,
-    })
-    .select(
-      "id, kind, title, body, visibility, occurred_at, pinned, created_by, created_via_role",
-    )
-    .single();
+  const payload = {
+    user_id: viewerId,
+    kind,
+    title,
+    body: content,
+    visibility,
+    occurred_at: occurredAt,
+    pinned,
+    created_by: viewerId,
+    created_via_role: null,
+    source_kind: sourceKind,
+    source_ref: sourceRef,
+  };
+  const selectColumns =
+    "id, kind, title, body, visibility, occurred_at, pinned, created_by, created_via_role";
+
+  const writeQuery =
+    sourceKind && sourceRef
+      ? supabase
+          .from("timeline_entries")
+          .upsert(payload, { onConflict: "user_id,source_kind,source_ref", ignoreDuplicates: true })
+      : supabase.from("timeline_entries").insert(payload);
+
+  const { data, error } = await writeQuery.select(selectColumns).maybeSingle();
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 });
+  }
+
+  if (!data && sourceKind && sourceRef) {
+    const { data: existing, error: existingError } = await supabase
+      .from("timeline_entries")
+      .select(selectColumns)
+      .eq("user_id", viewerId)
+      .eq("source_kind", sourceKind)
+      .contains("source_ref", sourceRef)
+      .maybeSingle();
+    if (existingError) {
+      return Response.json({ error: existingError.message }, { status: 500 });
+    }
+    if (existing) {
+      return Response.json({ item: toPayload(existing) });
+    }
+  }
+
+  if (!data) {
+    return Response.json({ error: "Failed to save timeline entry." }, { status: 500 });
   }
 
   return Response.json({ item: toPayload(data) });

@@ -30,10 +30,11 @@ export async function GET(request: Request) {
       .select("user_id")
       .eq("badge_id", badge);
     if (badgeError) {
-      return Response.json({ people: [] as Profile[] });
+      console.error("[people/search] badge lookup failed", badgeError);
+      return Response.json({ error: "Badge lookup failed", details: badgeError.message }, { status: 500 });
     }
 
-    badgeUserIds = (badgeRows ?? []).map((row) => row.user_id).filter(Boolean) as string[];
+    badgeUserIds = [...new Set((badgeRows ?? []).map((row) => row.user_id).filter(Boolean))] as string[];
     if (!badgeUserIds.length) {
       return Response.json({ people: [] as Profile[] });
     }

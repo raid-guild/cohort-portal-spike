@@ -221,18 +221,19 @@ export async function PUT(
     return Response.json({ error: "Not found." }, { status: 404 });
   }
 
+  const baseBounty = data as BountyRow;
+  let author: ProfileRow | null = null;
   try {
-    const profileByUserId = await getProfileMap(auth.admin, [(data as BountyRow).created_by]);
-    return Response.json({
-      bounty: {
-        ...(data as BountyRow),
-        author: profileByUserId.get((data as BountyRow).created_by) ?? null,
-      },
-    });
+    const profileByUserId = await getProfileMap(auth.admin, [baseBounty.created_by]);
+    author = profileByUserId.get(baseBounty.created_by) ?? null;
   } catch (profileError) {
-    return Response.json(
-      { error: profileError instanceof Error ? profileError.message : "Failed to resolve author." },
-      { status: 500 },
-    );
+    console.error("[bounties/:id] failed to enrich author", profileError);
   }
+
+  return Response.json({
+    bounty: {
+      ...baseBounty,
+      author,
+    },
+  });
 }

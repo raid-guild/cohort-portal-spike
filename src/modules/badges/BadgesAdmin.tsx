@@ -125,6 +125,18 @@ export function BadgesAdmin() {
     };
   }, [supabase]);
 
+  useEffect(() => {
+    if (!createModalOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setCreateModalOpen(false);
+        setUploadFile(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [createModalOpen]);
+
   if (rolesLoaded && !isHost) {
     return null;
   }
@@ -136,6 +148,11 @@ export function BadgesAdmin() {
       throw new Error("Sign in as a host to manage badges.");
     }
     return token;
+  };
+
+  const closeCreateModal = () => {
+    setCreateModalOpen(false);
+    setUploadFile(null);
   };
 
   const uploadImage = async (badgeId: string, token: string) => {
@@ -218,8 +235,7 @@ export function BadgesAdmin() {
 
       setMessage("Badge saved.");
       setCreateForm(emptyCreate);
-      setUploadFile(null);
-      setCreateModalOpen(false);
+      closeCreateModal();
       const refresh = await fetch("/api/badges");
       const refreshJson = (await refresh.json().catch(() => ({}))) as {
         badges?: Array<{ id: string; title: string }>;
@@ -380,13 +396,21 @@ export function BadgesAdmin() {
 
       {createModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <section className="w-full max-w-xl rounded-xl border border-border bg-card p-5 shadow-xl">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="badge-create-dialog-title"
+            className="w-full max-w-xl rounded-xl border border-border bg-card p-5 shadow-xl"
+          >
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-base font-semibold">Create / update badge</h3>
+              <h3 id="badge-create-dialog-title" className="text-base font-semibold">
+                Create / update badge
+              </h3>
               <button
                 type="button"
                 className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-muted"
-                onClick={() => setCreateModalOpen(false)}
+                onClick={closeCreateModal}
+                aria-label="Close dialog"
               >
                 Close
               </button>
@@ -474,7 +498,7 @@ export function BadgesAdmin() {
               <button
                 type="button"
                 className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted"
-                onClick={() => setCreateModalOpen(false)}
+                onClick={closeCreateModal}
               >
                 Cancel
               </button>

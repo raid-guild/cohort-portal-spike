@@ -133,6 +133,7 @@ export function PeopleDirectory({
         <select
           value={badgeId}
           onChange={(event) => setBadgeId(event.target.value)}
+          aria-label="Filter people by badge"
           className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
         >
           <option value="all">All badges</option>
@@ -204,6 +205,7 @@ export function PeopleDirectory({
                               alt={badge.title}
                               width={14}
                               height={14}
+                              unoptimized
                               className="h-3.5 w-3.5 rounded"
                             />
                           ) : null}
@@ -232,7 +234,7 @@ export function PeopleDirectory({
       {remoteLoading ? (
         <p className="text-sm text-muted-foreground">Searching people...</p>
       ) : null}
-      {!filtered.length ? (
+      {!remoteLoading && filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground">No matches. Try another search.</p>
       ) : null}
     </div>

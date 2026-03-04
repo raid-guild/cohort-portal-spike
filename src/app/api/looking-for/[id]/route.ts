@@ -74,8 +74,13 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   try {
     return Response.json({ listing: await withListingAuthor(auth.admin, data as ListingRow) });
   } catch (profileError) {
+    console.error("Failed to load listing author", {
+      route: "GET /api/looking-for/[id]",
+      id,
+      error: profileError,
+    });
     return Response.json(
-      { error: profileError instanceof Error ? profileError.message : "Failed to load listing author." },
+      { error: "Failed to load listing author." },
       { status: 500 },
     );
   }
@@ -190,5 +195,14 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  return Response.json({ listing: await withListingAuthor(auth.admin, data as ListingRow) });
+  try {
+    return Response.json({ listing: await withListingAuthor(auth.admin, data as ListingRow) });
+  } catch (profileError) {
+    console.error("Failed to load listing author", {
+      route: "PUT /api/looking-for/[id]",
+      id,
+      error: profileError,
+    });
+    return Response.json({ listing: { ...(data as ListingRow), author: null }, authorEnrichmentFailed: true });
+  }
 }
