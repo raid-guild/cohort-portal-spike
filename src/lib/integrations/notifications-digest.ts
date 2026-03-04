@@ -72,6 +72,10 @@ function topicKinds(topic: Topic): string[] {
   }
 }
 
+function alwaysIncludedKinds(): string[] {
+  return ["core.badges.bulk_awarded"];
+}
+
 function buildDigestItem(event: EventRow): DigestItem | null {
   const data = event.data ?? {};
   const subject = event.subject ?? {};
@@ -113,6 +117,20 @@ function buildDigestItem(event: EventRow): DigestItem | null {
       title: "New Guild Grimoire note",
       href: "/modules/guild-grimoire",
       summary: `A new ${contentType} note was shared in Guild Grimoire.`,
+    };
+  }
+
+  if (event.kind === "core.badges.bulk_awarded") {
+    const badgeTitle =
+      typeof data.badgeTitle === "string" && data.badgeTitle.trim()
+        ? data.badgeTitle.trim()
+        : "Community badge";
+    return {
+      kind: event.kind,
+      occurredAt: event.occurred_at,
+      title: `Badge earned: ${badgeTitle}`,
+      href: "/modules/badges",
+      summary: "A new badge was awarded to your profile.",
     };
   }
 
@@ -201,7 +219,9 @@ export async function enqueueNotificationDigests(maxUsers = DEFAULT_MAX_USERS) {
     if (!topics.length) continue;
     eligible += 1;
 
-    const kinds = Array.from(new Set(topics.flatMap((topic) => topicKinds(topic))));
+    const kinds = Array.from(
+      new Set([...alwaysIncludedKinds(), ...topics.flatMap((topic) => topicKinds(topic))]),
+    );
     if (!kinds.length) continue;
 
     const startMs = pref.last_digest_sent_at
@@ -224,6 +244,12 @@ export async function enqueueNotificationDigests(maxUsers = DEFAULT_MAX_USERS) {
 
     const filtered = ((rawEvents ?? []) as EventRow[])
       .filter((event) => {
+        if (event.kind === "core.badges.bulk_awarded") {
+          const userIds = Array.isArray(event.data?.userIds)
+            ? event.data?.userIds.filter((value): value is string => typeof value === "string")
+            : [];
+          return userIds.includes(profile.user_id as string);
+        }
         if (event.visibility === "private") {
           return event.actor_id === profile.user_id;
         }

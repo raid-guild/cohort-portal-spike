@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import type { TablesInsert } from "@/lib/types/db";
 import { requireAuth } from "./_auth";
-import { normalizeStatus, type ModuleRequestSpec } from "./lib";
+import { normalizeStatus, type ModuleRequestSpec, withModuleRequestAuthors } from "./lib";
 
 const parseSort = (value: string | null) => {
   const sort = (value ?? "").trim();
@@ -67,10 +67,13 @@ export async function GET(request: NextRequest) {
   }
 
   return Response.json({
-    items: (data ?? []).map((row) => ({
+    items: await withModuleRequestAuthors(
+      admin,
+      (data ?? []).map((row) => ({
       ...row,
       viewer_has_voted: votedIds.has(row.id),
-    })),
+      })),
+    ),
     page,
     limit,
     total: count ?? null,
@@ -127,5 +130,6 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  return Response.json({ item: data });
+  const [item] = await withModuleRequestAuthors(auth.admin, [data]);
+  return Response.json({ item: item ?? data });
 }

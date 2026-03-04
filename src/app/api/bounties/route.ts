@@ -1,5 +1,60 @@
 import { NextRequest } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAuth, requireHost } from "./_auth";
+
+type BountyRow = {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  github_url: string | null;
+  reward_type: string;
+  reward_amount: number | null;
+  reward_token: string | null;
+  badge_id: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  due_at: string | null;
+  tags: string[] | null;
+};
+
+type ProfileRow = {
+  user_id: string;
+  handle: string;
+  display_name: string | null;
+  avatar_url: string | null;
+};
+
+async function withBountyAuthors(
+  admin: SupabaseClient,
+  rows: BountyRow[],
+) {
+  const userIds = Array.from(new Set(rows.map((row) => row.created_by).filter(Boolean)));
+  const profileByUserId = new Map<string, ProfileRow>();
+
+  if (userIds.length) {
+    const { data: profiles, error: profileError } = await admin
+      .from("profiles")
+      .select("user_id,handle,display_name,avatar_url")
+      .in("user_id", userIds);
+
+    if (profileError) {
+      throw new Error(profileError.message);
+    }
+
+    for (const profile of (profiles ?? []) as ProfileRow[]) {
+      if (profile.user_id) {
+        profileByUserId.set(profile.user_id, profile);
+      }
+    }
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    author: profileByUserId.get(row.created_by) ?? null,
+  }));
+}
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);
@@ -31,7 +86,15 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  return Response.json({ bounties: data ?? [] });
+  try {
+    const bounties = await withBountyAuthors(auth.admin, (data ?? []) as BountyRow[]);
+    return Response.json({ bounties });
+  } catch (profileError) {
+    return Response.json(
+      { error: profileError instanceof Error ? profileError.message : "Failed to resolve authors." },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -85,5 +148,13 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  return Response.json({ bounty: data });
+  try {
+    const [bounty] = await withBountyAuthors(auth.admin, [data as BountyRow]);
+    return Response.json({ bounty: bounty ?? data });
+  } catch (profileError) {
+    return Response.json(
+      { error: profileError instanceof Error ? profileError.message : "Failed to resolve author." },
+      { status: 500 },
+    );
+  }
 }

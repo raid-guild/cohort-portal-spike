@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ProfileIdentity } from "@/components/profile/ProfileIdentity";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 type ApplicationRecord = {
@@ -17,6 +18,12 @@ type ApplicationRecord = {
 
 type HostApplication = ApplicationRecord & {
   user_id: string;
+  profile?: {
+    user_id: string;
+    handle: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
 };
 
 export default function CohortApplicationPage() {
@@ -270,7 +277,13 @@ export default function CohortApplicationPage() {
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="font-semibold text-foreground">
-                      {item.user_id}
+                      <ProfileIdentity
+                        handle={item.profile?.handle ?? "unknown"}
+                        displayName={item.profile?.display_name || item.profile?.handle || "Unknown user"}
+                        avatarUrl={item.profile?.avatar_url}
+                        avatarSize={28}
+                        compact
+                      />
                     </div>
                     <div className="text-muted-foreground">{item.status}</div>
                   </div>

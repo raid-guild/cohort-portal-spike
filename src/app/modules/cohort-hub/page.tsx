@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ProfileIdentity } from "@/components/profile/ProfileIdentity";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 
 type Cohort = {
@@ -710,17 +711,21 @@ export default function CohortHubPage() {
                       key={`${participant.userId}-${participant.handle}`}
                       className="rounded-lg border p-3"
                     >
-                      <a
-                        href={`/people/${participant.handle}`}
-                        className="text-xs font-semibold text-foreground underline-offset-4 hover:underline"
-                      >
-                        {participant.displayName}
+                      <a href={`/people/${participant.handle}`} className="block underline-offset-4 hover:underline">
+                        <ProfileIdentity
+                          handle={participant.handle}
+                          displayName={participant.displayName || participant.handle}
+                          avatarUrl={participant.avatarUrl}
+                          avatarSize={28}
+                          compact
+                        />
                       </a>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        @{participant.handle}
-                        {participant.role ? ` · ${participant.role}` : ""}
-                        {participant.status ? ` · ${participant.status}` : ""}
-                      </div>
+                      {participant.role || participant.status ? (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {participant.role ?? "participant"}
+                          {participant.status ? ` · ${participant.status}` : ""}
+                        </div>
+                      ) : null}
                     </div>
                   ))
                 ) : (

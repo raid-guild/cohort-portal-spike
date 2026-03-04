@@ -7,6 +7,7 @@ import {
   includesValue,
   isUuid,
   jsonError,
+  loadCrmProfileMap,
   requireCrmAccess,
 } from "@/app/api/modules/relationship-crm/lib";
 
@@ -84,5 +85,23 @@ export async function POST(
     return jsonError(`Failed to add interaction: ${error.message}`, 500);
   }
 
-  return Response.json({ interaction: data }, { status: 201 });
+  try {
+    const profileByUserId = await loadCrmProfileMap(admin, [data.created_by]);
+    return Response.json(
+      {
+        interaction: {
+          ...data,
+          author: profileByUserId.get(data.created_by) ?? null,
+        },
+      },
+      { status: 201 },
+    );
+  } catch (profileError) {
+    return jsonError(
+      `Failed to resolve interaction author: ${
+        profileError instanceof Error ? profileError.message : "Unknown error"
+      }`,
+      500,
+    );
+  }
 }

@@ -58,6 +58,21 @@ modules and to avoid leaking state across surfaces.
 If a module needs portal context (for example, the auth token or a profile refresh),
 use portal-owned APIs and messaging between the iframe and parent window.
 
+## Shared profile UI primitives
+Profile data is a platform core table (`public.profiles`), so profile rendering should use
+shared components instead of module-local one-offs.
+
+Current primitives:
+- `src/components/profile/ProfileAvatar.tsx`
+- `src/components/profile/ProfileIdentity.tsx`
+- `src/components/profile/ProfileMultiSelect.tsx`
+
+Guidelines:
+- For author/user identity rows (forum posts, notes, comments), use `ProfileIdentity`.
+- For user pickers in host/admin flows, use `ProfileMultiSelect`.
+- Keep profile contracts stable across modules: `userId`, `handle`, `displayName`, `avatarUrl`.
+- If you need a richer layout (card/list), compose these primitives instead of re-implementing avatar + name + handle logic.
+
 ## Portal RPC (message bus v0)
 The portal supports a minimal request/response RPC bridge over `window.postMessage`.
 Modules can opt in to this contract to request common portal actions.
@@ -197,6 +212,21 @@ Guidance:
 - Emit after successful writes.
 - Start fail-open (log on emit errors, do not fail primary user write path).
 - Keep consumers decoupled; avoid direct module-to-module writes.
+
+### Core API + consumer pattern (recommended)
+For cross-module actions, prefer:
+1. Core command API performs authoritative write synchronously.
+2. Command API emits one domain event.
+3. Consumers handle side effects (timeline, notifications, analytics).
+
+Example:
+- `POST /api/badges/award/bulk` writes `user_badges`.
+- Emits `core.badges.bulk_awarded`.
+- Consumers react to update timeline and digest queues.
+
+Avoid:
+- Direct module-to-module table writes.
+- Hiding primary business writes inside asynchronous consumers.
 
 ### Event producer template (copy/paste)
 For any new module mutation route:

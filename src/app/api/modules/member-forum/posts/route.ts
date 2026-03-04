@@ -5,6 +5,7 @@ import {
   getViewer,
   getVisibleSpaces,
   jsonError,
+  loadForumAuthorsByUserId,
   sanitizePostForResponse,
   type ForumPost,
 } from "@/app/api/modules/member-forum/lib";
@@ -68,11 +69,16 @@ export async function GET(request: NextRequest) {
     const items = hasMore ? rows.slice(0, limit) : rows;
 
     const spaceById = new Map(visibleSpaces.map((space) => [space.id, space]));
+    const authorByUserId = await loadForumAuthorsByUserId(
+      admin,
+      items.map((post) => post.author_id),
+    );
 
     return Response.json({
       posts: items.map((post) => ({
         ...sanitizePostForResponse(post),
         space: spaceById.get(post.space_id) ?? null,
+        author: authorByUserId.get(post.author_id) ?? null,
       })),
       next_cursor:
         hasMore && items.length
@@ -158,6 +164,7 @@ export async function POST(request: NextRequest) {
       post: {
         ...sanitizePostForResponse(data as ForumPost),
         space,
+        author: null,
       },
     });
   } catch (err) {

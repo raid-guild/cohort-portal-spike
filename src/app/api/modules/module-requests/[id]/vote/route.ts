@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import type { PostgrestError } from "@supabase/supabase-js";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
 import { requireAuth } from "../../_auth";
+import { withModuleRequestAuthors } from "../../lib";
 
 type AdminClient = ReturnType<typeof supabaseAdminClient>;
 
@@ -77,7 +78,14 @@ export async function POST(
     );
   }
 
-  return Response.json({ item: { ...updated, viewer_has_voted: true } });
+  if (!updated) {
+    return Response.json({ error: "Not found." }, { status: 404 });
+  }
+
+  const [item] = await withModuleRequestAuthors(admin, [
+    { ...(updated as Record<string, unknown>), viewer_has_voted: true, created_by: updated.created_by },
+  ]);
+  return Response.json({ item: item ?? updated });
 }
 
 export async function DELETE(
@@ -116,5 +124,8 @@ export async function DELETE(
     return Response.json({ error: "Not found." }, { status: 404 });
   }
 
-  return Response.json({ item: { ...updated, viewer_has_voted: false } });
+  const [item] = await withModuleRequestAuthors(admin, [
+    { ...(updated as Record<string, unknown>), viewer_has_voted: false, created_by: updated.created_by },
+  ]);
+  return Response.json({ item: item ?? updated });
 }

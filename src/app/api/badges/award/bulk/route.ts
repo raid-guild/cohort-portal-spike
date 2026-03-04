@@ -37,11 +37,15 @@ export async function POST(request: NextRequest) {
   } catch {
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
-  const handle = body?.handle ? String(body.handle).trim() : null;
-  const userId = body?.userId ? String(body.userId).trim() : null;
+
+  const badgeId = String(body?.badgeId ?? "")
+    .trim()
+    .toLowerCase();
+  const note = body?.note ? String(body.note).trim() : null;
+  const source = body?.source ? String(body.source).trim() : null;
   const handles = Array.isArray(body?.handles)
     ? body.handles
-        .map((value) => (typeof value === "string" ? value.trim() : ""))
+        .map((value) => (typeof value === "string" ? value.trim().replace(/^@+/, "").toLowerCase() : ""))
         .filter(Boolean)
     : [];
   const userIds = Array.isArray(body?.userIds)
@@ -49,31 +53,23 @@ export async function POST(request: NextRequest) {
         .map((value) => (typeof value === "string" ? value.trim() : ""))
         .filter(Boolean)
     : [];
-  const badgeId = String(body?.badgeId ?? "")
-    .trim()
-    .toLowerCase();
-  const note = body?.note ? String(body.note).trim() : null;
 
   if (!badgeId) {
     return Response.json({ error: "badgeId is required." }, { status: 400 });
   }
-
-  const pendingHandles = [...handles, ...(handle ? [handle] : [])];
-  const pendingUserIds = [...userIds, ...(userId ? [userId] : [])];
-
-  if (!pendingHandles.length && !pendingUserIds.length) {
+  if (!handles.length && !userIds.length) {
     return Response.json(
-      { error: "Provide userId or a handle with a linked user_id." },
+      { error: "Provide at least one handle or userId." },
       { status: 400 },
     );
   }
 
-  const resolvedUserIds = new Set(pendingUserIds);
-  if (pendingHandles.length) {
+  const resolvedUserIds = new Set(userIds);
+  if (handles.length) {
     const { data: profileRows, error: profileError } = await admin
       .from("profiles")
       .select("handle, user_id")
-      .in("handle", pendingHandles);
+      .in("handle", handles);
 
     if (profileError) {
       return Response.json({ error: profileError.message }, { status: 500 });
@@ -82,9 +78,7 @@ export async function POST(request: NextRequest) {
     const byHandle = new Map(
       (profileRows ?? []).map((row) => [row.handle, row.user_id]),
     );
-    const missingHandles = pendingHandles.filter(
-      (candidate) => !byHandle.get(candidate),
-    );
+    const missingHandles = handles.filter((candidate) => !byHandle.get(candidate));
     if (missingHandles.length) {
       return Response.json(
         {
@@ -94,17 +88,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    for (const candidate of pendingHandles) {
-      const resolved = byHandle.get(candidate);
+    for (const handle of handles) {
+      const resolved = byHandle.get(handle);
       if (resolved) resolvedUserIds.add(resolved);
     }
   }
 
-  const rows = [...resolvedUserIds].map((resolvedId) => ({
-    user_id: resolvedId,
+  const rows = [...resolvedUserIds].map((resolvedUserId) => ({
+    user_id: resolvedUserId,
     badge_id: badgeId,
     awarded_by: data.user.id,
-    note,
+    note: source ? `${note ?? ""}${note ? " " : ""}[source:${source}]`.trim() : note,
   }));
 
   const { error: insertError } = await admin
@@ -133,15 +127,15 @@ export async function POST(request: NextRequest) {
         badgeId,
         badgeTitle: badgeDef?.title ?? badgeId,
         userIds: [...resolvedUserIds],
-        handles: pendingHandles,
+        handles,
         note: note ?? null,
-        source: "badges-award-api",
+        source: source ?? "badges-api",
       },
-      dedupeKey: `badge_award:${badgeId}:${[...resolvedUserIds].sort().join(",")}:${Date.now()}`,
+      dedupeKey: `badge_bulk_award:${badgeId}:${[...resolvedUserIds].sort().join(",")}:${Date.now()}`,
     });
   } catch (emitError) {
     console.error("[badges] emit bulk_awarded failed:", emitError);
   }
 
-  return Response.json({ ok: true, awarded: rows.length });
+  return Response.json({ ok: true, awarded: rows.length, badgeId });
 }

@@ -4,6 +4,7 @@ import {
   canReadSpace,
   getViewer,
   jsonError,
+  loadForumAuthorsByUserId,
   sanitizeCommentForResponse,
   sanitizePostForResponse,
   type ForumComment,
@@ -77,12 +78,22 @@ export async function GET(
       return jsonError(commentsRes.error.message, 500);
     }
 
+    const comments = ((commentsRes.data ?? []) as ForumComment[]).map(sanitizeCommentForResponse);
+    const authorByUserId = await loadForumAuthorsByUserId(admin, [
+      loaded.post.author_id,
+      ...comments.map((comment) => comment.author_id),
+    ]);
+
     return Response.json({
       post: {
         ...sanitizePostForResponse(loaded.post),
         space: loaded.space,
+        author: authorByUserId.get(loaded.post.author_id) ?? null,
       },
-      comments: ((commentsRes.data ?? []) as ForumComment[]).map(sanitizeCommentForResponse),
+      comments: comments.map((comment) => ({
+        ...comment,
+        author: authorByUserId.get(comment.author_id) ?? null,
+      })),
     });
   } catch (err) {
     console.error("[member-forum] post detail error:", err);

@@ -15,6 +15,23 @@ const ALLOWED_IMAGE_MIME_TYPES = new Set([
 
 const ALLOWED_IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "gif"]);
 
+type ShowcasePostRow = {
+  id: string;
+  user_id: string;
+  image_url: string;
+  title: string;
+  impact_statement: string;
+  boost_count: number;
+  created_at: string;
+};
+
+type ShowcaseAuthor = {
+  user_id: string;
+  handle: string;
+  display_name: string | null;
+  avatar_url: string | null;
+};
+
 function extensionFromFilename(filename: string) {
   const ext = filename.split(".").pop()?.toLowerCase();
   if (!ext) return null;
@@ -68,6 +85,36 @@ function mimeTypeForImageExtension(extension: string) {
   }
 }
 
+async function withShowcaseAuthors(
+  admin: ReturnType<typeof supabaseAdminClient>,
+  rows: ShowcasePostRow[],
+) {
+  const userIds = Array.from(new Set(rows.map((row) => row.user_id).filter(Boolean)));
+  const authorByUserId = new Map<string, ShowcaseAuthor>();
+
+  if (userIds.length) {
+    const { data: profiles, error: profileError } = await admin
+      .from("profiles")
+      .select("user_id,handle,display_name,avatar_url")
+      .in("user_id", userIds);
+
+    if (profileError) {
+      throw new Error(profileError.message);
+    }
+
+    for (const profile of (profiles ?? []) as ShowcaseAuthor[]) {
+      if (profile.user_id) {
+        authorByUserId.set(profile.user_id, profile);
+      }
+    }
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    author: authorByUserId.get(row.user_id) ?? null,
+  }));
+}
+
 export async function GET(request: NextRequest) {
   const viewerId = await getViewerIdFromAuthHeader(request);
   if (!viewerId) {
@@ -86,7 +133,13 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "Failed to load feed." }, { status: 500 });
   }
 
-  return Response.json({ posts: data ?? [] });
+  try {
+    const posts = await withShowcaseAuthors(admin, (data ?? []) as ShowcasePostRow[]);
+    return Response.json({ posts });
+  } catch (profileError) {
+    console.error("[raid-showcase] author projection error:", profileError);
+    return Response.json({ error: "Failed to resolve post authors." }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -276,5 +329,11 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Failed to create post." }, { status: 500 });
   }
 
-  return Response.json({ post: inserted }, { status: 201 });
+  try {
+    const [post] = await withShowcaseAuthors(admin, [inserted as ShowcasePostRow]);
+    return Response.json({ post: post ?? inserted }, { status: 201 });
+  } catch (profileError) {
+    console.error("[raid-showcase] author projection error:", profileError);
+    return Response.json({ error: "Failed to resolve post author." }, { status: 500 });
+  }
 }

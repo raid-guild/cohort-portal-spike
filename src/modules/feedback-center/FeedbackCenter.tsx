@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ProfileIdentity } from "@/components/profile/ProfileIdentity";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { MarkdownEditor } from "@/modules/_shared/MarkdownEditor";
 
@@ -24,6 +25,18 @@ type FeedbackItem = {
   route_path: string | null;
   reporter_user_id: string;
   assignee_user_id: string | null;
+  reporter: {
+    user_id: string;
+    handle: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
+  assignee: {
+    user_id: string;
+    handle: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
   triage_notes: string | null;
   created_at: string;
   updated_at: string;
@@ -442,7 +455,15 @@ export function FeedbackCenter() {
                 <article key={item.id} className="space-y-3 rounded-xl border border-border bg-card p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="font-semibold">{item.title}</h3>
-                    <div className="text-xs text-muted-foreground">Reporter: {item.reporter_user_id}</div>
+                    <div>
+                      <ProfileIdentity
+                        handle={item.reporter?.handle ?? "unknown"}
+                        displayName={item.reporter?.display_name || item.reporter?.handle || "Unknown user"}
+                        avatarUrl={item.reporter?.avatar_url}
+                        avatarSize={26}
+                        compact
+                      />
+                    </div>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-4">
                     <label className="grid gap-1 text-xs">

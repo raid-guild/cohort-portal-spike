@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
+import { ProfileIdentity } from "@/components/profile/ProfileIdentity";
 import { DaoBlogMarkdown } from "@/modules/dao-blog/DaoBlogMarkdown";
 import { DaoBlogReferralForm } from "@/modules/dao-blog/DaoBlogReferralForm";
 
@@ -14,6 +15,12 @@ type Post = {
   body_md: string;
   published_at: string | null;
   author_user_id: string;
+  author: {
+    user_id: string;
+    handle: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
 };
 
 function getSiteOrigin() {
@@ -49,7 +56,21 @@ async function loadPublishedPost(slug: string): Promise<Post | null> {
     throw new Error(error.message);
   }
 
-  return (data as Post | null) ?? null;
+  const post = (data as Omit<Post, "author"> | null) ?? null;
+  if (!post) {
+    return null;
+  }
+
+  const { data: author } = await supabaseAdminClient()
+    .from("profiles")
+    .select("user_id,handle,display_name,avatar_url")
+    .eq("user_id", post.author_user_id)
+    .maybeSingle();
+
+  return {
+    ...post,
+    author: (author as Post["author"]) ?? null,
+  };
 }
 
 export async function generateMetadata({
@@ -131,6 +152,17 @@ export default async function DaoBlogPostPage({
         </p>
         <h1 className="text-4xl font-semibold leading-tight">{post.title}</h1>
         <p className="text-sm text-muted-foreground">{post.summary}</p>
+        {post.author ? (
+          <a href={`/people/${post.author.handle}`} className="inline-block">
+            <ProfileIdentity
+              handle={post.author.handle}
+              displayName={post.author.display_name || post.author.handle}
+              avatarUrl={post.author.avatar_url}
+              avatarSize={32}
+              compact
+            />
+          </a>
+        ) : null}
       </div>
 
       <div className="rounded-xl border border-border bg-card p-5">

@@ -5,6 +5,7 @@ import {
   asUntypedAdmin,
   evaluateEligibility,
   jsonError,
+  loadPollProfileMap,
   parseLimit,
   parseRule,
   requirePollViewer,
@@ -147,6 +148,8 @@ export async function GET(request: NextRequest) {
     myVoteByPoll.set(row.poll_id, row.option_id);
   }
 
+  const profileByUserId = await loadPollProfileMap(viewer.admin, page.map((poll) => poll.created_by));
+
   const items = page
     .map((poll) => {
       const rules = rulesByPoll.get(poll.id) ?? [];
@@ -175,6 +178,7 @@ export async function GET(request: NextRequest) {
           can_view_results: canViewResults,
           can_close: canClose,
         },
+        creator: profileByUserId.get(poll.created_by) ?? null,
       };
     })
     .filter((item) => {
@@ -327,7 +331,10 @@ export async function POST(request: NextRequest) {
 
   return Response.json(
     {
-      poll,
+      poll: {
+        ...poll,
+        creator: (await loadPollProfileMap(viewer.admin, [poll.created_by])).get(poll.created_by) ?? null,
+      },
       options: optionsInsertRes.data ?? [],
       eligibility_rules: rulesInsertRes.data ?? [],
     },

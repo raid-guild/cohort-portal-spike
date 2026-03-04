@@ -38,6 +38,13 @@ export type ForumComment = {
   updated_at: string;
 };
 
+export type ForumAuthor = {
+  user_id: string;
+  handle: string;
+  display_name: string | null;
+  avatar_url: string | null;
+};
+
 export type ViewerContext = {
   userId: string | null;
   roles: string[];
@@ -176,4 +183,26 @@ export function sanitizeCommentForResponse(comment: ForumComment) {
     created_at: comment.created_at,
     updated_at: comment.updated_at,
   };
+}
+
+export async function loadForumAuthorsByUserId(
+  admin: UntypedAdmin,
+  userIds: string[],
+): Promise<Map<string, ForumAuthor>> {
+  const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
+  if (!uniqueIds.length) {
+    return new Map();
+  }
+
+  const { data, error } = await admin
+    .from("profiles")
+    .select("user_id,handle,display_name,avatar_url")
+    .in("user_id", uniqueIds);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const rows = ((data ?? []) as ForumAuthor[]).filter((row) => row.user_id);
+  return new Map(rows.map((row) => [row.user_id, row]));
 }

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireHost } from "../../_auth";
-import { toGitHubIssueMarkdown, type ModuleRequestSpec } from "../../lib";
+import { toGitHubIssueMarkdown, type ModuleRequestSpec, withModuleRequestAuthors } from "../../lib";
 
 type PromoteBody = {
   github_issue_url?: string;
@@ -28,7 +28,7 @@ export async function POST(
   const { data, error } = await admin
     .from("module_requests")
     .select(
-      "id, module_id, title, owner_contact, status, spec, github_issue_url, votes_count, promotion_threshold, submitted_to_github_at",
+      "id, created_by, module_id, title, owner_contact, status, spec, github_issue_url, votes_count, promotion_threshold, submitted_to_github_at",
     )
     .eq("id", id)
     .is("deleted_at", null)
@@ -72,8 +72,10 @@ export async function POST(
       return Response.json({ error: updateError.message }, { status: 500 });
     }
 
-    return Response.json({ item: updated, markdown });
+    const [item] = await withModuleRequestAuthors(admin, [updated]);
+    return Response.json({ item: item ?? updated, markdown });
   }
 
-  return Response.json({ markdown, item: data });
+  const [item] = await withModuleRequestAuthors(admin, [data]);
+  return Response.json({ markdown, item: item ?? data });
 }

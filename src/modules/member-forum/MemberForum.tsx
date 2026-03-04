@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ProfileIdentity } from "@/components/profile/ProfileIdentity";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { MarkdownEditor } from "@/modules/_shared/MarkdownEditor";
 import { MarkdownRenderer } from "@/modules/_shared/MarkdownRenderer";
@@ -24,6 +25,12 @@ type Post = {
   is_locked: boolean;
   created_at: string;
   updated_at: string;
+  author: {
+    user_id: string;
+    handle: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
   space: {
     id: string;
     slug: string;
@@ -38,6 +45,12 @@ type Comment = {
   parent_comment_id: string | null;
   body_md: string;
   created_at: string;
+  author: {
+    user_id: string;
+    handle: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
 };
 
 type ViewMode = "feed" | "space" | "post" | "new";
@@ -178,6 +191,14 @@ export function MemberForum({
   }, [getAuthHeader, mode, postId, selectedSpace]);
 
   const selectedSpaceMeta = spaces.find((space) => space.slug === selectedSpace) ?? null;
+  const formatTimestamp = useCallback(
+    (value: string) =>
+      new Date(value).toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }),
+    [],
+  );
 
   async function submitPost(event: React.FormEvent) {
     event.preventDefault();
@@ -252,6 +273,16 @@ export function MemberForum({
             <article className="rounded-xl border border-border bg-card p-4">
               <p className="text-xs text-muted-foreground">/{post.space?.slug ?? "space"}</p>
               <h2 className="mt-1 text-xl font-semibold">{post.title}</h2>
+              <div className="mt-3">
+                <ProfileIdentity
+                  handle={post.author?.handle ?? "unknown"}
+                  displayName={post.author?.display_name || post.author?.handle || "Unknown user"}
+                  avatarUrl={post.author?.avatar_url}
+                  avatarSize={32}
+                  subtitle={formatTimestamp(post.created_at)}
+                  compact
+                />
+              </div>
               <div className="mt-2">
                 <MarkdownRenderer markdown={post.body_md} />
               </div>
@@ -264,6 +295,18 @@ export function MemberForum({
               <h3 className="text-lg font-medium">Comments</h3>
               {comments.map((comment) => (
                 <div key={comment.id} className="rounded-lg border border-border bg-card p-3">
+                  <div className="mb-2">
+                    <ProfileIdentity
+                      handle={comment.author?.handle ?? "unknown"}
+                      displayName={
+                        comment.author?.display_name || comment.author?.handle || "Unknown user"
+                      }
+                      avatarUrl={comment.author?.avatar_url}
+                      avatarSize={28}
+                      subtitle={formatTimestamp(comment.created_at)}
+                      compact
+                    />
+                  </div>
                   <MarkdownRenderer markdown={comment.body_md} />
                 </div>
               ))}
@@ -381,6 +424,16 @@ export function MemberForum({
             <a href={`/modules/member-forum/p/${item.id}`} className="mt-1 block text-lg font-semibold">
               {item.title}
             </a>
+            <div className="mt-2">
+              <ProfileIdentity
+                handle={item.author?.handle ?? "unknown"}
+                displayName={item.author?.display_name || item.author?.handle || "Unknown user"}
+                avatarUrl={item.author?.avatar_url}
+                avatarSize={28}
+                subtitle={formatTimestamp(item.created_at)}
+                compact
+              />
+            </div>
             <div className="mt-2 text-muted-foreground">
               <MarkdownRenderer markdown={item.body_md} className="space-y-2 text-sm leading-6" />
             </div>

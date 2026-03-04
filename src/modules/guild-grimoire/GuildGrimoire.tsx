@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ProfileIdentity } from "@/components/profile/ProfileIdentity";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { MarkdownEditor } from "@/modules/_shared/MarkdownEditor";
 import { MarkdownRenderer } from "@/modules/_shared/MarkdownRenderer";
@@ -63,6 +64,13 @@ function formatDuration(ms: number) {
     .padStart(2, "0");
   const seconds = (totalSeconds % 60).toString().padStart(2, "0");
   return `${minutes}:${seconds}`;
+}
+
+function formatTimestamp(value: string) {
+  return new Date(value).toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 }
 
 function isAbortLikeError(err: unknown) {
@@ -1035,15 +1043,20 @@ export function GuildGrimoire() {
             {feed.map((note) => (
               <div key={note.id} className="rounded-lg border border-border p-3">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="text-xs text-muted-foreground">
-                    <div>
+                  <div className="min-w-0">
+                    <ProfileIdentity
+                      handle={note.author?.handle ?? "unknown"}
+                      displayName={note.author?.display_name || note.author?.handle || "Unknown user"}
+                      avatarUrl={note.author?.avatar_url}
+                      avatarSize={30}
+                      subtitle={formatTimestamp(note.created_at)}
+                      compact
+                    />
+                    <div className="mt-2 text-xs text-muted-foreground">
                       <span className="font-medium text-foreground">{note.content_type}</span>
                       {" · "}
                       <span>{note.visibility}</span>
-                      {" · "}
-                      <span>{new Date(note.created_at).toLocaleString()}</span>
                     </div>
-                    <div>User: {truncateMiddle(note.user_id, 24)}</div>
                     {note.tags?.length ? (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {note.tags.map((t) => (

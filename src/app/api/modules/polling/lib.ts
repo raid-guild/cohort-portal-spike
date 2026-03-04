@@ -65,6 +65,13 @@ export type PollRow = {
   updated_at: string;
 };
 
+export type PollProfile = {
+  user_id: string;
+  handle: string;
+  display_name: string | null;
+  avatar_url: string | null;
+};
+
 export function asUntypedAdmin(admin: ReturnType<typeof supabaseAdminClient>): UntypedAdmin {
   return admin as unknown as UntypedAdmin;
 }
@@ -215,4 +222,32 @@ export function summarizePollCounts(options: Array<{ id: string }>, votes: Array
     counts.set(vote.option_id, (counts.get(vote.option_id) ?? 0) + 1);
   }
   return counts;
+}
+
+export async function loadPollProfileMap(
+  admin: ReturnType<typeof supabaseAdminClient>,
+  userIds: string[],
+) {
+  const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
+  const profileByUserId = new Map<string, PollProfile>();
+  if (!uniqueUserIds.length) {
+    return profileByUserId;
+  }
+
+  const { data, error } = await admin
+    .from("profiles")
+    .select("user_id,handle,display_name,avatar_url")
+    .in("user_id", uniqueUserIds);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  for (const profile of (data ?? []) as PollProfile[]) {
+    if (profile.user_id) {
+      profileByUserId.set(profile.user_id, profile);
+    }
+  }
+
+  return profileByUserId;
 }

@@ -25,6 +25,13 @@ export type CrmViewer = {
   admin: ReturnType<typeof supabaseAdminClient>;
 };
 
+export type CrmProfile = {
+  user_id: string;
+  handle: string;
+  display_name: string | null;
+  avatar_url: string | null;
+};
+
 export function jsonError(message: string, status = 400) {
   return Response.json({ error: message }, { status });
 }
@@ -129,4 +136,32 @@ export async function accountExists(admin: ReturnType<typeof supabaseAdminClient
   }
 
   return Boolean(data);
+}
+
+export async function loadCrmProfileMap(
+  admin: ReturnType<typeof supabaseAdminClient>,
+  userIds: string[],
+) {
+  const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
+  const profileByUserId = new Map<string, CrmProfile>();
+  if (!uniqueUserIds.length) {
+    return profileByUserId;
+  }
+
+  const { data, error } = await admin
+    .from("profiles")
+    .select("user_id,handle,display_name,avatar_url")
+    .in("user_id", uniqueUserIds);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  for (const profile of (data ?? []) as CrmProfile[]) {
+    if (profile.user_id) {
+      profileByUserId.set(profile.user_id, profile);
+    }
+  }
+
+  return profileByUserId;
 }
