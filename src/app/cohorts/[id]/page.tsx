@@ -1,8 +1,24 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
-import { CohortLandingReferralForm } from "@/modules/cohort-hub/CohortLandingReferralForm";
 import { CohortLandingHostLink } from "@/modules/cohort-hub/CohortLandingHostLink";
+import { CohortDashboardNav } from "@/modules/cohort-hub/components/CohortDashboardNav";
+import { CohortHeroCta } from "@/modules/cohort-hub/components/CohortHeroCta";
+import { PartnersGrid } from "@/modules/cohort-hub/components/PartnersGrid";
+import { ParticipantsGrid } from "@/modules/cohort-hub/components/ParticipantsGrid";
+import { ProjectsCarousel } from "@/modules/cohort-hub/components/ProjectsCarousel";
+import { QuestBoard } from "@/modules/cohort-hub/components/QuestBoard";
+import { ResourceBrowser } from "@/modules/cohort-hub/components/ResourceBrowser";
+import { ScheduleSection } from "@/modules/cohort-hub/components/ScheduleSection";
+import { type StatItem, StatsCards } from "@/modules/cohort-hub/components/StatsCards";
+import type {
+  PartnerCard,
+  ParticipantCard,
+  ProjectCard,
+  QuestItem,
+  ResourceCard,
+  ScheduleEvent,
+} from "@/modules/cohort-hub/landing-types";
 
 type CohortRow = {
   id: string;
@@ -15,28 +31,11 @@ type CohortRow = {
   header_image_url: string | null;
 };
 
-type ScheduleItem = {
-  day?: number;
-  date?: string;
-  agenda?: string;
-};
-
-type ProjectItem = {
-  name?: string;
-  description?: string;
-  team?: string[];
-};
-
-type ResourceItem = {
-  title?: string;
-  url?: string;
-  type?: string;
-};
-
 type CohortContentRow = {
-  schedule: ScheduleItem[] | null;
-  projects: ProjectItem[] | null;
-  resources: ResourceItem[] | null;
+  schedule: unknown;
+  projects: unknown;
+  resources: unknown;
+  notes: unknown;
 };
 
 type CohortParticipantRow = {
@@ -52,6 +51,22 @@ type CohortPartnerRow = {
   description: string;
   website_url: string | null;
   crm_account_id: string | null;
+};
+
+type ProfileRow = {
+  user_id: string;
+  handle: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  links: unknown;
+};
+
+type LandingRecord = {
+  cohort: CohortRow;
+  content: CohortContentRow | null;
+  participants: ParticipantCard[];
+  partners: PartnerCard[];
 };
 
 function getSiteOrigin() {
@@ -73,41 +88,154 @@ function formatRange(startAt: string | null, endAt: string | null) {
   return `${start} -> ${end}`;
 }
 
-function getYouTubeVideoId(url?: string) {
-  if (!url) return null;
-  try {
-    const parsed = new URL(url);
-    const host = parsed.hostname.replace("www.", "").toLowerCase();
-
-    if (host === "youtu.be") {
-      const id = parsed.pathname.split("/").filter(Boolean)[0] ?? "";
-      return id || null;
-    }
-    if (host === "youtube.com" || host === "m.youtube.com") {
-      const v = parsed.searchParams.get("v");
-      if (v) return v;
-      const parts = parsed.pathname.split("/").filter(Boolean);
-      if ((parts[0] === "shorts" || parts[0] === "embed") && parts[1]) return parts[1];
-    }
-    return null;
-  } catch {
-    return null;
-  }
+function toArray(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+    : [];
 }
 
-async function loadCohort(
-  id: string,
-): Promise<{
-  cohort: CohortRow;
-  content: CohortContentRow | null;
-  participants: {
-    handle: string;
-    displayName: string;
-    role: string | null;
-    status: string;
-  }[];
-  partners: CohortPartnerRow[];
-} | null> {
+function toStringValue(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => toStringValue(item)).filter(Boolean);
+}
+
+function normalizeType(value: string) {
+  const lower = value.toLowerCase().trim();
+  if (!lower) return "general";
+  if (lower.includes("youtube") || lower.includes("video")) return "youtube";
+  if (lower.includes("repo") || lower.includes("github")) return "repo";
+  if (lower.includes("doc") || lower.includes("hackmd")) return "document";
+  if (lower.includes("tool")) return "tool";
+  if (lower.includes("article")) return "article";
+  return lower;
+}
+
+function deriveCategory(raw: Record<string, unknown>, normalizedType: string) {
+  const explicit = toStringValue(raw.category);
+  if (explicit) return explicit;
+  if (normalizedType === "youtube") return "Videos";
+  if (normalizedType === "repo") return "Repositories";
+  if (normalizedType === "document") return "Docs";
+  if (normalizedType === "tool") return "Tools";
+  return "General";
+}
+
+function parseComparableDate(value: string | null) {
+  if (!value) return null;
+  const isoDateOnly = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoDateOnly) {
+    const [, year, month, day] = isoDateOnly;
+    const localDate = new Date(Number(year), Number(month) - 1, Number(day));
+    return Number.isNaN(localDate.getTime()) ? null : localDate.getTime();
+  }
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
+
+function normalizeSchedule(raw: unknown): ScheduleEvent[] {
+  return toArray(raw)
+    .map((item, index) => {
+      const date = toStringValue(item.date) || null;
+      const agenda = toStringValue(item.agenda);
+      const title = toStringValue(item.title) || agenda || `Day ${index + 1}`;
+      const description = toStringValue(item.description) || toStringValue(item.notes);
+      const day = Number(item.day);
+      const numericDay = Number.isFinite(day) ? day : index + 1;
+      return {
+        id: `${title}-${date ?? "unknown"}-${index}`,
+        day: numericDay,
+        title,
+        description,
+        date,
+        type: toStringValue(item.type) || "session",
+      };
+    })
+    .sort((a, b) => {
+      const aTimestamp = parseComparableDate(a.date);
+      const bTimestamp = parseComparableDate(b.date);
+      if (aTimestamp !== null && bTimestamp !== null) return aTimestamp - bTimestamp;
+      if (aTimestamp !== null) return -1;
+      if (bTimestamp !== null) return 1;
+      if (a.date) return -1;
+      if (b.date) return 1;
+      return a.day - b.day;
+    });
+}
+
+function normalizeProjects(raw: unknown): ProjectCard[] {
+  return toArray(raw).map((item, index) => {
+    const title = toStringValue(item.title) || toStringValue(item.name) || `Project ${index + 1}`;
+    return {
+      id: `${title}-${index}`,
+      title,
+      description: toStringValue(item.description),
+      links: toStringArray(item.links),
+      notes: toStringValue(item.notes),
+    };
+  });
+}
+
+function normalizeResources(raw: unknown): ResourceCard[] {
+  return toArray(raw).map((item, index) => {
+    const type = normalizeType(toStringValue(item.type));
+    const link = toStringValue(item.link) || toStringValue(item.url);
+    return {
+      id: `${toStringValue(item.title) || "resource"}-${index}`,
+      title: toStringValue(item.title) || `Resource ${index + 1}`,
+      description: toStringValue(item.description),
+      link,
+      type,
+      category: deriveCategory(item, type),
+    };
+  });
+}
+
+function normalizeQuests(rawNotes: unknown): QuestItem[] {
+  const notes = toArray(rawNotes);
+  const fromNotes = notes
+    .map((note, index) => {
+      const title = toStringValue(note.title);
+      const body = toStringValue(note.body);
+      const value = title || body;
+      if (!value) return null;
+      if (!/quest|onboarding|checklist|todo/i.test(value)) return null;
+      return {
+        id: `quest-note-${index}`,
+        label: body || title,
+        completed: false,
+      };
+    })
+    .filter((item): item is QuestItem => Boolean(item));
+
+  return fromNotes;
+}
+
+function parseLinks(value: unknown) {
+  if (!value || typeof value !== "object") return {};
+  return Object.entries(value as Record<string, unknown>).reduce<Record<string, string>>((acc, [key, raw]) => {
+    const parsed = toStringValue(raw);
+    if (parsed) {
+      acc[key] = parsed;
+    }
+    return acc;
+  }, {});
+}
+
+function computeDuration(startAt: string | null, endAt: string | null) {
+  if (!startAt || !endAt) return "TBD";
+  const start = new Date(startAt);
+  const end = new Date(endAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "TBD";
+  const diff = Math.max(0, end.getTime() - start.getTime());
+  const weeks = Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24 * 7)));
+  return `${weeks} weeks`;
+}
+
+async function loadCohort(id: string): Promise<LandingRecord | null> {
   const admin = supabaseAdminClient();
 
   const { data: bySlug, error: bySlugError } = await admin
@@ -140,7 +268,7 @@ async function loadCohort(
   const [contentResult, participantResult, partnerResult] = await Promise.all([
     admin
       .from("cohort_content")
-      .select("schedule,projects,resources")
+      .select("schedule,projects,resources,notes")
       .eq("cohort_id", cohortId)
       .maybeSingle(),
     admin
@@ -166,35 +294,49 @@ async function loadCohort(
   const { data: profileRows, error: profileError } = participantUserIds.length
     ? await admin
         .from("profiles")
-        .select("user_id, handle, display_name")
+        .select("user_id, handle, display_name, avatar_url, bio, links")
         .in("user_id", participantUserIds)
     : { data: [], error: null };
 
   if (profileError) {
     throw new Error(profileError.message);
   }
+
   const profileByUserId = new Map(
-    (profileRows ?? []).map((profile) => [profile.user_id, profile]),
+    ((profileRows as ProfileRow[] | null) ?? []).map((profile) => [profile.user_id, profile]),
   );
 
-  const participants = participantRows
+  const participants: ParticipantCard[] = participantRows
     .map((row) => {
       const profile = profileByUserId.get(row.user_id);
       if (!profile?.handle) return null;
+      const displayName = toStringValue(profile.display_name) || profile.handle;
+      const role = toStringValue(row.role) || "participant";
       return {
         handle: profile.handle,
-        displayName: profile.display_name ?? profile.handle,
-        role: row.role,
+        displayName,
+        role,
         status: row.status,
+        avatarUrl: profile.avatar_url,
+        bio: profile.bio,
+        links: parseLinks(profile.links),
       };
     })
-    .filter((row): row is NonNullable<typeof row> => Boolean(row));
+    .filter((value): value is ParticipantCard => Boolean(value));
+
+  const partners: PartnerCard[] = ((partnerResult.data as CohortPartnerRow[] | null) ?? []).map((partner) => ({
+    id: partner.id,
+    name: partner.name,
+    logoUrl: partner.logo_url,
+    description: partner.description,
+    websiteUrl: partner.website_url,
+  }));
 
   return {
     cohort: cohortData as CohortRow,
     content: (contentResult.data as CohortContentRow | null) ?? null,
     participants,
-    partners: (partnerResult.data as CohortPartnerRow[] | null) ?? [],
+    partners,
   };
 }
 
@@ -248,190 +390,85 @@ export default async function CohortLandingPage({
   const record = await loadCohort(id);
   if (!record) notFound();
 
-  const { cohort, content } = record;
-  const { participants, partners } = record;
-  const projects = content?.projects ?? [];
-  const resources = content?.resources ?? [];
-  const schedule = content?.schedule ?? [];
+  const { cohort, content, participants, partners } = record;
+  const schedule = normalizeSchedule(content?.schedule);
+  const projects = normalizeProjects(content?.projects);
+  const resources = normalizeResources(content?.resources);
+  const quests = normalizeQuests(content?.notes);
   const landingPath = `/cohorts/${cohort.slug ?? cohort.id}`;
 
+  const stats: StatItem[] = [
+    { label: "Participants", value: String(participants.length) },
+    { label: "Projects", value: String(projects.length) },
+    { label: "Resources", value: String(resources.length) },
+    { label: "Duration", value: computeDuration(cohort.start_at, cohort.end_at) },
+  ];
+
   return (
-    <article className="mx-auto max-w-4xl space-y-6">
-      {cohort.header_image_url ? (
-        <div className="overflow-hidden rounded-xl border border-border">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={cohort.header_image_url}
-            alt={`${cohort.name} header`}
-            className="h-auto max-h-[420px] w-full object-cover"
-          />
-        </div>
-      ) : null}
+    <article id="dashboard" className="container-custom py-6">
+      <div className="space-y-6">
+        <CohortDashboardNav />
 
-      <header className="space-y-3">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">{cohort.status}</p>
-        <h1 className="text-4xl font-semibold leading-tight">{cohort.name}</h1>
-        <p className="text-sm text-muted-foreground">
-          {formatRange(cohort.start_at, cohort.end_at)}
-        </p>
-        {cohort.theme_long ? <p className="text-base text-foreground">{cohort.theme_long}</p> : null}
-      </header>
-
-      <CohortLandingHostLink landingPath={landingPath} />
-
-      <CohortLandingReferralForm cohortId={cohort.id} cohortName={cohort.name} />
-
-      <section className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold">Projects</h2>
-          <div className="mt-3 space-y-3 text-sm">
-            {projects.length ? (
-              projects.map((project, index) => (
-                <div key={`${project.name ?? "project"}-${index}`} className="rounded-lg border p-3">
-                  <p className="font-medium">{project.name ?? "Untitled project"}</p>
-                  {project.description ? (
-                    <p className="mt-1 text-sm text-muted-foreground">{project.description}</p>
-                  ) : null}
-                  {project.team?.length ? (
-                    <p className="mt-2 text-xs text-muted-foreground">Team: {project.team.join(", ")}</p>
-                  ) : null}
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">Projects coming soon.</p>
-            )}
+        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          {cohort.header_image_url ? (
+            <div className="relative h-56 w-full md:h-72">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={cohort.header_image_url}
+                alt={`${cohort.name} header`}
+                className="h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+            </div>
+          ) : null}
+          <div className="grid gap-4 p-5 md:grid-cols-[1.5fr_1fr] md:p-6">
+            <header className="space-y-2">
+              <p className="type-label-sm text-muted-foreground">{cohort.status}</p>
+              <h1 className="type-display-md">{cohort.name}</h1>
+              <p className="text-sm text-muted-foreground">{formatRange(cohort.start_at, cohort.end_at)}</p>
+              {cohort.theme_long ? <p className="type-body-md max-w-3xl">{cohort.theme_long}</p> : null}
+            </header>
+            <div className="space-y-3">
+              <CohortHeroCta cohortName={cohort.name} />
+              <CohortLandingHostLink landingPath={landingPath} />
+            </div>
           </div>
-        </div>
+        </section>
 
-        <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold">Schedule</h2>
-          <div className="mt-3 space-y-3 text-sm">
-            {schedule.length ? (
-              schedule.map((item, index) => (
-                <div key={`${item.day ?? index}-${item.date ?? ""}`} className="rounded-lg border p-3">
-                  <p className="font-medium">
-                    Day {item.day ?? index + 1}
-                    {item.date ? ` · ${item.date}` : ""}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">{item.agenda ?? "Agenda TBD"}</p>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">Schedule coming soon.</p>
-            )}
-          </div>
-        </div>
-      </section>
+        <section>
+          <StatsCards stats={stats} />
+        </section>
 
-      <section className="rounded-xl border border-border bg-card p-5">
-        <h2 className="text-sm font-semibold">Resources</h2>
-        <div className="mt-3 space-y-3 text-sm">
-          {resources.length ? (
-            resources.map((resource, index) => {
-              const ytId = getYouTubeVideoId(resource.url);
-              return (
-                <div key={`${resource.title ?? "resource"}-${index}`} className="rounded-lg border p-3">
-                  <p className="font-medium">{resource.title ?? "Untitled resource"}</p>
-                  {resource.url ? (
-                    <a
-                      href={resource.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-1 inline-block break-all text-sm underline-offset-4 hover:underline"
-                    >
-                      {resource.url}
-                    </a>
-                  ) : null}
-                  {resource.type ? <p className="mt-1 text-xs text-muted-foreground">{resource.type}</p> : null}
-                  {ytId ? (
-                    <div className="mt-3 overflow-hidden rounded-md border border-border">
-                      <iframe
-                        title={`${resource.title ?? "Resource"} video`}
-                        src={`https://www.youtube.com/embed/${ytId}`}
-                        className="aspect-video w-full"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        referrerPolicy="strict-origin-when-cross-origin"
-                        allowFullScreen
-                      />
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })
-          ) : (
-            <p className="text-sm text-muted-foreground">Resources coming soon.</p>
-          )}
-        </div>
-      </section>
+        <section id="schedule" className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <h2 className="type-heading-lg">Schedule</h2>
+          <ScheduleSection events={schedule} />
+        </section>
 
-      <section className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold">Participants</h2>
-          <div className="mt-3 space-y-3 text-sm">
-            {participants.length ? (
-              participants.map((participant, index) => (
-                <div key={`${participant.handle}-${index}`} className="rounded-lg border p-3">
-                  <a
-                    href={`/people/${participant.handle}`}
-                    className="font-medium underline-offset-4 hover:underline"
-                  >
-                    {participant.displayName}
-                  </a>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    @{participant.handle}
-                    {participant.role ? ` · ${participant.role}` : ""}
-                    {participant.status ? ` · ${participant.status}` : ""}
-                  </p>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">Participant list coming soon.</p>
-            )}
-          </div>
-        </div>
+        <section className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <h2 className="type-heading-lg">Quests</h2>
+          <QuestBoard quests={quests} />
+        </section>
 
-        <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold">Partners</h2>
-          <div className="mt-3 space-y-3 text-sm">
-            {partners.length ? (
-              partners.map((partner) => (
-                <div key={partner.id} className="rounded-lg border p-3">
-                  <div className="flex items-start gap-3">
-                    {partner.logo_url ? (
-                      <div className="flex h-14 w-32 items-center justify-center rounded-md border border-border bg-muted/30 p-2">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={partner.logo_url}
-                          alt={`${partner.name} logo`}
-                          className="max-h-full max-w-full object-contain"
-                        />
-                      </div>
-                    ) : null}
-                    <div>
-                      <p className="font-medium">{partner.name}</p>
-                      {partner.description ? (
-                        <p className="mt-1 text-sm text-muted-foreground">{partner.description}</p>
-                      ) : null}
-                    </div>
-                  </div>
-                  {partner.website_url ? (
-                    <a
-                      href={partner.website_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-2 inline-block text-sm underline-offset-4 hover:underline"
-                    >
-                      Visit website
-                    </a>
-                  ) : null}
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">Partners coming soon.</p>
-            )}
-          </div>
-        </div>
-      </section>
+        <section id="projects" className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <h2 className="type-heading-lg">Projects</h2>
+          <ProjectsCarousel projects={projects} />
+        </section>
+
+        <section id="resources" className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <h2 className="type-heading-lg">Resources</h2>
+          <ResourceBrowser resources={resources} />
+        </section>
+
+        <section id="participants" className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <h2 className="type-heading-lg">Participants</h2>
+          <ParticipantsGrid participants={participants} />
+        </section>
+
+        <section id="partners" className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <h2 className="type-heading-lg">Partners</h2>
+          <PartnersGrid partners={partners} />
+        </section>
+      </div>
     </article>
   );
 }
