@@ -101,9 +101,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               </div>
               <div className="truncate text-base font-semibold">{activeLabel}</div>
             </div>
-            <div className="flex flex-wrap items-center justify-end gap-2 text-sm">
-              <ThemeToggle />
-              <AuthLink />
+            <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 text-sm">
               <nav className="flex flex-wrap items-center gap-2">
                 {links.map((link) => {
                   const active =
@@ -125,6 +123,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   );
                 })}
               </nav>
+              <AuthLink />
+              <ThemeToggle />
             </div>
           </div>
         </header>

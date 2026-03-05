@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
 import { CohortLandingHostLink } from "@/modules/cohort-hub/CohortLandingHostLink";
-import { CohortDashboardNav } from "@/modules/cohort-hub/components/CohortDashboardNav";
 import { CohortHeroCta } from "@/modules/cohort-hub/components/CohortHeroCta";
 import { PartnersGrid } from "@/modules/cohort-hub/components/PartnersGrid";
 import { ParticipantsGrid } from "@/modules/cohort-hub/components/ParticipantsGrid";
@@ -105,23 +104,16 @@ function toStringArray(value: unknown): string[] {
 
 function normalizeType(value: string) {
   const lower = value.toLowerCase().trim();
-  if (!lower) return "general";
-  if (lower.includes("youtube") || lower.includes("video")) return "youtube";
-  if (lower.includes("repo") || lower.includes("github")) return "repo";
-  if (lower.includes("doc") || lower.includes("hackmd")) return "document";
-  if (lower.includes("tool")) return "tool";
-  if (lower.includes("article")) return "article";
-  return lower;
+  return lower || "general";
 }
 
-function deriveCategory(raw: Record<string, unknown>, normalizedType: string) {
-  const explicit = toStringValue(raw.category);
-  if (explicit) return explicit;
-  if (normalizedType === "youtube") return "Videos";
-  if (normalizedType === "repo") return "Repositories";
-  if (normalizedType === "document") return "Docs";
-  if (normalizedType === "tool") return "Tools";
-  return "General";
+function formatTypeLabel(type: string) {
+  if (type === "general") return "General";
+  return type
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function parseComparableDate(value: string | null) {
@@ -189,7 +181,7 @@ function normalizeResources(raw: unknown): ResourceCard[] {
       description: toStringValue(item.description),
       link,
       type,
-      category: deriveCategory(item, type),
+      category: formatTypeLabel(type),
     };
   });
 }
@@ -407,8 +399,6 @@ export default async function CohortLandingPage({
   return (
     <article id="dashboard" className="container-custom py-6">
       <div className="space-y-6">
-        <CohortDashboardNav />
-
         <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           {cohort.header_image_url ? (
             <div className="relative h-56 w-full md:h-72">
