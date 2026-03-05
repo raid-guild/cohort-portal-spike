@@ -8,7 +8,7 @@ Redesign the cohort landing experience into a modern dashboard that supports:
 - Public discovery for prospective participants.
 - Day-to-day navigation for enrolled cohort members.
 
-The page should preserve RaidGuild visual identity while improving clarity, scanability, and engagement.
+The page should preserve RaidGuild visual identity while improving clarity, scannability, and engagement.
 
 ## Scope
 This brief covers:
@@ -44,7 +44,7 @@ UI guidance:
 - Subtle motion only (hover lift, fade/slide, accordion transitions, skeleton states).
 
 Design token source:
-- Follow [`RG_BRAND_AGENTS.md`](/home/dekanjbrown/Projects/raidguild/cohort-portal/RG_BRAND_AGENTS.md) and `src/app/globals.css` semantic tokens first.
+- Follow [`RG_BRAND_AGENTS.md`](../RG_BRAND_AGENTS.md) and [`src/app/globals.css`](../src/app/globals.css) semantic tokens first.
 - Use the approved Moloch/Scroll palette for cohort dashboard components.
 - Must support both light and dark mode via existing theme infrastructure.
 
@@ -99,7 +99,7 @@ MVP:
 
 Enhancements:
 - Calendar toggle view.
-- Event type color tokens.
+- Event-type color tokens.
 - Upcoming event highlight.
 - Progress indicator (example: `Week 2 of 6`).
 
@@ -136,12 +136,12 @@ Data per resource:
 - Title
 - Description
 - Link
-- Type (`article`, `youtube`, `repo`, `document`, `tool`)
+- Type (`article`, `YouTube`, `repo`, `document`, `tool`)
 - Category
 
 UI:
 - Group by category.
-- Accordion or file-browser style layout.
+- Accordion or file-browser-style layout.
 - Type badges for quick scanning.
 - Optional embedded preview for YouTube links.
 

@@ -2,7 +2,10 @@ import type { ScheduleEvent } from "@/modules/cohort-hub/landing-types";
 
 function formatDate(value: string | null) {
   if (!value) return "Date TBD";
-  const date = new Date(value);
+  const isoDateOnly = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const date = isoDateOnly
+    ? new Date(Number(isoDateOnly[1]), Number(isoDateOnly[2]) - 1, Number(isoDateOnly[3]))
+    : new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("en-US", {
     month: "short",

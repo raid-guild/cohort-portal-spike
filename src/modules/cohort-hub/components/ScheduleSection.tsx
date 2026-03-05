@@ -31,7 +31,14 @@ export function ScheduleSection({ events }: { events: ScheduleEvent[] }) {
           <p className="text-sm font-semibold">
             Week progress: {progress.completed} of {progress.total}
           </p>
-          <div className="mt-1 h-2 w-52 rounded-full bg-muted">
+          <div
+            className="mt-1 h-2 w-52 rounded-full bg-muted"
+            role="progressbar"
+            aria-label="Schedule progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress.percentage}
+          >
             <div
               className="h-2 rounded-full bg-primary transition-all duration-700"
               style={{ width: `${progress.percentage}%` }}
@@ -42,6 +49,7 @@ export function ScheduleSection({ events }: { events: ScheduleEvent[] }) {
           <button
             type="button"
             onClick={() => setView("timeline")}
+            aria-pressed={view === "timeline"}
             className={`rounded border px-2 py-1 ${
               view === "timeline" ? "border-primary bg-primary/10" : "border-border hover:bg-muted"
             }`}
@@ -51,6 +59,7 @@ export function ScheduleSection({ events }: { events: ScheduleEvent[] }) {
           <button
             type="button"
             onClick={() => setView("calendar")}
+            aria-pressed={view === "calendar"}
             className={`rounded border px-2 py-1 ${
               view === "calendar" ? "border-primary bg-primary/10" : "border-border hover:bg-muted"
             }`}

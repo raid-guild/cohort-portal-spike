@@ -124,6 +124,18 @@ function deriveCategory(raw: Record<string, unknown>, normalizedType: string) {
   return "General";
 }
 
+function parseComparableDate(value: string | null) {
+  if (!value) return null;
+  const isoDateOnly = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoDateOnly) {
+    const [, year, month, day] = isoDateOnly;
+    const localDate = new Date(Number(year), Number(month) - 1, Number(day));
+    return Number.isNaN(localDate.getTime()) ? null : localDate.getTime();
+  }
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
+
 function normalizeSchedule(raw: unknown): ScheduleEvent[] {
   return toArray(raw)
     .map((item, index) => {
@@ -143,7 +155,11 @@ function normalizeSchedule(raw: unknown): ScheduleEvent[] {
       };
     })
     .sort((a, b) => {
-      if (a.date && b.date) return a.date.localeCompare(b.date);
+      const aTimestamp = parseComparableDate(a.date);
+      const bTimestamp = parseComparableDate(b.date);
+      if (aTimestamp !== null && bTimestamp !== null) return aTimestamp - bTimestamp;
+      if (aTimestamp !== null) return -1;
+      if (bTimestamp !== null) return 1;
       if (a.date) return -1;
       if (b.date) return 1;
       return a.day - b.day;
@@ -294,10 +310,12 @@ async function loadCohort(id: string): Promise<LandingRecord | null> {
     .map((row) => {
       const profile = profileByUserId.get(row.user_id);
       if (!profile?.handle) return null;
+      const displayName = toStringValue(profile.display_name) || profile.handle;
+      const role = toStringValue(row.role) || "participant";
       return {
         handle: profile.handle,
-        displayName: profile.display_name ?? profile.handle,
-        role: row.role ?? "participant",
+        displayName,
+        role,
         status: row.status,
         avatarUrl: profile.avatar_url,
         bio: profile.bio,

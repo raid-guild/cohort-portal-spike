@@ -7,8 +7,21 @@ function toMonthKey(date: Date) {
   return `${date.getFullYear()}-${date.getMonth()}`;
 }
 
+function toDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function parseDate(raw: string | null) {
   if (!raw) return null;
+  const isoDateOnly = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoDateOnly) {
+    const [, year, month, day] = isoDateOnly;
+    const localDate = new Date(Number(year), Number(month) - 1, Number(day));
+    return Number.isNaN(localDate.getTime()) ? null : localDate;
+  }
   const date = new Date(raw);
   return Number.isNaN(date.getTime()) ? null : date;
 }
@@ -44,7 +57,7 @@ export function ScheduleCalendar({ events }: { events: ScheduleEvent[] }) {
     for (const event of events) {
       const date = parseDate(event.date);
       if (!date) continue;
-      const key = date.toISOString().slice(0, 10);
+      const key = toDateKey(date);
       const current = map.get(key) ?? [];
       current.push(event);
       map.set(key, current);
@@ -104,9 +117,9 @@ export function ScheduleCalendar({ events }: { events: ScheduleEvent[] }) {
       <div className="grid grid-cols-7 gap-1">
         {days.map((day, index) => {
           if (!day) return <div key={`empty-${index}`} className="h-12 rounded-md" aria-hidden="true" />;
-          const key = day.toISOString().slice(0, 10);
+          const key = toDateKey(day);
           const hasEvents = (eventsByDate.get(key) ?? []).length > 0;
-          const isToday = key === new Date().toISOString().slice(0, 10);
+          const isToday = key === toDateKey(new Date());
           return (
             <div
               key={key}

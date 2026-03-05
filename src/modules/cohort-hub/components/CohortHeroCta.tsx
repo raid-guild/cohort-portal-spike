@@ -13,9 +13,17 @@ export function CohortHeroCta({ cohortName }: { cohortName: string }) {
     let cancelled = false;
 
     const load = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!cancelled) {
-        setIsAuthenticated(Boolean(data.session?.user));
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        if (!cancelled) {
+          setIsAuthenticated(Boolean(data.session?.user));
+        }
+      } catch (error) {
+        console.error("Failed to load auth session", error);
+        if (!cancelled) {
+          setIsAuthenticated(false);
+        }
       }
     };
 

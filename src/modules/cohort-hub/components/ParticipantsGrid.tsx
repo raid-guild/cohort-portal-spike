@@ -38,6 +38,7 @@ export function ParticipantsGrid({ participants }: { participants: ParticipantCa
             key={value}
             type="button"
             onClick={() => setFilter(value)}
+            aria-pressed={filter === value}
             className={`rounded-full border px-3 py-1 text-xs capitalize ${
               filter === value ? "border-primary bg-primary/10" : "border-border hover:bg-muted"
             }`}

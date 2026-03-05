@@ -1,13 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { QuestItem } from "@/modules/cohort-hub/landing-types";
 
 export function QuestBoard({ quests }: { quests: QuestItem[] }) {
-  const [completedIds, setCompletedIds] = useState<string[]>([]);
+  const [completedIds, setCompletedIds] = useState<string[]>(
+    () => quests.filter((quest) => quest.completed).map((quest) => quest.id),
+  );
+
+  useEffect(() => {
+    setCompletedIds(quests.filter((quest) => quest.completed).map((quest) => quest.id));
+  }, [quests]);
 
   const merged = useMemo(
-    () => quests.map((quest) => ({ ...quest, completed: quest.completed || completedIds.includes(quest.id) })),
+    () => quests.map((quest) => ({ ...quest, completed: completedIds.includes(quest.id) })),
     [completedIds, quests],
   );
 
