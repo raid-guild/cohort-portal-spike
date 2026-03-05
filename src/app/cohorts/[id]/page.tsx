@@ -160,8 +160,14 @@ function normalizeSchedule(raw: unknown): ScheduleEvent[] {
       if (aTimestamp !== null && bTimestamp !== null) return aTimestamp - bTimestamp;
       if (aTimestamp !== null) return -1;
       if (bTimestamp !== null) return 1;
-      if (a.date) return -1;
-      if (b.date) return 1;
+      if (a.date && b.date) {
+        const dateComparison = a.date.localeCompare(b.date);
+        if (dateComparison !== 0) return dateComparison;
+      } else if (a.date) {
+        return -1;
+      } else if (b.date) {
+        return 1;
+      }
       return a.day - b.day;
     });
 }

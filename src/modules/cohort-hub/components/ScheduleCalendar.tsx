@@ -143,7 +143,7 @@ export function ScheduleCalendar({ events }: { events: ScheduleEvent[] }) {
             <div key={`month-${event.id}`} className="rounded-lg border border-border p-2 text-sm">
               <p className="font-medium">{event.title}</p>
               <p className="text-xs text-muted-foreground">
-                {event.date ? new Date(event.date).toLocaleDateString("en-US") : "Date TBD"}
+                {parseDate(event.date)?.toLocaleDateString("en-US") ?? "Date TBD"}
               </p>
             </div>
           ))
