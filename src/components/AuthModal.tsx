@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { createPortal } from "react-dom";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import { isOnboardingComplete } from "@/lib/onboarding";
 
@@ -32,7 +33,12 @@ export function AuthModal({
   const [emailCooldown, setEmailCooldown] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [currentUrl, setCurrentUrl] = useState("");
+  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setPortalRoot(document.body);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -244,11 +250,11 @@ export function AuthModal({
     }
   };
 
-  if (!open) return null;
+  if (!open || !portalRoot) return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto p-4 pt-16 sm:items-center sm:pt-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal-title"
@@ -262,7 +268,7 @@ export function AuthModal({
       <div
         ref={dialogRef}
         tabIndex={-1}
-        className="relative w-full max-w-md space-y-4 rounded-xl border border-border bg-card p-6 shadow-2xl"
+        className="relative my-auto w-full max-w-md space-y-4 rounded-xl border border-border bg-card p-6 shadow-2xl"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -379,7 +385,8 @@ export function AuthModal({
           </div>
         ) : null}
       </div>
-    </div>
+    </div>,
+    portalRoot,
   );
 }
 

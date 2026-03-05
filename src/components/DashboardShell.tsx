@@ -91,76 +91,45 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     )?.label ?? "Dashboard";
 
   return (
-    <div className="container-custom py-4 md:py-6">
-      <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)]">
-        <aside className="hidden lg:block">
-          <div className="sticky top-4 rounded-2xl border border-border bg-card/80 p-4 shadow-sm backdrop-blur">
-            <Link href="/" className="text-base font-semibold">
-              Cohort Portal
-            </Link>
-            <nav className="mt-4 space-y-1 text-sm">
-              {links.map((link) => {
-                const active =
-                  link.href === "/"
-                    ? pathname === "/"
-                    : pathname === link.href || pathname.startsWith(`${link.href}/`);
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={`block rounded-lg px-3 py-2 ${
-                      active
-                        ? "bg-muted text-foreground"
-                        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-        </aside>
-
-        <div className="min-w-0 space-y-4">
-          <header className="rounded-2xl border border-border bg-card/80 px-4 py-3 shadow-sm backdrop-blur">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Cohort Portal
-                </div>
-                <div className="truncate text-base font-semibold">{activeLabel}</div>
+    <div className="w-full px-4 py-4 md:px-6 md:py-6 xl:px-8">
+      <div className="min-w-0 space-y-4">
+        <header className="rounded-2xl border border-border bg-card/80 px-4 py-3 shadow-sm backdrop-blur">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                Cohort Portal
               </div>
-              <div className="flex items-center gap-2">
-                <ThemeToggle />
-                <AuthLink />
-              </div>
+              <div className="truncate text-base font-semibold">{activeLabel}</div>
             </div>
-            <nav className="mt-3 flex gap-2 overflow-x-auto text-sm lg:hidden">
-              {links.map((link) => {
-                const active =
-                  link.href === "/"
-                    ? pathname === "/"
-                    : pathname === link.href || pathname.startsWith(`${link.href}/`);
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={`whitespace-nowrap rounded-full border px-3 py-1.5 ${
-                      active
-                        ? "border-primary text-foreground"
-                        : "border-border text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </header>
+            <div className="flex flex-wrap items-center justify-end gap-2 text-sm">
+              <ThemeToggle />
+              <AuthLink />
+              <nav className="flex flex-wrap items-center gap-2">
+                {links.map((link) => {
+                  const active =
+                    link.href === "/"
+                      ? pathname === "/"
+                      : pathname === link.href || pathname.startsWith(`${link.href}/`);
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className={`rounded-full border px-3 py-1.5 ${
+                        active
+                          ? "border-primary text-foreground"
+                          : "border-border text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {link.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          </div>
+        </header>
 
-          <main className="pb-8">{children}</main>
-        </div>
+        <main className="pb-8">{children}</main>
       </div>
     </div>
   );
