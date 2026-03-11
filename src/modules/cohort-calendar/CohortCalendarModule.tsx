@@ -8,8 +8,9 @@ import {
   CALENDAR_ATTENDEE_STATUSES,
   CALENDAR_EVENT_TYPE_META,
   CALENDAR_EVENT_TYPES,
-  CALENDAR_VISIBILITIES,
+  coerceCalendarVisibility,
   getCalendarEventTemplate,
+  getReadableCalendarVisibilities,
   type CalendarAttendeeStatus,
   type CalendarEventRecord,
   type CalendarEventType,
@@ -41,7 +42,7 @@ function toTimeInputValue(date: Date) {
     .slice(11, 16);
 }
 
-function createInitialForm(): CalendarCreateForm {
+function createInitialForm(visibility: CalendarVisibility): CalendarCreateForm {
   const template = getCalendarEventTemplate("brown_bag");
   const start = new Date();
   start.setHours(18, 0, 0, 0);
@@ -54,7 +55,7 @@ function createInitialForm(): CalendarCreateForm {
     startTime: toTimeInputValue(start),
     endTime: toTimeInputValue(end),
     meetingUrl: "",
-    visibility: template.visibility,
+    visibility,
   };
 }
 
@@ -94,30 +95,82 @@ function monthLabel(date: Date) {
 export function CohortCalendarModule() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
   const [token, setToken] = useState<string | null>(null);
+  const [roles, setRoles] = useState<string[]>([]);
+  const [entitlements, setEntitlements] = useState<string[]>([]);
   const [events, setEvents] = useState<CalendarEventRecord[]>([]);
   const [view, setView] = useState<ViewMode>("agenda");
   const [monthCursor, setMonthCursor] = useState(() => startOfMonth(new Date()));
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventRecord | null>(null);
-  const [form, setForm] = useState<CalendarCreateForm>(createInitialForm);
+  const [form, setForm] = useState<CalendarCreateForm>(() => createInitialForm("public"));
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const readableVisibilities = useMemo(
+    () => getReadableCalendarVisibilities({ roles, entitlements }),
+    [entitlements, roles],
+  );
 
   useEffect(() => {
-    const loadSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      const nextToken = data.session?.access_token ?? null;
+    let cancelled = false;
+
+    const fetchJson = async (
+      path: string,
+      accessToken: string,
+    ): Promise<{ roles?: string[]; entitlements?: string[] } | null> => {
+      const res = await fetch(path, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) return null;
+      return (await res.json().catch(() => null)) as
+        | { roles?: string[]; entitlements?: string[] }
+        | null;
+    };
+
+    const loadSession = async (accessToken?: string | null) => {
+      const nextToken =
+        accessToken === undefined
+          ? (await supabase.auth.getSession()).data.session?.access_token ?? null
+          : accessToken;
+
+      if (cancelled) return;
       setToken(nextToken);
+
+      if (!nextToken) {
+        setRoles([]);
+        setEntitlements([]);
+        return;
+      }
+
+      const [rolesJson, entitlementsJson] = await Promise.all([
+        fetchJson("/api/me/roles", nextToken),
+        fetchJson("/api/me/entitlements", nextToken),
+      ]);
+
+      if (cancelled) return;
+      setRoles(rolesJson?.roles ?? []);
+      setEntitlements(entitlementsJson?.entitlements ?? []);
     };
 
     void loadSession();
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      const nextToken = session?.access_token ?? null;
-      setToken(nextToken);
+      void loadSession(session?.access_token);
     });
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
   }, [supabase]);
+
+  useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      visibility: coerceCalendarVisibility(current.visibility, {
+        roles,
+        entitlements,
+      }),
+    }));
+  }, [entitlements, roles]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -199,6 +252,10 @@ export function CohortCalendarModule() {
       if (!startTime || !endTime) {
         throw new Error("Choose a valid date and time range.");
       }
+      const visibility = coerceCalendarVisibility(form.visibility, {
+        roles,
+        entitlements,
+      });
 
       await authedJson<{ event: CalendarEventRecord }>(
         "/api/modules/cohort-calendar/events",
@@ -211,12 +268,12 @@ export function CohortCalendarModule() {
             startTime,
             endTime,
             meetingUrl: form.meetingUrl || null,
-            visibility: form.visibility,
+            visibility,
             status: "scheduled",
           }),
         },
       );
-      setForm(createInitialForm());
+      setForm(createInitialForm(visibility));
       setMessage("Event created.");
       if (token) {
         await loadEvents(token);
@@ -291,7 +348,10 @@ export function CohortCalendarModule() {
       title: template.title,
       description: template.description,
       endTime: toTimeInputValue(end),
-      visibility: template.visibility,
+      visibility: coerceCalendarVisibility(template.visibility, {
+        roles,
+        entitlements,
+      }),
     }));
   }
 
@@ -639,7 +699,7 @@ export function CohortCalendarModule() {
                     }
                     className="w-full rounded-xl border border-border bg-background px-3 py-2"
                   >
-                    {CALENDAR_VISIBILITIES.map((visibility) => (
+                    {readableVisibilities.map((visibility) => (
                       <option key={visibility} value={visibility}>
                         {visibility}
                       </option>
@@ -688,9 +748,11 @@ export function CohortCalendarModule() {
           <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
             <div className="mb-2 text-lg font-semibold">Visible audiences</div>
             <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-              <span className="rounded-full border px-2 py-1">public</span>
-              <span className="rounded-full border px-2 py-1">members</span>
-              <span className="rounded-full border px-2 py-1">cohort</span>
+              {readableVisibilities.map((visibility) => (
+                <span key={visibility} className="rounded-full border px-2 py-1">
+                  {visibility}
+                </span>
+              ))}
             </div>
           </div>
         </aside>

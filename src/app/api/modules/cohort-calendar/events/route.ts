@@ -3,6 +3,8 @@ import {
   CALENDAR_EVENT_TYPES,
   CALENDAR_STATUSES,
   CALENDAR_VISIBILITIES,
+  coerceCalendarVisibility,
+  type CalendarVisibility,
 } from "@/modules/cohort-calendar/shared";
 import {
   asUntypedAdmin,
@@ -105,6 +107,10 @@ export async function POST(request: NextRequest) {
   }
 
   const admin = asUntypedAdmin(viewer.admin);
+  const safeVisibility = coerceCalendarVisibility(
+    visibility as CalendarVisibility,
+    viewer,
+  );
   const insertRes = await admin
     .from("calendar_events")
     .insert({
@@ -115,7 +121,7 @@ export async function POST(request: NextRequest) {
       end_time: endTime,
       meeting_url: meetingUrl,
       created_by: viewer.userId,
-      visibility,
+      visibility: safeVisibility,
       status,
     })
     .select(

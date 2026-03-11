@@ -8,6 +8,10 @@ import type {
   CalendarStatus,
   CalendarVisibility,
 } from "@/modules/cohort-calendar/shared";
+import {
+  canAccessCalendarVisibility,
+  hasCalendarHostAccess,
+} from "@/modules/cohort-calendar/shared";
 
 type QueryResult = { data: unknown; error: { message: string } | null };
 
@@ -116,7 +120,7 @@ export async function requireCalendarViewer(
 }
 
 export function isHost(viewer: CalendarViewer) {
-  return viewer.roles.includes("host") || viewer.roles.includes("admin");
+  return hasCalendarHostAccess(viewer);
 }
 
 export function canReadCalendarEvent(
@@ -124,12 +128,7 @@ export function canReadCalendarEvent(
   viewer: CalendarViewer,
 ) {
   if (!viewer.userId) return false;
-  if (event.visibility === "public") return true;
-  if (isHost(viewer)) return true;
-  if (event.visibility === "members") {
-    return viewer.entitlements.includes("dao-member");
-  }
-  return viewer.entitlements.includes("cohort-access");
+  return canAccessCalendarVisibility(event.visibility, viewer);
 }
 
 function toProfileMap(rows: ProfileRow[]) {

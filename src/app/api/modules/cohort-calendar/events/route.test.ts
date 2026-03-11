@@ -13,13 +13,15 @@ vi.mock("../lib", () => ({
 }));
 
 function makeInsertAdmin() {
+  const insertSpy = vi.fn();
   return {
+    insertSpy,
     from: (table: string) => {
       if (table !== "calendar_events") {
         throw new Error(`Unexpected table: ${table}`);
       }
       return {
-        insert: () => ({
+        insert: insertSpy.mockImplementation(() => ({
           select: () => ({
             single: vi.fn().mockResolvedValue({
               data: {
@@ -29,7 +31,7 @@ function makeInsertAdmin() {
               error: null,
             }),
           }),
-        }),
+        })),
       };
     },
   };
@@ -95,5 +97,36 @@ describe("cohort calendar events route", () => {
     expect(await res.json()).toEqual({
       event: expect.objectContaining({ id: "event-1", title: "Cohort Session" }),
     });
+  });
+
+  it("coerces unreadable visibilities to public for non-entitled users", async () => {
+    const admin = makeInsertAdmin();
+    requireCalendarViewer.mockResolvedValue({
+      userId: "user-1",
+      roles: [],
+      entitlements: [],
+      admin: {},
+    });
+    asUntypedAdmin.mockReturnValue(admin);
+    loadCalendarEvents.mockResolvedValue([]);
+
+    const { POST } = await import("./route");
+    const res = await POST(
+      new Request("http://localhost/api/modules/cohort-calendar/events", {
+        method: "POST",
+        body: JSON.stringify({
+          title: "Brown Bag",
+          eventType: "brown_bag",
+          startTime: "2026-03-20T17:00:00.000Z",
+          endTime: "2026-03-20T17:20:00.000Z",
+          visibility: "cohort",
+        }),
+      }) as never,
+    );
+
+    expect(res.status).toBe(201);
+    expect(admin.insertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ visibility: "public" }),
+    );
   });
 });

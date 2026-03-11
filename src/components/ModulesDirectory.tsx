@@ -68,9 +68,13 @@ export function ModulesDirectory({ modules }: { modules: ModuleEntry[] }) {
     };
 
     void load();
+    const { data: listener } = supabase.auth.onAuthStateChange(() => {
+      void load();
+    });
 
     return () => {
       cancelled = true;
+      listener.subscription.unsubscribe();
     };
   }, [supabase]);
 
@@ -86,13 +90,14 @@ export function ModulesDirectory({ modules }: { modules: ModuleEntry[] }) {
 
   const visibleModules = useMemo(() => {
     return modules.filter((mod) => {
+      const hasHostAccess = roles.includes("host") || roles.includes("admin");
       const requiresAuth = mod.access?.requiresAuth || mod.requiresAuth;
       if (requiresAuth && !authToken) return false;
       const isHostOnly = mod.tags?.includes("hosts");
-      if (isHostOnly && !roles.includes("host")) return false;
+      if (isHostOnly && !hasHostAccess) return false;
       const entitlement = mod.access?.entitlement;
       if (!entitlement) return true;
-      const hostBypass = roles.includes("host") && mod.tags?.includes("host-tools");
+      const hostBypass = hasHostAccess && mod.tags?.includes("host-tools");
       if (hostBypass) return true;
       return entitlements.includes(entitlement);
     });

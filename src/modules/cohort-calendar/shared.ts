@@ -9,6 +9,11 @@ export type CalendarEventType = (typeof CALENDAR_EVENT_TYPES)[number];
 export const CALENDAR_VISIBILITIES = ["public", "members", "cohort"] as const;
 export type CalendarVisibility = (typeof CALENDAR_VISIBILITIES)[number];
 
+type CalendarAudienceAccess = {
+  roles: string[];
+  entitlements: string[];
+};
+
 export const CALENDAR_STATUSES = ["scheduled", "cancelled"] as const;
 export type CalendarStatus = (typeof CALENDAR_STATUSES)[number];
 
@@ -97,6 +102,35 @@ export function getCalendarEventTemplate(eventType: CalendarEventType) {
     durationMinutes: meta.defaultDurationMinutes,
     visibility: meta.defaultVisibility,
   };
+}
+
+export function hasCalendarHostAccess(access: CalendarAudienceAccess) {
+  return access.roles.includes("host") || access.roles.includes("admin");
+}
+
+export function canAccessCalendarVisibility(
+  visibility: CalendarVisibility,
+  access: CalendarAudienceAccess,
+) {
+  if (visibility === "public") return true;
+  if (hasCalendarHostAccess(access)) return true;
+  if (visibility === "members") {
+    return access.entitlements.includes("dao-member");
+  }
+  return access.entitlements.includes("cohort-access");
+}
+
+export function getReadableCalendarVisibilities(access: CalendarAudienceAccess) {
+  return CALENDAR_VISIBILITIES.filter((visibility) =>
+    canAccessCalendarVisibility(visibility, access),
+  );
+}
+
+export function coerceCalendarVisibility(
+  visibility: CalendarVisibility,
+  access: CalendarAudienceAccess,
+) {
+  return canAccessCalendarVisibility(visibility, access) ? visibility : "public";
 }
 
 function toCalendarTimestamp(value: string | Date) {
