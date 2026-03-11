@@ -520,6 +520,55 @@
       }
     },
     {
+      "id": "cohort-calendar",
+      "title": "Cohort Calendar",
+      "description": "Centralized calendar for cohort sessions, brown bags, and community calls.",
+      "lane": "cohort",
+      "type": "link",
+      "url": "/modules/cohort-calendar",
+      "status": "live",
+      "owner": {
+        "name": "Ops Lane",
+        "contact": "discord:@ops"
+      },
+      "requiresAuth": true,
+      "access": {
+        "requiresAuth": true
+      },
+      "tags": [
+        "start-here",
+        "member-tools",
+        "host-tools"
+      ],
+      "presentation": {
+        "mode": "dialog",
+        "trigger": "button",
+        "dialog": {
+          "size": "lg"
+        },
+        "iframe": {
+          "height": 920
+        },
+        "layout": "wide"
+      },
+      "summary": {
+        "source": "api",
+        "title": "Next Event",
+        "endpoint": "/api/modules/cohort-calendar/summary",
+        "layout": "compact",
+        "maxItems": 3,
+        "showTitle": true
+      },
+      "capabilities": {
+        "portalRpc": {
+          "allowedActions": [
+            "auth.getToken",
+            "ui.toast"
+          ]
+        }
+      }
+    },
+    {
       "id": "skills-explorer",
       "title": "Skills Explorer",
       "description": "Visualize cohort skills and explore talent clusters.",
