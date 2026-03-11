@@ -4,12 +4,14 @@ const requirePollViewer = vi.fn();
 const asUntypedAdmin = vi.fn();
 const evaluateEligibility = vi.fn();
 const stateForPoll = vi.fn();
+const loadPollProfileMap = vi.fn();
 
 vi.mock("../lib", () => ({
   requirePollViewer,
   asUntypedAdmin,
   evaluateEligibility,
   stateForPoll,
+  loadPollProfileMap,
   summarizePollCounts: (options: Array<{ id: string }>, votes: Array<{ option_id: string }>) => {
     const counts = new Map<string, number>();
     for (const option of options) counts.set(option.id, 0);
@@ -113,6 +115,7 @@ describe("polling detail route", () => {
     asUntypedAdmin.mockReset();
     evaluateEligibility.mockReset();
     stateForPoll.mockReset();
+    loadPollProfileMap.mockReset();
   });
 
   it("hides totals and option counts until results are visible", async () => {
@@ -120,6 +123,7 @@ describe("polling detail route", () => {
     asUntypedAdmin.mockReturnValue(makeDetailAdmin());
     stateForPoll.mockReturnValue("open");
     evaluateEligibility.mockImplementation((action: string) => action === "view_results");
+    loadPollProfileMap.mockResolvedValue(new Map());
 
     const { GET } = await import("./route");
     const req = new Request("http://localhost/api/modules/polling/poll-1");
