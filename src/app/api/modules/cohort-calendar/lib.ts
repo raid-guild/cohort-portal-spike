@@ -63,6 +63,9 @@ type ProfileRow = {
   avatar_url: string | null;
 };
 
+const DEFAULT_EVENT_FETCH_LIMIT = 250;
+const MAX_EVENT_FETCH_LIMIT = 1000;
+
 export function jsonError(message: string, status = 400) {
   return Response.json({ error: message }, { status });
 }
@@ -101,6 +104,15 @@ export async function requireCalendarViewer(
       .or(`expires_at.is.null,expires_at.gt.${now}`),
   ]);
 
+  if (rolesRes.error || entRes.error) {
+    console.error("Failed to load cohort calendar viewer access", {
+      userId,
+      rolesError: rolesRes.error?.message ?? null,
+      entitlementsError: entRes.error?.message ?? null,
+    });
+    return { error: "Failed to load calendar access.", status: 500 };
+  }
+
   const roles =
     ((rolesRes.data ?? []) as Array<{ role: string }>).map((row) => row.role) ?? [];
   const entitlements =
@@ -131,18 +143,43 @@ function toProfileMap(rows: ProfileRow[]) {
   return new Map(rows.filter((row) => row.user_id).map((row) => [row.user_id, row]));
 }
 
+export function toCalendarEventRecord(
+  row: EventRow,
+  organizer: CalendarEventRecord["organizer"] = null,
+  attendees: CalendarEventRecord["attendees"] = [],
+) {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    eventType: row.event_type,
+    startTime: row.start_time,
+    endTime: row.end_time,
+    meetingUrl: row.meeting_url,
+    createdBy: row.created_by,
+    visibility: row.visibility,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    organizer,
+    attendees,
+  } satisfies CalendarEventRecord;
+}
+
 export async function loadCalendarEvents(
   admin: UntypedAdmin,
   viewer: CalendarViewer,
   opts?: { upcomingOnly?: boolean; limit?: number },
 ) {
+  const requestedLimit = opts?.limit ?? DEFAULT_EVENT_FETCH_LIMIT;
+  const fetchLimit = Math.max(requestedLimit, MAX_EVENT_FETCH_LIMIT);
   let query = admin
     .from("calendar_events")
     .select(
       "id,title,description,event_type,start_time,end_time,meeting_url,created_by,visibility,status,created_at,updated_at",
     )
     .order("start_time", { ascending: true })
-    .limit(opts?.limit ?? 250);
+    .limit(fetchLimit);
 
   if (opts?.upcomingOnly) {
     query = query.eq("status", "scheduled").gte("end_time", new Date().toISOString());
@@ -153,9 +190,9 @@ export async function loadCalendarEvents(
     throw new Error(error.message);
   }
 
-  const visibleRows = ((data ?? []) as EventRow[]).filter((event) =>
-    canReadCalendarEvent(event, viewer),
-  );
+  const visibleRows = ((data ?? []) as EventRow[])
+    .filter((event) => canReadCalendarEvent(event, viewer))
+    .slice(0, requestedLimit);
 
   const creatorIds = Array.from(new Set(visibleRows.map((event) => event.created_by)));
   const attendeeEventIds = visibleRows.map((event) => event.id);
@@ -220,20 +257,9 @@ export async function loadCalendarEvents(
 
   return visibleRows.map((row) => {
     const organizer = organizerProfiles.get(row.created_by);
-    return {
-      id: row.id,
-      title: row.title,
-      description: row.description,
-      eventType: row.event_type,
-      startTime: row.start_time,
-      endTime: row.end_time,
-      meetingUrl: row.meeting_url,
-      createdBy: row.created_by,
-      visibility: row.visibility,
-      status: row.status,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      organizer: organizer
+    return toCalendarEventRecord(
+      row,
+      organizer
         ? {
             userId: organizer.user_id,
             handle: organizer.handle,
@@ -241,11 +267,11 @@ export async function loadCalendarEvents(
             avatarUrl: organizer.avatar_url,
           }
         : null,
-      attendees: (attendeesByEventId.get(row.id) ?? []).sort((a, b) =>
+      (attendeesByEventId.get(row.id) ?? []).sort((a, b) =>
         (a.displayName || a.handle || a.userId).localeCompare(
           b.displayName || b.handle || b.userId,
         ),
       ),
-    } satisfies CalendarEventRecord;
+    );
   });
 }

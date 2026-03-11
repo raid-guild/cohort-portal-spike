@@ -10,6 +10,7 @@ import {
   jsonError,
   loadCalendarEvents,
   requireCalendarViewer,
+  toCalendarEventRecord,
 } from "../lib";
 
 type CreateCalendarEventBody = {
@@ -131,11 +132,13 @@ export async function POST(request: NextRequest) {
     return jsonError(insertRes.error.message, 500);
   }
 
+  const fallbackEvent = toCalendarEventRecord(insertRes.data as Parameters<typeof toCalendarEventRecord>[0]);
+
   try {
     const events = await loadCalendarEvents(admin, viewer, { limit: 250 });
     const event = events.find((item) => item.id === (insertRes.data as { id: string }).id);
-    return Response.json({ event: event ?? insertRes.data }, { status: 201 });
+    return Response.json({ event: event ?? fallbackEvent }, { status: 201 });
   } catch {
-    return Response.json({ event: insertRes.data }, { status: 201 });
+    return Response.json({ event: fallbackEvent }, { status: 201 });
   }
 }

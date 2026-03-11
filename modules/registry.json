@@ -528,8 +528,8 @@
       "url": "/modules/cohort-calendar",
       "status": "live",
       "owner": {
-        "name": "Ops Lane",
-        "contact": "discord:@ops"
+        "name": "@dekanbro",
+        "contact": "discord:@dekanbro"
       },
       "requiresAuth": true,
       "access": {

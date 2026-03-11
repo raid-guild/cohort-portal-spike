@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ProfileIdentity } from "@/components/profile/ProfileIdentity";
 import { supabaseBrowserClient } from "@/lib/supabase/client";
 import {
@@ -91,6 +91,15 @@ function monthLabel(date: Date) {
   });
 }
 
+function getDialogFocusableElements(container: HTMLElement | null) {
+  if (!container) return [];
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter((element) => !element.hasAttribute("disabled"));
+}
+
 export function CohortCalendarModule() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
   const [token, setToken] = useState<string | null>(null);
@@ -104,6 +113,10 @@ export function CohortCalendarModule() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const selectedEventTitleId = useId();
 
   useEffect(() => {
     const loadSession = async () => {
@@ -150,6 +163,54 @@ export function CohortCalendarModule() {
     }
     void loadEvents(token);
   }, [token]);
+
+  useEffect(() => {
+    if (!selectedEvent) {
+      previouslyFocusedRef.current?.focus();
+      previouslyFocusedRef.current = null;
+      return;
+    }
+
+    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+    const target = closeButtonRef.current ?? dialogRef.current;
+    target?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setSelectedEvent(null);
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const focusableElements = getDialogFocusableElements(dialogRef.current);
+      if (!focusableElements.length) {
+        event.preventDefault();
+        dialogRef.current?.focus();
+        return;
+      }
+
+      const currentIndex = focusableElements.indexOf(
+        document.activeElement as HTMLElement,
+      );
+      const nextIndex = event.shiftKey
+        ? currentIndex <= 0
+          ? focusableElements.length - 1
+          : currentIndex - 1
+        : currentIndex === -1 || currentIndex === focusableElements.length - 1
+          ? 0
+          : currentIndex + 1;
+
+      event.preventDefault();
+      focusableElements[nextIndex]?.focus();
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [selectedEvent]);
 
   async function loadRoles(activeToken: string) {
     const res = await fetch("/api/me/roles", {
@@ -709,7 +770,14 @@ export function CohortCalendarModule() {
 
       {selectedEvent ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-background p-6 shadow-2xl">
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={selectedEventTitleId}
+            tabIndex={-1}
+            className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-background p-6 shadow-2xl"
+          >
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-2">
                 <span
@@ -717,13 +785,16 @@ export function CohortCalendarModule() {
                 >
                   {CALENDAR_EVENT_TYPE_META[selectedEvent.eventType].label}
                 </span>
-                <h3 className="text-2xl font-semibold">{selectedEvent.title}</h3>
+                <h3 id={selectedEventTitleId} className="text-2xl font-semibold">
+                  {selectedEvent.title}
+                </h3>
                 <div className="text-sm text-muted-foreground">
                   {formatDate(selectedEvent.startTime)} •{" "}
                   {formatTimeRange(selectedEvent.startTime, selectedEvent.endTime)}
                 </div>
               </div>
               <button
+                ref={closeButtonRef}
                 type="button"
                 onClick={() => setSelectedEvent(null)}
                 className="rounded-full border border-border px-3 py-1 text-sm hover:bg-muted"

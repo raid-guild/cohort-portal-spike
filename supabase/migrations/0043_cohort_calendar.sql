@@ -6,7 +6,7 @@ create table if not exists public.calendar_events (
   start_time timestamptz not null,
   end_time timestamptz not null,
   meeting_url text,
-  created_by uuid not null references auth.users(id) on delete cascade,
+  created_by uuid not null references auth.users(id) on delete restrict,
   visibility text not null default 'public' check (visibility in ('public', 'members', 'cohort')),
   status text not null default 'scheduled' check (status in ('scheduled', 'cancelled')),
   created_at timestamptz not null default now(),
