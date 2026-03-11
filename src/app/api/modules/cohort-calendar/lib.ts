@@ -63,6 +63,11 @@ type ProfileRow = {
   avatar_url: string | null;
 };
 
+type UserRoleRow = {
+  user_id: string;
+  role: string;
+};
+
 export function jsonError(message: string, status = 400) {
   return Response.json({ error: message }, { status });
 }
@@ -185,6 +190,18 @@ export async function loadCalendarEvents(
 
   const attendeeRows = (attendeesRes.data ?? []) as AttendeeRow[];
   const attendeeUserIds = Array.from(new Set(attendeeRows.map((row) => row.user_id)));
+  const creatorRolesRes = creatorIds.length
+    ? await admin
+        .from("user_roles")
+        .select("user_id,role")
+        .in("user_id", creatorIds)
+        .in("role", ["host", "admin"])
+    : { data: [], error: null };
+
+  if (creatorRolesRes.error) {
+    throw new Error(creatorRolesRes.error.message);
+  }
+
   const attendeeProfilesRes = attendeeUserIds.length
     ? await admin
         .from("profiles")
@@ -197,6 +214,9 @@ export async function loadCalendarEvents(
   }
 
   const organizerProfiles = toProfileMap((profilesRes.data ?? []) as ProfileRow[]);
+  const organizerHostIds = new Set(
+    ((creatorRolesRes.data ?? []) as UserRoleRow[]).map((row) => row.user_id),
+  );
   const attendeeProfiles = toProfileMap(
     (attendeeProfilesRes.data ?? []) as ProfileRow[],
   );
@@ -239,6 +259,7 @@ export async function loadCalendarEvents(
             handle: organizer.handle,
             displayName: organizer.display_name,
             avatarUrl: organizer.avatar_url,
+            isHost: organizerHostIds.has(organizer.user_id),
           }
         : null,
       attendees: (attendeesByEventId.get(row.id) ?? []).sort((a, b) =>

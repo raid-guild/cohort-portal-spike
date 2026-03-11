@@ -38,6 +38,7 @@ export type CalendarEventRecord = {
     handle: string;
     displayName: string | null;
     avatarUrl: string | null;
+    isHost: boolean;
   } | null;
   attendees: Array<{
     userId: string;
