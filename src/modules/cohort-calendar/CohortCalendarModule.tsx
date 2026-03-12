@@ -94,7 +94,6 @@ function monthLabel(date: Date) {
 export function CohortCalendarModule() {
   const supabase = useMemo(() => supabaseBrowserClient(), []);
   const [token, setToken] = useState<string | null>(null);
-  const [isHost, setIsHost] = useState(false);
   const [events, setEvents] = useState<CalendarEventRecord[]>([]);
   const [view, setView] = useState<ViewMode>("agenda");
   const [monthCursor, setMonthCursor] = useState(() => startOfMonth(new Date()));
@@ -110,20 +109,12 @@ export function CohortCalendarModule() {
       const { data } = await supabase.auth.getSession();
       const nextToken = data.session?.access_token ?? null;
       setToken(nextToken);
-      if (nextToken) {
-        void loadRoles(nextToken);
-      }
     };
 
     void loadSession();
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       const nextToken = session?.access_token ?? null;
       setToken(nextToken);
-      if (nextToken) {
-        void loadRoles(nextToken);
-      } else {
-        setIsHost(false);
-      }
     });
     return () => sub.subscription.unsubscribe();
   }, [supabase]);
@@ -136,7 +127,6 @@ export function CohortCalendarModule() {
         typeof event.data?.token === "string"
       ) {
         setToken(event.data.token);
-        void loadRoles(event.data.token);
       }
     };
     window.addEventListener("message", handleMessage);
@@ -150,14 +140,6 @@ export function CohortCalendarModule() {
     }
     void loadEvents(token);
   }, [token]);
-
-  async function loadRoles(activeToken: string) {
-    const res = await fetch("/api/me/roles", {
-      headers: { Authorization: `Bearer ${activeToken}` },
-    });
-    const json = (await res.json().catch(() => ({}))) as { roles?: string[] };
-    setIsHost((json.roles ?? []).some((role) => role === "host" || role === "admin"));
-  }
 
   async function loadEvents(activeToken: string) {
     setLoading(true);
@@ -365,6 +347,11 @@ export function CohortCalendarModule() {
                   >
                     {CALENDAR_EVENT_TYPE_META[nextEvent.eventType].label}
                   </span>
+                  {nextEvent.organizer?.isHost ? (
+                    <span className="inline-flex rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-900">
+                      Host
+                    </span>
+                  ) : null}
                   <span className="text-sm text-muted-foreground">
                     {formatDate(nextEvent.startTime)}
                   </span>
@@ -444,6 +431,11 @@ export function CohortCalendarModule() {
                           {formatDate(event.startTime)} •{" "}
                           {formatTimeRange(event.startTime, event.endTime)}
                         </div>
+                        {event.organizer?.isHost ? (
+                          <div className="text-xs font-medium uppercase tracking-wide text-amber-700">
+                            Host event
+                          </div>
+                        ) : null}
                       </div>
                       <div className="space-y-2 text-sm text-muted-foreground">
                         <div>
@@ -539,7 +531,10 @@ export function CohortCalendarModule() {
                             onClick={() => setSelectedEvent(item)}
                             className="block w-full rounded-xl border border-border px-2 py-1 text-left text-[11px] hover:bg-muted"
                           >
-                            <div className="truncate font-medium">{item.title}</div>
+                            <div className="truncate font-medium">
+                              {item.title}
+                              {item.organizer?.isHost ? " [Host]" : ""}
+                            </div>
                             <div className="truncate text-muted-foreground">
                               {new Date(item.startTime).toLocaleTimeString(undefined, {
                                 hour: "numeric",
@@ -563,138 +558,132 @@ export function CohortCalendarModule() {
         </section>
 
         <aside className="space-y-4">
-          {isHost ? (
-            <form
-              onSubmit={submitCreate}
-              className="rounded-2xl border border-border bg-card p-4 shadow-sm"
-            >
-              <div className="mb-3 text-lg font-semibold">Create event</div>
-              <div className="space-y-3">
-                <label className="block text-sm">
-                  <span className="mb-1 block text-muted-foreground">Event Type</span>
-                  <select
-                    value={form.eventType}
+          <form
+            onSubmit={submitCreate}
+            className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+          >
+            <div className="mb-3 text-lg font-semibold">Create event</div>
+            <div className="space-y-3">
+              <label className="block text-sm">
+                <span className="mb-1 block text-muted-foreground">Event Type</span>
+                <select
+                  value={form.eventType}
+                  onChange={(event) =>
+                    applyTemplate(event.target.value as CalendarEventType)
+                  }
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2"
+                >
+                  {CALENDAR_EVENT_TYPES.map((eventType) => (
+                    <option key={eventType} value={eventType}>
+                      {CALENDAR_EVENT_TYPE_META[eventType].label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm">
+                <span className="mb-1 block text-muted-foreground">Title</span>
+                <input
+                  value={form.title}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, title: event.target.value }))
+                  }
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2"
+                />
+              </label>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <label className="block text-sm sm:col-span-3">
+                  <span className="mb-1 block text-muted-foreground">Date</span>
+                  <input
+                    type="date"
+                    value={form.date}
                     onChange={(event) =>
-                      applyTemplate(event.target.value as CalendarEventType)
+                      setForm((current) => ({ ...current, date: event.target.value }))
+                    }
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="mb-1 block text-muted-foreground">Start</span>
+                  <input
+                    type="time"
+                    value={form.startTime}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        startTime: event.target.value,
+                      }))
+                    }
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="mb-1 block text-muted-foreground">End</span>
+                  <input
+                    type="time"
+                    value={form.endTime}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, endTime: event.target.value }))
+                    }
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="mb-1 block text-muted-foreground">Visibility</span>
+                  <select
+                    value={form.visibility}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        visibility: event.target.value as CalendarVisibility,
+                      }))
                     }
                     className="w-full rounded-xl border border-border bg-background px-3 py-2"
                   >
-                    {CALENDAR_EVENT_TYPES.map((eventType) => (
-                      <option key={eventType} value={eventType}>
-                        {CALENDAR_EVENT_TYPE_META[eventType].label}
+                    {CALENDAR_VISIBILITIES.map((visibility) => (
+                      <option key={visibility} value={visibility}>
+                        {visibility}
                       </option>
                     ))}
                   </select>
                 </label>
-                <label className="block text-sm">
-                  <span className="mb-1 block text-muted-foreground">Title</span>
-                  <input
-                    value={form.title}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, title: event.target.value }))
-                    }
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2"
-                  />
-                </label>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <label className="block text-sm sm:col-span-3">
-                    <span className="mb-1 block text-muted-foreground">Date</span>
-                    <input
-                      type="date"
-                      value={form.date}
-                      onChange={(event) =>
-                        setForm((current) => ({ ...current, date: event.target.value }))
-                      }
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2"
-                    />
-                  </label>
-                  <label className="block text-sm">
-                    <span className="mb-1 block text-muted-foreground">Start</span>
-                    <input
-                      type="time"
-                      value={form.startTime}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          startTime: event.target.value,
-                        }))
-                      }
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2"
-                    />
-                  </label>
-                  <label className="block text-sm">
-                    <span className="mb-1 block text-muted-foreground">End</span>
-                    <input
-                      type="time"
-                      value={form.endTime}
-                      onChange={(event) =>
-                        setForm((current) => ({ ...current, endTime: event.target.value }))
-                      }
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2"
-                    />
-                  </label>
-                  <label className="block text-sm">
-                    <span className="mb-1 block text-muted-foreground">Visibility</span>
-                    <select
-                      value={form.visibility}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          visibility: event.target.value as CalendarVisibility,
-                        }))
-                      }
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2"
-                    >
-                      {CALENDAR_VISIBILITIES.map((visibility) => (
-                        <option key={visibility} value={visibility}>
-                          {visibility}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                <label className="block text-sm">
-                  <span className="mb-1 block text-muted-foreground">Meeting Link</span>
-                  <input
-                    value={form.meetingUrl}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        meetingUrl: event.target.value,
-                      }))
-                    }
-                    placeholder="https://zoom.us/..."
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2"
-                  />
-                </label>
-                <label className="block text-sm">
-                  <span className="mb-1 block text-muted-foreground">Description</span>
-                  <textarea
-                    rows={4}
-                    value={form.description}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        description: event.target.value,
-                      }))
-                    }
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2"
-                  />
-                </label>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="w-full rounded-xl bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-60"
-                >
-                  {saving ? "Saving..." : "Create Event"}
-                </button>
               </div>
-            </form>
-          ) : (
-            <div className="rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground shadow-sm">
-              Host users can create and manage calendar events here.
+              <label className="block text-sm">
+                <span className="mb-1 block text-muted-foreground">Meeting Link</span>
+                <input
+                  value={form.meetingUrl}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      meetingUrl: event.target.value,
+                    }))
+                  }
+                  placeholder="https://zoom.us/..."
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2"
+                />
+              </label>
+              <label className="block text-sm">
+                <span className="mb-1 block text-muted-foreground">Description</span>
+                <textarea
+                  rows={4}
+                  value={form.description}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      description: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={saving}
+                className="w-full rounded-xl bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-60"
+              >
+                {saving ? "Saving..." : "Create Event"}
+              </button>
             </div>
-          )}
+          </form>
 
           <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
             <div className="mb-2 text-lg font-semibold">Visible audiences</div>
@@ -717,6 +706,11 @@ export function CohortCalendarModule() {
                 >
                   {CALENDAR_EVENT_TYPE_META[selectedEvent.eventType].label}
                 </span>
+                {selectedEvent.organizer?.isHost ? (
+                  <span className="inline-flex rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-900">
+                    Host
+                  </span>
+                ) : null}
                 <h3 className="text-2xl font-semibold">{selectedEvent.title}</h3>
                 <div className="text-sm text-muted-foreground">
                   {formatDate(selectedEvent.startTime)} •{" "}

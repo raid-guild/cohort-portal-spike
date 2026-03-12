@@ -6,7 +6,6 @@ import {
 } from "@/modules/cohort-calendar/shared";
 import {
   asUntypedAdmin,
-  isHost,
   jsonError,
   loadCalendarEvents,
   requireCalendarViewer,
@@ -57,9 +56,6 @@ export async function POST(request: NextRequest) {
   const viewer = await requireCalendarViewer(request);
   if ("error" in viewer) {
     return jsonError(viewer.error, viewer.status);
-  }
-  if (!isHost(viewer)) {
-    return jsonError("Host access required.", 403);
   }
 
   let body: CreateCalendarEventBody;

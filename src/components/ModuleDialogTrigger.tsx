@@ -124,14 +124,18 @@ export function ModuleDialogTrigger({
         ? "max-w-[min(96vw,1400px)]"
         : "max-w-[min(95vw,1240px)]";
 
+  function handleOpen(event: React.MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    setOpenParams(null);
+    setOpen(true);
+  }
+
   return (
     <>
       <button
         type="button"
-        onClick={() => {
-          setOpenParams(null);
-          setOpen(true);
-        }}
+        onClick={handleOpen}
         className="rounded-lg border border-border px-3 py-2 hover:bg-muted"
       >
         {module.presentation?.actionLabel ?? "Open Module"}
