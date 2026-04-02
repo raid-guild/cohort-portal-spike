@@ -104,7 +104,12 @@ export async function POST(request: NextRequest) {
       return jsonError("Too many requests.", 429);
     }
 
-    const body = (await request.json().catch(() => null)) as
+    const rawBody = await request.json().catch(() => Symbol.for("invalid-json"));
+    if (rawBody === Symbol.for("invalid-json")) {
+      return jsonError("Malformed JSON body.");
+    }
+
+    const body = rawBody as
       | {
           title?: unknown;
           slug?: unknown;
