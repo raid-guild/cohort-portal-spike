@@ -13,6 +13,8 @@ export type DaoBlogPost = {
   summary: string;
   header_image_url: string;
   body_md: string;
+  external_author_name?: string | null;
+  external_author_avatar_url?: string | null;
   status: "draft" | "in_review" | "published";
   published_at: string | null;
   author_user_id: string;
@@ -183,7 +185,7 @@ export async function loadPostById(admin: ReturnType<typeof supabaseAdminClient>
   const { data, error } = await untyped
     .from("dao_blog_posts")
     .select(
-      "id,title,slug,summary,header_image_url,body_md,status,published_at,author_user_id,review_submitted_at,reviewed_at,reviewed_by,review_notes,created_at,updated_at,deleted_at",
+      "id,title,slug,summary,header_image_url,body_md,external_author_name,external_author_avatar_url,status,published_at,author_user_id,review_submitted_at,reviewed_at,reviewed_by,review_notes,created_at,updated_at,deleted_at",
     )
     .eq("id", id)
     .maybeSingle();
