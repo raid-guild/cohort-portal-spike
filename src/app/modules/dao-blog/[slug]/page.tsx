@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { supabaseAdminClient } from "@/lib/supabase/admin";
+import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { ProfileIdentity } from "@/components/profile/ProfileIdentity";
 import { DaoBlogMarkdown } from "@/modules/dao-blog/DaoBlogMarkdown";
 import { DaoBlogReferralForm } from "@/modules/dao-blog/DaoBlogReferralForm";
@@ -13,6 +14,8 @@ type Post = {
   summary: string;
   header_image_url: string;
   body_md: string;
+  external_author_name: string | null;
+  external_author_avatar_url: string | null;
   published_at: string | null;
   author_user_id: string;
   author: {
@@ -46,7 +49,9 @@ async function loadPublishedPost(slug: string): Promise<Post | null> {
 
   const { data, error } = await admin
     .from("dao_blog_posts")
-    .select("id,title,slug,summary,header_image_url,body_md,published_at,author_user_id")
+    .select(
+      "id,title,slug,summary,header_image_url,body_md,external_author_name,external_author_avatar_url,published_at,author_user_id",
+    )
     .eq("slug", slug)
     .eq("status", "published")
     .is("deleted_at", null)
@@ -152,7 +157,18 @@ export default async function DaoBlogPostPage({
         </p>
         <h1 className="text-4xl font-semibold leading-tight">{post.title}</h1>
         <p className="text-sm text-muted-foreground">{post.summary}</p>
-        {post.author ? (
+        {post.external_author_name ? (
+          <div className="flex items-center gap-3">
+            <ProfileAvatar
+              name={post.external_author_name}
+              url={post.external_author_avatar_url}
+              size={32}
+            />
+            <div className="min-w-0">
+              <div className="text-sm font-semibold">{post.external_author_name}</div>
+            </div>
+          </div>
+        ) : post.author ? (
           <a href={`/people/${post.author.handle}`} className="inline-block">
             <ProfileIdentity
               handle={post.author.handle}
