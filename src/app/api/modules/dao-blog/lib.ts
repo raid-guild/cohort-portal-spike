@@ -13,8 +13,8 @@ export type DaoBlogPost = {
   summary: string;
   header_image_url: string;
   body_md: string;
-  external_author_name: string | null;
-  external_author_avatar_url: string | null;
+  external_author_name?: string | null;
+  external_author_avatar_url?: string | null;
   status: "draft" | "in_review" | "published";
   published_at: string | null;
   author_user_id: string;

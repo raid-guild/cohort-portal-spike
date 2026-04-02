@@ -8,6 +8,9 @@ const INGEST_USER_ID = process.env.DAO_BLOG_INGEST_USER_ID ?? "";
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_MAX_REQUESTS_PER_IP = 30;
 const RATE_MAX_REQUESTS_PER_KEY = 120;
+const RATE_CLEANUP_INTERVAL = 100;
+const MAX_AUTHOR_NAME_LENGTH = 120;
+const MAX_AUTHOR_AVATAR_URL_LENGTH = 2048;
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ALLOWED_IMAGE_HOSTS = new Set(
@@ -26,6 +29,7 @@ const ALLOWED_IMAGE_HOSTS = new Set(
 
 const ipRateBuckets = new Map<string, number[]>();
 const keyRateBuckets = new Map<string, number[]>();
+let rateCheckCount = 0;
 
 function getClientIp(request: NextRequest) {
   const forwardedFor = request.headers.get("x-forwarded-for");
@@ -37,18 +41,22 @@ function getClientIp(request: NextRequest) {
 
 function rateLimitCheck(bucketKey: string, maxRequests: number, map: Map<string, number[]>) {
   const now = Date.now();
-  for (const [key, timestamps] of map.entries()) {
-    const recentEntries = timestamps.filter((timestamp) => now - timestamp < RATE_WINDOW_MS);
-    if (recentEntries.length === 0) {
-      map.delete(key);
-      continue;
-    }
-    if (recentEntries.length !== timestamps.length) {
-      map.set(key, recentEntries);
+  rateCheckCount += 1;
+
+  if (rateCheckCount % RATE_CLEANUP_INTERVAL === 0) {
+    for (const [key, timestamps] of map.entries()) {
+      const recentEntries = timestamps.filter((timestamp) => now - timestamp < RATE_WINDOW_MS);
+      if (recentEntries.length === 0) {
+        map.delete(key);
+        continue;
+      }
+      if (recentEntries.length !== timestamps.length) {
+        map.set(key, recentEntries);
+      }
     }
   }
 
-  const bucket = map.get(bucketKey) ?? [];
+  const bucket = (map.get(bucketKey) ?? []).filter((timestamp) => now - timestamp < RATE_WINDOW_MS);
   if (bucket.length >= maxRequests) {
     map.set(bucketKey, bucket);
     return false;
@@ -134,6 +142,14 @@ export async function POST(request: NextRequest) {
     if (!authorName) {
       return jsonError("author_name is required.");
     }
+    if (authorName.length > MAX_AUTHOR_NAME_LENGTH) {
+      return jsonError(`author_name must be ${MAX_AUTHOR_NAME_LENGTH} characters or fewer.`);
+    }
+    if (authorAvatarUrl && authorAvatarUrl.length > MAX_AUTHOR_AVATAR_URL_LENGTH) {
+      return jsonError(
+        `author_avatar_url must be ${MAX_AUTHOR_AVATAR_URL_LENGTH} characters or fewer.`,
+      );
+    }
     if (headerImageUrl && !isAllowedHeaderImageUrl(headerImageUrl)) {
       return jsonError("header_image_url must be an https URL from an allowed image host.");
     }
@@ -180,7 +196,11 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error || !data) {
-      if ((error as { code?: string } | null)?.code === "23505") {
+      if (
+        (error as { code?: string; message?: string | null } | null)?.code === "23505" ||
+        error?.message?.toLowerCase().includes("duplicate") ||
+        error?.message?.includes("dao_blog_posts_slug_key")
+      ) {
         return jsonError("Slug already exists.", 409);
       }
       return jsonError(error?.message || "Failed to create post.", 500);
