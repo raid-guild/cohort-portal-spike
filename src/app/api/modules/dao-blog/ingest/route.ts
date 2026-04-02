@@ -10,6 +10,19 @@ const RATE_MAX_REQUESTS_PER_IP = 30;
 const RATE_MAX_REQUESTS_PER_KEY = 120;
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ALLOWED_IMAGE_HOSTS = new Set(
+  [
+    "images.unsplash.com",
+    (() => {
+      try {
+        const raw = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        return raw ? new URL(raw).hostname : null;
+      } catch {
+        return null;
+      }
+    })(),
+  ].filter((value): value is string => Boolean(value)),
+);
 
 const ipRateBuckets = new Map<string, number[]>();
 const keyRateBuckets = new Map<string, number[]>();
@@ -24,14 +37,23 @@ function getClientIp(request: NextRequest) {
 
 function rateLimitCheck(bucketKey: string, maxRequests: number, map: Map<string, number[]>) {
   const now = Date.now();
+  for (const [key, timestamps] of map.entries()) {
+    const recentEntries = timestamps.filter((timestamp) => now - timestamp < RATE_WINDOW_MS);
+    if (recentEntries.length === 0) {
+      map.delete(key);
+      continue;
+    }
+    if (recentEntries.length !== timestamps.length) {
+      map.set(key, recentEntries);
+    }
+  }
+
   const bucket = map.get(bucketKey) ?? [];
-  const recent = bucket.filter((timestamp) => now - timestamp < RATE_WINDOW_MS);
-  if (recent.length >= maxRequests) {
-    map.set(bucketKey, recent);
+  if (bucket.length >= maxRequests) {
+    map.set(bucketKey, bucket);
     return false;
   }
-  recent.push(now);
-  map.set(bucketKey, recent);
+  map.set(bucketKey, [...bucket, now]);
   return true;
 }
 
@@ -45,6 +67,17 @@ function summarizeMarkdown(markdown: string) {
 
   if (!plainText) return null;
   return plainText.slice(0, 280);
+}
+
+function isAllowedHeaderImageUrl(value: string) {
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return false;
+  }
+
+  return parsed.protocol === "https:" && ALLOWED_IMAGE_HOSTS.has(parsed.hostname);
 }
 
 export async function POST(request: NextRequest) {
@@ -95,6 +128,9 @@ export async function POST(request: NextRequest) {
 
     if (!authorName) {
       return jsonError("author_name is required.");
+    }
+    if (headerImageUrl && !isAllowedHeaderImageUrl(headerImageUrl)) {
+      return jsonError("header_image_url must be an https URL from an allowed image host.");
     }
 
     const validationError = validatePostPayload({

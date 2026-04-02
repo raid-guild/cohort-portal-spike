@@ -16,3 +16,5 @@ publish workflow.
 - Publish lifecycle is `draft -> in_review -> published`, with host approval/rejection transitions.
 - External systems can create posts through `/api/modules/dao-blog/ingest` using `x-dao-blog-api-key`.
 - Ingested posts support optional external author display fields stored directly on the post.
+- External ingest also requires `DAO_BLOG_INGEST_API_KEY` and `DAO_BLOG_INGEST_USER_ID` in the server environment.
+- `DAO_BLOG_INGEST_USER_ID` must be a valid Supabase auth user UUID used as the internal owner for ingested posts.
