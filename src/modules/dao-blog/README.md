@@ -18,3 +18,4 @@ publish workflow.
 - Ingested posts support optional external author display fields stored directly on the post.
 - External ingest also requires `DAO_BLOG_INGEST_API_KEY` and `DAO_BLOG_INGEST_USER_ID` in the server environment.
 - `DAO_BLOG_INGEST_USER_ID` must be a valid Supabase auth user UUID used as the internal owner for ingested posts.
+- The current ingest rate limit is in-memory and per-process, so it is best-effort only in serverless or multi-instance deployments.

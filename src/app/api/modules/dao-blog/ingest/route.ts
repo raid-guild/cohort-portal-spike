@@ -132,6 +132,9 @@ export async function POST(request: NextRequest) {
     if (headerImageUrl && !isAllowedHeaderImageUrl(headerImageUrl)) {
       return jsonError("header_image_url must be an https URL from an allowed image host.");
     }
+    if (authorAvatarUrl && !isAllowedHeaderImageUrl(authorAvatarUrl)) {
+      return jsonError("author_avatar_url must be an https URL from an allowed image host.");
+    }
 
     const validationError = validatePostPayload({
       title,
@@ -172,10 +175,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error || !data) {
-      if (
-        error?.message.toLowerCase().includes("duplicate") ||
-        error?.message.includes("dao_blog_posts_slug_key")
-      ) {
+      if ((error as { code?: string } | null)?.code === "23505") {
         return jsonError("Slug already exists.", 409);
       }
       return jsonError(error?.message || "Failed to create post.", 500);
